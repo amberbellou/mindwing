@@ -151,6 +151,8 @@ let state = "title";           // title | play | hit | pause | clear | over | wi
 let level = 0, score = 0, hearts = 3, bursts = 3;
 let best = 0;
 try { best = parseInt(localStorage.getItem("mindwing_best") || "0", 10) || 0; } catch(e){}
+let startLevel = 0;   // ?level=1..4 lets reviewers jump straight to a level
+try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10); if (q >= 1 && q <= LEVELS.length) startLevel = q - 1; } catch(e){}
 let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
 let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
 let lastSpace = 0;
@@ -229,7 +231,7 @@ function lessonCard(i){
 function showTitle(){
   state = "title"; score = 0; boss = null;
   eagles = []; fires = []; bullets = []; motes = []; parts = [];
-  showCards([...titleCards(), lessonCard(0)], () => beginLevel(0));
+  showCards([...titleCards(), lessonCard(startLevel)], () => beginLevel(startLevel));
 }
 function beginLevel(i){
   level = i;
@@ -240,7 +242,7 @@ function beginLevel(i){
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; lastSpace = 0;
   levelStartScore = score;
-  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:70, maxhp:70, t:0, fireT:2.4, volley:0, spawnT:3.5, entered:false, hurt:0, enraged:false } : null;
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:55, maxhp:55, t:0, fireT:2.4, volley:0, spawnT:3.5, entered:false, hurt:0, enraged:false } : null;
   banner = { text:`Level ${i+1} · ${cfg.name}`, sub:`Concept: ${cfg.concept}`, t:0, max:2.4 };
   state = "play";
 }
@@ -516,14 +518,14 @@ function update(dt){
         if (boss.volley % 4 === 0){
           for (let k=0;k<10;k++){
             const a = k/10*Math.PI*2;
-            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150, vy:Math.sin(a)*150, r:8, t:0 });
+            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*135, vy:Math.sin(a)*135, r:8, t:0 });
           }
         } else {
           for (const off of [-0.24, 0, 0.24]){
-            fires.push({ x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*225, vy:Math.sin(base+off)*225, r:8, t:0 });
+            fires.push({ x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205, vy:Math.sin(base+off)*205, r:8, t:0 });
           }
         }
-        boss.fireT = boss.enraged ? rand(0.9, 1.3) : rand(1.4, 1.9);
+        boss.fireT = boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0);
       }
     }
     if (inv <= 0 && dist2(boss.x,boss.y,player.x,player.y) < (boss.r+player.r-6)*(boss.r+player.r-6)){

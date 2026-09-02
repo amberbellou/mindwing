@@ -49,6 +49,8 @@ It is a single `index.html` file with no dependencies, no build step, no network
 
 Sound is generated with the Web Audio API (no audio files). Press M to mute.
 
+**For reviewers with limited time:** add `?level=2`, `?level=3`, or `?level=4` to the URL to start at that level (with its lesson card). For example: https://amberbellou.github.io/mindwing/?level=4 jumps to the boss.
+
 ## Design notes
 
 - Everything is drawn procedurally on a `<canvas>` (the fairy, the eagles, the mechanical boss, fireballs, particles, parallax sky).
