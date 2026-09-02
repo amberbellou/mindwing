@@ -16,9 +16,9 @@
   html,body{margin:0;padding:0;height:100%;background:#0b0820;overflow:hidden;
     font-family:"Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0820;}
-  canvas{display:block;touch-action:none;}
+  canvas{display:block;touch-action:none;-webkit-touch-callout:none;}
   #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:rgba(8,6,22,.80);z-index:10;padding:18px;box-sizing:border-box;}
+    background:rgba(8,6,22,.80);z-index:10;padding:18px;box-sizing:border-box;touch-action:pan-y;}
   #ov.hidden{display:none;}
   #card{max-width:660px;width:100%;max-height:92vh;overflow-y:auto;background:var(--card-bg);
     border:1px solid #3a2f6e;border-radius:18px;padding:28px 32px;color:var(--ink);
@@ -47,11 +47,21 @@
     #card h2{font-size:22px;}
     #card p, #card ul{font-size:15px;}
   }
+  @media (max-height:540px){
+    #card{padding:14px 20px;max-height:94vh;}
+    #card .big{font-size:34px;}
+    #card .sub{font-size:15px;margin-bottom:6px;}
+    #card h2{font-size:20px;margin-bottom:8px;}
+    #card p, #card ul{font-size:14px;margin-bottom:8px;}
+    #card ul li{margin-bottom:3px;}
+    #card .note{padding:8px 12px;margin-top:10px;font-size:14px;}
+    #card .hint{margin-top:10px;}
+  }
 </style>
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="960" height="540"></canvas></div>
-<div id="ov" class="hidden"><div id="card"></div></div>
+<div id="ov" class="hidden"><div id="card" role="dialog" aria-live="polite"></div></div>
 <script>
 (() => {
 "use strict";
@@ -160,7 +170,7 @@ let startLevel = 0;   // ?level=1..4 lets reviewers jump straight to a level
 try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10); if (q >= 1 && q <= LEVELS.length) startLevel = q - 1; } catch(e){}
 let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
 let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
-let lastSpace = 0;
+let hitBlink = false;
 const player = { x:140, y:H/2, r:15, cool:0, wing:0 };
 let bullets = [], eagles = [], fires = [], parts = [], motes = [];
 let boss = null;
@@ -207,7 +217,8 @@ function advanceCard(){
     if (d) d();
   }
 }
-ov.addEventListener("pointerdown", e => { e.preventDefault(); ensureAudio(); advanceCard(); });
+// "click" rather than "pointerdown": a finger scrolling a long card on a small screen must not advance it
+ov.addEventListener("click", e => { e.preventDefault(); ensureAudio(); advanceCard(); });
 
 /* ---------- flow ---------- */
 function titleCards(){
@@ -223,9 +234,9 @@ function titleCards(){
     { tag:"How to fly", h:"Controls",
       list:[ "<b>Arrow keys / WASD</b>: fly",
              "<b>SPACE</b> (hold or tap): shoot sparks",
-             "<b>Double-tap SPACE</b>: Clarity Burst, blanks everything around you (limited charges ✦)",
+             "<b>Double-tap SPACE</b> (or press <b>X</b>): Clarity Burst, blanks everything around you (limited charges ✦)",
              "<b>Touch</b>: drag to fly (auto-fire), double-tap for Clarity Burst",
-             "<b>P</b>: pause &nbsp;·&nbsp; <b>M</b>: mute" ],
+             "<b>P</b> or <b>Esc</b>: pause &nbsp;·&nbsp; <b>M</b>: mute" ],
       note:"<b>Tip:</b> purple <b>insight motes</b> dropped by eagles refill your Clarity Bursts. Insight always does." }
   ];
 }
@@ -245,9 +256,10 @@ function beginLevel(i){
   tookDamage = false;
   bullets = []; eagles = []; fires = []; motes = []; parts = [];
   player.x = 140; player.y = H/2; player.cool = 0;
-  inv = 1.2; spawnT = 1.0; lastSpace = 0;
+  inv = 1.2; spawnT = 1.0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
   levelStartScore = score;
-  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:55, maxhp:55, t:0, fireT:2.4, volley:0, spawnT:3.5, entered:false, hurt:0, enraged:false } : null;
+  hitBlink = false;
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:55, maxhp:55, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false } : null;
   banner = { text:`Level ${i+1} · ${cfg.name}`, sub:`Concept: ${cfg.concept}`, t:0, max:2.4 };
   state = "play";
 }
@@ -270,7 +282,7 @@ function hitFactCard(){
 }
 function onPlayerHit(){
   if (inv > 0) return;
-  hearts--; tookDamage = true; shake = 9; sfx.hit();
+  hearts--; tookDamage = true; hitBlink = true; shake = 9; sfx.hit();
   burstParticles(player.x, player.y, "#ff5a76", 22);
   fires = fires.filter(f => dist2(f.x,f.y,player.x,player.y) > 160*160);
   if (hearts <= 0){ gameOver(); return; }
@@ -313,51 +325,62 @@ function pauseGame(){
 
 /* ---------- input ---------- */
 const keys = {};
-let touchActive = false, touchX = 0, touchY = 0, lastTap = 0;
+let touchActive = false, touchX = 0, touchY = 0, usedTouch = false;
+// Last two press times for SPACE and for touch taps. A burst needs an *isolated* double-tap:
+// two quick presses preceded by a pause, so mashing the fire key does not burn charges.
+let tapT1 = -1e9, tapT2 = -1e9, ptT1 = -1e9, ptT2 = -1e9;
+const isolatedDoubleTap = (now, t1, t2, gap) => now - t1 < gap && t1 - t2 > 350;
 window.addEventListener("keydown", e => {
-  if ([" ","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) e.preventDefault();
+  const key = e.key || "";
+  if ([" ","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(key)) e.preventDefault();
   ensureAudio();
   if (e.repeat) return;
-  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const k = key.length === 1 ? key.toLowerCase() : key;
   keys[k] = true;
   if (overlayOpen){
-    if (e.key === " " || e.key === "Enter") advanceCard();
+    if (key === " " || key === "Enter") advanceCard();
     return;
   }
-  if (k === "p"){ pauseGame(); return; }
-  if (k === "m"){ muted = !muted; return; }
-  if (e.key === " " && state === "play"){
+  if (k === "p" || key === "Escape"){ pauseGame(); return; }
+  if (k === "m"){ muted = !muted; banner = { text: muted ? "SOUND OFF" : "SOUND ON", sub:"", t:0, max:1 }; return; }
+  if ((k === "x" || k === "b") && state === "play"){ tryBurst(); return; }
+  if (key === " " && state === "play"){
     const now = performance.now();
-    if (now - lastSpace < 270){ tryBurst(); lastSpace = 0; }
-    else lastSpace = now;
+    if (isolatedDoubleTap(now, tapT1, tapT2, 270)){ tryBurst(); tapT1 = tapT2 = -1e9; }
+    else { tapT2 = tapT1; tapT1 = now; }
   }
 });
 window.addEventListener("keyup", e => {
-  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const key = e.key || "";
+  const k = key.length === 1 ? key.toLowerCase() : key;
   keys[k] = false;
 });
 function canvasPoint(e){
   const r = canvas.getBoundingClientRect();
-  return { x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H };
+  if (!(r.width > 0) || !(r.height > 0)) return null;
+  const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  return (Number.isFinite(x) && Number.isFinite(y)) ? { x, y } : null;
 }
 canvas.addEventListener("pointerdown", e => {
   e.preventDefault(); ensureAudio();
   if (overlayOpen) return;
   const p = canvasPoint(e);
+  if (!p) return;
+  if (e.pointerType === "touch") usedTouch = true;
   touchActive = true; touchX = p.x; touchY = p.y;
   try { canvas.setPointerCapture(e.pointerId); } catch(err){}
   const now = performance.now();
-  if (now - lastTap < 300 && state === "play") tryBurst();
-  lastTap = now;
+  if (state === "play" && isolatedDoubleTap(now, ptT1, ptT2, 300)){ tryBurst(); ptT1 = ptT2 = -1e9; }
+  else { ptT2 = ptT1; ptT1 = now; }
 });
 canvas.addEventListener("pointermove", e => {
   if (!touchActive) return;
   const p = canvasPoint(e);
-  touchX = p.x; touchY = p.y;
+  if (p){ touchX = p.x; touchY = p.y; }
 });
 window.addEventListener("pointerup", () => { touchActive = false; });
 window.addEventListener("pointercancel", () => { touchActive = false; });
-window.addEventListener("blur", () => { touchActive = false; for (const k in keys) keys[k] = false; });
+window.addEventListener("blur", () => { touchActive = false; for (const k in keys) keys[k] = false; pauseGame(); });
 window.addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("visibilitychange", () => { if (document.hidden) pauseGame(); });
 
@@ -368,6 +391,10 @@ function shoot(){
 }
 function tryBurst(){
   if (bursts <= 0 || state !== "play") return;
+  if (!eagles.length && !fires.length && !(boss && boss.entered)){
+    banner = { text:"", sub:"Clarity Burst: nothing to clear yet", t:0, max:0.9 };
+    return;   // never spend a charge on an empty sky
+  }
   bursts--; flash = 1; shake = 6; sfx.burst();
   fires = [];
   for (const e of eagles){
@@ -444,6 +471,7 @@ function update(dt){
   if (state === "clear"){
     clearT -= dt;
     for (let i=fires.length-1;i>=0;i--){ fires[i].x += fires[i].vx*dt; fires[i].y += fires[i].vy*dt; }
+    for (let i=bullets.length-1;i>=0;i--){ bullets[i].x += 560*dt; if (bullets[i].x > W + 20) bullets.splice(i,1); }
     if (clearT <= 0){ state = "postclear"; afterClear(); }
     return;
   }
@@ -451,6 +479,7 @@ function update(dt){
 
   const cfg = LEVELS[level];
   /* player */
+  if (!Number.isFinite(player.x) || !Number.isFinite(player.y)){ player.x = 140; player.y = H/2; }
   const sp = 275;
   let dx = 0, dy = 0;
   if (keys["ArrowLeft"] || keys["a"]) dx -= 1;
@@ -612,7 +641,7 @@ function drawBackground(){
   ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
 }
 function drawFairy(){
-  const blink = inv > 0 && Math.floor(tGlobal*14) % 2 === 0;
+  const blink = hitBlink && inv > 0 && Math.floor(tGlobal*14) % 2 === 0;
   if (blink && state === "play") return;
   const x = player.x, y = player.y + Math.sin(tGlobal*3)*2.5;
   ctx.save(); ctx.translate(x, y);
@@ -752,7 +781,7 @@ function drawHUD(){
   }
   ctx.fillStyle = "rgba(255,255,255,0.45)";
   ctx.font = "10px sans-serif";
-  ctx.fillText("2x SPACE = CLARITY BURST", 16, 64);
+  ctx.fillText(usedTouch ? "DOUBLE-TAP = CLARITY BURST" : "2x SPACE or X = CLARITY BURST", 16, 64);
   /* level + progress */
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.85)";
@@ -787,7 +816,7 @@ function drawBanner(){
   ctx.fillStyle = "#ffffff";
   ctx.font = "800 34px sans-serif";
   ctx.shadowColor = "#9d7bff"; ctx.shadowBlur = 24;
-  ctx.fillText(banner.text, W/2, H/2 - 40);
+  if (banner.text) ctx.fillText(banner.text, W/2, H/2 - 40);
   if (banner.sub){
     ctx.font = "600 17px sans-serif";
     ctx.fillStyle = "#ffd166";
@@ -831,9 +860,10 @@ let last = performance.now();
 function frame(now){
   let dt = (now - last) / 1000;
   last = now;
+  if (!(dt > 0)) dt = 0;
   if (dt > 0.033) dt = 0.033;
-  update(dt);
-  draw();
+  try { update(dt); draw(); }
+  catch(err){ console.error("Mindwing frame error:", err); }   // one bad frame must not freeze the game
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

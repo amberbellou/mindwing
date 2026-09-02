@@ -35,11 +35,13 @@ Language is pitched for roughly ages 11 and up. It avoids jargon where possible 
 |---|---|
 | Arrow keys / WASD | Fly |
 | SPACE (tap or hold) | Shoot sparks |
-| Double-tap SPACE | Clarity Burst: blanks the surroundings, clearing all eagles and fireballs on screen (limited charges, shown as ✦) |
+| Double-tap SPACE (or X) | Clarity Burst: blanks the surroundings, clearing all eagles and fireballs on screen (limited charges, shown as ✦) |
 | Touch: drag | Fly (auto-fires while touching) |
 | Touch: double-tap | Clarity Burst |
-| P | Pause |
+| P or Esc | Pause |
 | M | Mute |
+
+The double-tap has to be a deliberate one (a short pause, then two quick taps), so players who mash the fire key do not burn their charges by accident. A burst is never spent on an empty sky.
 
 Purple **insight motes** dropped by defeated eagles refill Clarity Burst charges. Finishing a level without taking damage earns a focus bonus.
 
@@ -50,6 +52,14 @@ It is a single `index.html` file with no dependencies, no build step, no network
 Sound is generated with the Web Audio API (no audio files). Press M to mute.
 
 **For reviewers with limited time:** add `?level=2`, `?level=3`, or `?level=4` to the URL to start at that level (with its lesson card). For example: https://amberbellou.github.io/mindwing/?level=4 jumps to the boss.
+
+## Testing
+
+`test/fuzz.mjs` runs the real game script headlessly in Node (no browser needed) with a stubbed canvas. It hammers the game with random input (keys, taps, drags, pauses, focus loss, resizes, malformed events) for thousands of frames while checking invariants every frame, then plays the game for real with a simple aimbot to prove it can be completed from level 1 and from the `?level=4` shortcut.
+
+```bash
+node test/fuzz.mjs
+```
 
 ## Design notes
 
