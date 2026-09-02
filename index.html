@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mindwing</title>
+<meta name="description" content="A tiny browser game about how AI works, and how to keep your mind your own. Tokens, neural networks, retention models, cognitive offloading, and cognitive drift.">
+<style>
+  :root{
+    --ink:#f2edff;
+    --dim:#b9aee0;
+    --accent:#ffd166;
+    --accent2:#9d7bff;
+    --card-bg:#171233;
+  }
+  html,body{margin:0;padding:0;height:100%;background:#0b0820;overflow:hidden;
+    font-family:"Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0820;}
+  canvas{display:block;touch-action:none;}
+  #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,6,22,.80);z-index:10;padding:18px;box-sizing:border-box;}
+  #ov.hidden{display:none;}
+  #card{max-width:660px;width:100%;max-height:92vh;overflow-y:auto;background:var(--card-bg);
+    border:1px solid #3a2f6e;border-radius:18px;padding:28px 32px;color:var(--ink);
+    box-shadow:0 0 60px rgba(157,123,255,.25), inset 0 0 40px rgba(157,123,255,.05);
+    line-height:1.55;-webkit-user-select:none;user-select:none;cursor:pointer;}
+  #card .big{font-size:52px;font-weight:800;letter-spacing:2px;margin:0 0 4px 0;
+    background:linear-gradient(90deg,#ffd166,#ff8fd8,#9d7bff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;}
+  #card .tag{color:var(--accent);font-size:13px;font-weight:700;text-transform:uppercase;
+    letter-spacing:2.5px;margin:0 0 6px 0;}
+  #card h2{margin:0 0 14px 0;font-size:26px;color:var(--ink);}
+  #card p{margin:0 0 12px 0;font-size:16px;color:var(--dim);}
+  #card p strong{color:var(--ink);}
+  #card .note{background:rgba(157,123,255,.12);border-left:3px solid var(--accent2);
+    border-radius:0 10px 10px 0;padding:10px 14px;margin:16px 0 4px 0;font-size:15px;color:var(--ink);}
+  #card .note b{color:var(--accent2);}
+  #card .sub{text-align:center;color:var(--dim);font-size:17px;margin-bottom:10px;}
+  #card ul{margin:0 0 12px 0;padding-left:20px;color:var(--dim);font-size:16px;}
+  #card ul li{margin-bottom:6px;}
+  #card ul b{color:var(--ink);}
+  #card .hint{margin-top:18px;text-align:center;font-size:13px;color:var(--accent);
+    letter-spacing:1px;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="960" height="540"></canvas></div>
+<div id="ov" class="hidden"><div id="card"></div></div>
+<script>
+(() => {
+"use strict";
+const W = 960, H = 540;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const ov = document.getElementById("ov");
+const cardEl = document.getElementById("card");
+
+/* ---------- responsive scaling ---------- */
+let dpr = 1;
+function resize(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + "px";
+  canvas.style.height = (H * scale) + "px";
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ---------- audio (tiny synth, no assets) ---------- */
+let actx = null, muted = false;
+function ensureAudio(){
+  if (!actx){
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ actx = null; }
+  }
+  if (actx && actx.state === "suspended") actx.resume();
+}
+function tone(freq, dur, type, vol, slide){
+  if (muted || !actx) return;
+  try{
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, actx.currentTime);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), actx.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.1, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur + 0.02);
+  }catch(e){}
+}
+const sfx = {
+  shoot: () => tone(920, 0.07, "square", 0.045, -420),
+  eagleDown: () => { tone(330, 0.16, "triangle", 0.12, 240); tone(660, 0.1, "sine", 0.06, 300); },
+  hit: () => tone(150, 0.35, "sawtooth", 0.18, -80),
+  burst: () => { tone(90, 0.5, "sawtooth", 0.2, -40); tone(1250, 0.45, "sine", 0.09, -600); },
+  mote: () => tone(1320, 0.14, "sine", 0.11, 320),
+  card: () => tone(660, 0.09, "sine", 0.07, 120),
+  bossHit: () => tone(220, 0.08, "square", 0.07, -60),
+  win: () => { tone(523, 0.18, "sine", 0.12); setTimeout(()=>tone(659,0.18,"sine",0.12),140); setTimeout(()=>tone(784,0.3,"sine",0.12),280); }
+};
+
+/* ---------- lesson & message content ---------- */
+const LESSONS = [
+  { tag:"Lesson 1 of 4 · How AI reads", h:"Tokens",
+    p:[ "Language AIs like chatbots do not read whole words or ideas. They chop text into <strong>tokens</strong>: little chunks like “fair”, “y”, or “flying”. Then they do one thing, over and over: <strong>predict the most likely next token</strong>, based on patterns in the huge pile of text they were trained on.",
+        "That means a chatbot is not looking up facts or weighing what is true. It is continuing a pattern. Often the pattern lands on something true. Sometimes it lands on something that only <em>sounds</em> true." ],
+    note:"<b>Field note:</b> When an answer really matters, verify it in a source you trust. The model predicts text. You judge truth." },
+  { tag:"Lesson 2 of 4 · What is inside", h:"Neural Networks",
+    p:[ "Under the hood, a language model is a <strong>neural network</strong>: billions of tiny number-dials called <strong>weights</strong>, arranged in layers. During training, the network guesses the next token, gets corrected, and nudges its dials. Repeat that an astronomical number of times, and the dials come to encode patterns of grammar, facts, style, and reasoning-like behavior.",
+        "No single dial “knows” anything. Knowledge is smeared across all of them. That is why a model can be brilliant and confidently wrong in the same sentence." ],
+    note:"<b>Field note:</b> Treat AI output as a strong first draft from a pattern machine, not a final answer from an expert." },
+  { tag:"Lesson 3 of 4 · Why it will not let go", h:"Retention Models",
+    p:[ "Many apps, including AI apps, are tuned with <strong>retention models</strong>: systems that measure what keeps you coming back, and serve you more of it. Streaks, endless feeds, notifications, and chatbots that always have one more question for you are not accidents. They are optimized.",
+        "The goal of that optimization is <strong>your time</strong>, not your growth." ],
+    note:"<b>Field note:</b> Decide what you came to do before you open the app. When the task is done, leave. That one habit defeats most retention tricks." },
+  { tag:"Lesson 4 of 4 · The quiet harms", h:"Offloading & Drift",
+    p:[ "<strong>Cognitive offloading</strong> is letting a tool remember or think for you. Sometimes that is smart. Calculators exist for a reason. But skills you never practice fade: if AI writes every draft and answers every question, your own recall, writing, and problem-solving weaken.",
+        "<strong>Cognitive drift</strong> is slower and sneakier. Your attention, opinions, and even your writing style slide toward whatever the machine feeds you, until your goals are not quite your own anymore." ],
+    note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map." }
+];
+
+const HIT_FACTS = [
+  "Tokens, not thoughts: a chatbot writes by predicting the next chunk of text, one token at a time.",
+  "Models can hallucinate: fluent, confident text that is simply wrong. Verify what matters.",
+  "A neural network learns by nudging billions of number-dials called weights. Nobody hand-writes its answers.",
+  "Retention systems test what keeps you scrolling. If you feel unable to stop, that is design at work, not weakness.",
+  "Offloading check: could you still do this without the tool? If not, practice it on your own sometimes.",
+  "Drift check: is this still what you opened the app to do?",
+  "An AI model has no goals of its own, but the company tuning it has metrics. Ask what the metric wants from you.",
+  "Your attention is the product. Spend it like money.",
+  "Explaining an answer back in your own words beats copying it. That is how memory forms.",
+  "Chatbots mirror you. If your judgment starts sounding like the bot, step back and think on paper."
+];
+let hitFactIdx = 0;
+
+const LEVELS = [
+  { name:"Token Thicket", concept:"Tokens", quota:8,  spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
+    sky:["#141034","#3b2a6d","#8a4f8f"] },
+  { name:"Pattern Canopy", concept:"Neural Networks", quota:12, spawnEvery:1.4, types:["glider","zigzag"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
+    sky:["#0e1c3a","#274b7a","#5a8fae"] },
+  { name:"Retention Ridge", concept:"Retention Models", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+    sky:["#2a1233","#6b2d5e","#c65f52"] },
+  { name:"The Engine's Roost", concept:"Offloading & Drift", boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
+    sky:["#1a0b12","#4a1626","#8f2f2a"] }
+];
+
+/* ---------- game state ---------- */
+let state = "title";           // title | play | hit | pause | clear | over | win
+let level = 0, score = 0, hearts = 3, bursts = 3;
+let best = 0;
+try { best = parseInt(localStorage.getItem("mindwing_best") || "0", 10) || 0; } catch(e){}
+let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
+let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
+let lastSpace = 0;
+const player = { x:140, y:H/2, r:15, cool:0, wing:0 };
+let bullets = [], eagles = [], fires = [], parts = [], motes = [];
+let boss = null;
+let banner = null;            // {text, sub, t, max}
+let bgStars = [], bgClouds = [];
+for (let i=0;i<70;i++) bgStars.push({x:Math.random()*W, y:Math.random()*H*0.75, r:Math.random()*1.6+0.4, s:Math.random()*12+4, tw:Math.random()*6.28});
+for (let i=0;i<7;i++) bgClouds.push({x:Math.random()*W, y:Math.random()*H*0.6+30, w:Math.random()*160+120, s:Math.random()*14+8});
+
+const rand = (a,b) => a + Math.random()*(b-a);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const dist2 = (ax,ay,bx,by) => { const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
+
+/* ---------- overlay card system ---------- */
+let cardQueue = [], cardDone = null, cardShownAt = 0, overlayOpen = false;
+function buildCard(c){
+  let html = "";
+  if (c.big) html += `<p class="big">${c.big}</p>`;
+  if (c.tag) html += `<p class="tag">${c.tag}</p>`;
+  if (c.h && !c.big) html += `<h2>${c.h}</h2>`;
+  if (c.sub) html += `<p class="sub">${c.sub}</p>`;
+  if (c.p) for (const t of c.p) html += `<p>${t}</p>`;
+  if (c.list){ html += "<ul>"; for (const t of c.list) html += `<li>${t}</li>`; html += "</ul>"; }
+  if (c.note) html += `<div class="note">${c.note}</div>`;
+  html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
+  return html;
+}
+function showCards(cards, done){
+  cardQueue = cards.slice(); cardDone = done; overlayOpen = true;
+  ov.classList.remove("hidden");
+  cardEl.innerHTML = buildCard(cardQueue.shift());
+  cardShownAt = performance.now();
+}
+function advanceCard(){
+  if (performance.now() - cardShownAt < 400) return;   // guard against double-tap skipping
+  sfx.card();
+  if (cardQueue.length){
+    cardEl.innerHTML = buildCard(cardQueue.shift());
+    cardShownAt = performance.now();
+  } else {
+    overlayOpen = false;
+    ov.classList.add("hidden");
+    keys[" "] = false;
+    const d = cardDone; cardDone = null;
+    if (d) d();
+  }
+}
+ov.addEventListener("pointerdown", e => { e.preventDefault(); ensureAudio(); advanceCard(); });
+
+/* ---------- flow ---------- */
+function titleCards(){
+  return [
+    { big:"MINDWING",
+      sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
+      p:[ best > 0 ? `<strong style="color:var(--accent)">Best score: ${best}</strong>` : "" ].filter(Boolean),
+      hint:"Press SPACE or tap to begin" },
+    { tag:"The story", h:"The Grove of Minds",
+      p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
+          "But the <strong>Engagement Engine</strong>, a machine that feeds on attention, has sent its fire-eagles to scorch the grove and keep every mind staring at the flames.",
+          "Fly, Lumen. With every eagle you turn back, you will learn how the Engine works. Understand it, and it loses its power over you." ] },
+    { tag:"How to fly", h:"Controls",
+      list:[ "<b>Arrow keys / WASD</b>: fly",
+             "<b>SPACE</b> (hold or tap): shoot sparks",
+             "<b>Double-tap SPACE</b>: Clarity Burst, blanks everything around you (limited charges ✦)",
+             "<b>Touch</b>: drag to fly (auto-fire), double-tap for Clarity Burst",
+             "<b>P</b>: pause &nbsp;·&nbsp; <b>M</b>: mute" ],
+      note:"<b>Tip:</b> purple <b>insight motes</b> dropped by eagles refill your Clarity Bursts. Insight always does." }
+  ];
+}
+function lessonCard(i){
+  const l = LESSONS[i];
+  return { tag:l.tag, h:l.h, p:l.p, note:l.note, hint:"Press SPACE or tap to fly" };
+}
+function showTitle(){
+  state = "title"; score = 0; boss = null;
+  eagles = []; fires = []; bullets = []; motes = []; parts = [];
+  showCards([...titleCards(), lessonCard(0)], () => beginLevel(0));
+}
+function beginLevel(i){
+  level = i;
+  const cfg = LEVELS[i];
+  hearts = 3; bursts = 3; killCount = 0; quota = cfg.quota || 0;
+  tookDamage = false;
+  bullets = []; eagles = []; fires = []; motes = []; parts = [];
+  player.x = 140; player.y = H/2; player.cool = 0;
+  inv = 1.2; spawnT = 1.0; lastSpace = 0;
+  levelStartScore = score;
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:70, maxhp:70, t:0, fireT:2.4, volley:0, spawnT:3.5, entered:false, hurt:0, enraged:false } : null;
+  banner = { text:`Level ${i+1} · ${cfg.name}`, sub:`Concept: ${cfg.concept}`, t:0, max:2.4 };
+  state = "play";
+}
+function levelCleared(){
+  state = "clear"; clearT = 1.6;
+  for (const e of eagles) burstParticles(e.x, e.y, "#ffd166", 12);
+  eagles = []; fires = [];
+  const untouched = !tookDamage;
+  if (untouched) score += 500;
+  banner = { text:"GROVE SECTION CLEARED", sub: untouched ? "Untouched! +500 focus bonus" : "Onward!", t:0, max:1.6 };
+}
+function afterClear(){
+  if (level >= LEVELS.length - 1){ winGame(); return; }
+  showCards([lessonCard(level+1)], () => beginLevel(level+1));
+}
+function hitFactCard(){
+  const f = HIT_FACTS[hitFactIdx % HIT_FACTS.length]; hitFactIdx++;
+  return { tag:"Singed! · a spark of insight", h:"While your wings recover…",
+    p:[ f ], hint:"Press SPACE or tap to keep flying" };
+}
+function onPlayerHit(){
+  if (inv > 0) return;
+  hearts--; tookDamage = true; shake = 9; sfx.hit();
+  burstParticles(player.x, player.y, "#ff5a76", 22);
+  fires = fires.filter(f => dist2(f.x,f.y,player.x,player.y) > 160*160);
+  if (hearts <= 0){ gameOver(); return; }
+  inv = 2.4;
+  state = "hit";
+  showCards([hitFactCard()], () => { state = "play"; });
+}
+function gameOver(){
+  state = "over";
+  const f = HIT_FACTS[hitFactIdx % HIT_FACTS.length]; hitFactIdx++;
+  showCards([{ tag:"The grove dims…", h:"But minds regrow",
+    p:[ "The eagles overwhelmed Lumen this time. While the embers cool, one thing worth keeping:",
+        `<strong>${f}</strong>` ],
+    hint:"Press SPACE or tap to retry this level" }],
+    () => { score = levelStartScore; beginLevel(level); });
+}
+function winGame(){
+  state = "win"; sfx.win();
+  if (score > best){ best = score; try { localStorage.setItem("mindwing_best", String(best)); } catch(e){} }
+  showCards([
+    { tag:"Victory", h:"The Engagement Engine powers down",
+      p:[ "It was never invincible. It only worked while nobody understood it.",
+          `<strong style="color:var(--accent)">Final score: ${score}</strong> &nbsp;·&nbsp; Best: ${best}` ] },
+    { tag:"What Lumen learned", h:"Your field guide",
+      list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",
+             "<b>Neural networks:</b> billions of tuned number-dials, pattern power without understanding.",
+             "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done.",
+             "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, and keep practicing your own skills." ],
+      note:"<b>The grove stays safe</b> while its keeper stays curious. Share what you learned with someone today.",
+      hint:"Press SPACE or tap to play again" }
+  ], showTitle);
+}
+function pauseGame(){
+  if (state !== "play") return;
+  state = "pause";
+  showCards([{ tag:"Paused", h:"Take a breath",
+    p:["The grove will wait. Notice: did you choose this break, or did something choose it for you? Choosing on purpose is the whole game."],
+    hint:"Press SPACE or tap to resume" }], () => { state = "play"; });
+}
+
+/* ---------- input ---------- */
+const keys = {};
+let touchActive = false, touchX = 0, touchY = 0, lastTap = 0;
+window.addEventListener("keydown", e => {
+  if ([" ","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) e.preventDefault();
+  ensureAudio();
+  if (e.repeat) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  keys[k] = true;
+  if (overlayOpen){
+    if (e.key === " " || e.key === "Enter") advanceCard();
+    return;
+  }
+  if (k === "p"){ pauseGame(); return; }
+  if (k === "m"){ muted = !muted; return; }
+  if (e.key === " " && state === "play"){
+    const now = performance.now();
+    if (now - lastSpace < 270){ tryBurst(); lastSpace = 0; }
+    else lastSpace = now;
+  }
+});
+window.addEventListener("keyup", e => {
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  keys[k] = false;
+});
+function canvasPoint(e){
+  const r = canvas.getBoundingClientRect();
+  return { x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H };
+}
+canvas.addEventListener("pointerdown", e => {
+  e.preventDefault(); ensureAudio();
+  if (overlayOpen) return;
+  const p = canvasPoint(e);
+  touchActive = true; touchX = p.x; touchY = p.y;
+  canvas.setPointerCapture(e.pointerId);
+  const now = performance.now();
+  if (now - lastTap < 300 && state === "play") tryBurst();
+  lastTap = now;
+});
+canvas.addEventListener("pointermove", e => {
+  if (!touchActive) return;
+  const p = canvasPoint(e);
+  touchX = p.x; touchY = p.y;
+});
+window.addEventListener("pointerup", () => { touchActive = false; });
+window.addEventListener("pointercancel", () => { touchActive = false; });
+window.addEventListener("blur", () => { touchActive = false; for (const k in keys) keys[k] = false; });
+window.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("visibilitychange", () => { if (document.hidden) pauseGame(); });
+
+/* ---------- actions ---------- */
+function shoot(){
+  bullets.push({ x:player.x + 18, y:player.y, r:5 });
+  sfx.shoot();
+}
+function tryBurst(){
+  if (bursts <= 0 || state !== "play") return;
+  bursts--; flash = 1; shake = 6; sfx.burst();
+  fires = [];
+  for (const e of eagles){
+    score += e.pts;
+    burstParticles(e.x, e.y, "#ffd166", 14);
+    killCount++;
+  }
+  eagles = [];
+  if (boss && boss.entered){ boss.hp -= 6; boss.hurt = 0.3; if (boss.hp <= 0) killBoss(); }
+  burstParticles(player.x, player.y, "#ffffff", 30);
+  if (!boss && killCount >= quota && state === "play") levelCleared();
+}
+function spawnEagle(){
+  const cfg = LEVELS[level];
+  const type = cfg.types[Math.floor(Math.random()*cfg.types.length)];
+  const e = {
+    type, x: W + 50, y: rand(60, H - 90), r: 20,
+    baseY: 0, t: rand(0, 6.28),
+    vx: -(cfg.speed * rand(0.85, 1.2)),
+    fireT: rand(cfg.fireMin, cfg.fireMax),
+    glow: 0, flap: rand(0, 6.28),
+    pts: type === "diver" ? 150 : (type === "zigzag" ? 120 : 100)
+  };
+  e.baseY = e.y;
+  eagles.push(e);
+}
+function eagleFire(e){
+  const cfg = LEVELS[level];
+  const dx = player.x - e.x, dy = player.y - e.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const sp = cfg.fireSpeed;
+  fires.push({ x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0 });
+  e.glow = 0.35;
+}
+function killEagle(i){
+  const e = eagles[i];
+  score += e.pts; killCount++;
+  burstParticles(e.x, e.y, "#ff9f45", 16);
+  sfx.eagleDown();
+  if (Math.random() < 0.18) motes.push({ x:e.x, y:e.y, t:0 });
+  eagles.splice(i, 1);
+  if (!boss && killCount >= quota) levelCleared();
+}
+function killBoss(){
+  burstParticles(boss.x, boss.y, "#ffd166", 60);
+  burstParticles(boss.x, boss.y, "#ff5a3c", 60);
+  score += 1500; shake = 14; flash = 0.8;
+  boss = null; eagles = []; fires = [];
+  sfx.eagleDown();
+  state = "clear"; clearT = 1.8;
+  banner = { text:"THE ENGINE FALLS SILENT", sub:"+1500", t:0, max:1.8 };
+}
+function burstParticles(x, y, color, n){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*6.28, s = rand(30, 190);
+    parts.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:rand(0.3,0.8), max:0.8, color, r:rand(1.5,4) });
+  }
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  tGlobal += dt;
+  if (shake > 0) shake = Math.max(0, shake - dt*26);
+  if (flash > 0) flash = Math.max(0, flash - dt*2.0);
+  if (banner){ banner.t += dt; if (banner.t > banner.max) banner = null; }
+  for (const c of bgClouds){ c.x -= c.s*dt; if (c.x < -c.w) { c.x = W + c.w; c.y = rand(30, H*0.6); } }
+  for (const s of bgStars){ s.x -= s.s*dt; if (s.x < -4) s.x = W + 4; }
+  // particles always animate
+  for (let i=parts.length-1;i>=0;i--){
+    const p = parts[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 60*dt; p.life -= dt;
+    if (p.life <= 0) parts.splice(i,1);
+  }
+  if (state === "clear"){
+    clearT -= dt;
+    for (let i=fires.length-1;i>=0;i--){ fires[i].x += fires[i].vx*dt; fires[i].y += fires[i].vy*dt; }
+    if (clearT <= 0){ state = "postclear"; afterClear(); }
+    return;
+  }
+  if (state !== "play") return;
+
+  const cfg = LEVELS[level];
+  /* player */
+  const sp = 275;
+  let dx = 0, dy = 0;
+  if (keys["ArrowLeft"] || keys["a"]) dx -= 1;
+  if (keys["ArrowRight"] || keys["d"]) dx += 1;
+  if (keys["ArrowUp"] || keys["w"]) dy -= 1;
+  if (keys["ArrowDown"] || keys["s"]) dy += 1;
+  if (dx || dy){ const n = Math.hypot(dx,dy); player.x += dx/n*sp*dt; player.y += dy/n*sp*dt; }
+  if (touchActive){
+    player.x += (touchX - player.x) * Math.min(1, dt*8);
+    player.y += (touchY - player.y) * Math.min(1, dt*8);
+  }
+  player.x = clamp(player.x, 24, W*0.62);
+  player.y = clamp(player.y, 30, H - 34);
+  player.wing += dt * 18;
+  if (inv > 0) inv -= dt;
+  if (Math.random() < 0.5) parts.push({ x:player.x-14, y:player.y+rand(-6,6), vx:-40, vy:rand(-15,15), life:0.4, max:0.4, color:"#c9a7ff", r:1.8 });
+
+  /* shooting */
+  player.cool -= dt;
+  if ((keys[" "] || touchActive) && player.cool <= 0){ shoot(); player.cool = 0.16; }
+  for (let i=bullets.length-1;i>=0;i--){
+    bullets[i].x += 560*dt;
+    if (bullets[i].x > W + 20) bullets.splice(i,1);
+  }
+
+  /* spawning */
+  const wantMore = boss ? eagles.length < 3 && boss.entered : (killCount + eagles.length < quota + 3);
+  spawnT -= dt;
+  if (spawnT <= 0 && wantMore && (!boss || boss.entered)){
+    spawnEagle();
+    spawnT = cfg.spawnEvery * rand(0.7, 1.25);
+  }
+
+  /* eagles */
+  for (let i=eagles.length-1;i>=0;i--){
+    const e = eagles[i];
+    e.t += dt; e.flap += dt*14;
+    e.x += e.vx*dt;
+    if (e.type === "glider") e.y = e.baseY + Math.sin(e.t*1.6)*22;
+    else if (e.type === "zigzag") e.y = e.baseY + Math.sin(e.t*3.4)*70;
+    else if (e.type === "diver") e.y += clamp(player.y - e.y, -95, 95)*dt;
+    e.y = clamp(e.y, 40, H-50);
+    if (e.glow > 0) e.glow -= dt;
+    e.fireT -= dt;
+    if (e.fireT <= 0 && e.x < W - 40 && e.x > player.x + 60){ eagleFire(e); e.fireT = rand(cfg.fireMin, cfg.fireMax); }
+    if (e.x < -60){ e.x = W + 50; e.baseY = rand(60, H-90); e.y = e.baseY; }
+    /* collide with player */
+    if (inv <= 0 && dist2(e.x,e.y,player.x,player.y) < (e.r+player.r-4)*(e.r+player.r-4)){
+      eagles.splice(i,1); onPlayerHit(); if (state !== "play") return; continue;
+    }
+  }
+
+  /* boss */
+  if (boss){
+    boss.t += dt;
+    if (boss.hurt > 0) boss.hurt -= dt;
+    if (!boss.entered){
+      boss.x -= 90*dt;
+      if (boss.x <= 780){ boss.x = 780; boss.entered = true; banner = { text:"THE ENGAGEMENT ENGINE", sub:"It wants your attention. Take it back.", t:0, max:2.6 }; }
+    } else {
+      boss.y = H/2 + Math.sin(boss.t*0.85) * 155;
+      if (!boss.enraged && boss.hp <= boss.maxhp/2){
+        boss.enraged = true;
+        banner = { text:"THE ENGINE OVERCLOCKS", sub:"Endless feed! Stay on target.", t:0, max:2 };
+      }
+      boss.fireT -= dt;
+      if (boss.fireT <= 0){
+        boss.volley++;
+        const base = Math.atan2(player.y - boss.y, player.x - boss.x);
+        if (boss.volley % 4 === 0){
+          for (let k=0;k<10;k++){
+            const a = k/10*Math.PI*2;
+            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150, vy:Math.sin(a)*150, r:8, t:0 });
+          }
+        } else {
+          for (const off of [-0.24, 0, 0.24]){
+            fires.push({ x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*225, vy:Math.sin(base+off)*225, r:8, t:0 });
+          }
+        }
+        boss.fireT = boss.enraged ? rand(0.9, 1.3) : rand(1.4, 1.9);
+      }
+    }
+    if (inv <= 0 && dist2(boss.x,boss.y,player.x,player.y) < (boss.r+player.r-6)*(boss.r+player.r-6)){
+      onPlayerHit(); if (state !== "play") return;
+    }
+  }
+
+  /* fireballs */
+  for (let i=fires.length-1;i>=0;i--){
+    const f = fires[i];
+    f.x += f.vx*dt; f.y += f.vy*dt; f.t += dt;
+    if (f.x < -30 || f.x > W+40 || f.y < -30 || f.y > H+30){ fires.splice(i,1); continue; }
+    if (inv <= 0 && dist2(f.x,f.y,player.x,player.y) < (f.r+player.r-3)*(f.r+player.r-3)){
+      fires.splice(i,1); onPlayerHit(); if (state !== "play") return;
+    }
+  }
+
+  /* bullets vs enemies */
+  for (let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    let hit = false;
+    for (let j=eagles.length-1;j>=0;j--){
+      const e = eagles[j];
+      if (dist2(b.x,b.y,e.x,e.y) < (b.r+e.r)*(b.r+e.r)){ killEagle(j); hit = true; break; }
+    }
+    if (!hit && boss && boss.entered && dist2(b.x,b.y,boss.x,boss.y) < (b.r+boss.r)*(b.r+boss.r)){
+      boss.hp--; boss.hurt = 0.15; sfx.bossHit();
+      burstParticles(b.x, b.y, "#ffd166", 4);
+      hit = true;
+      if (boss.hp <= 0){ killBoss(); return; }
+    }
+    if (hit) bullets.splice(i,1);
+    if (state !== "play") return;
+  }
+
+  /* motes */
+  for (let i=motes.length-1;i>=0;i--){
+    const m = motes[i];
+    m.t += dt; m.x -= 26*dt; m.y += Math.sin(m.t*3)*14*dt;
+    if (m.x < -20){ motes.splice(i,1); continue; }
+    if (dist2(m.x,m.y,player.x,player.y) < 30*30){
+      motes.splice(i,1);
+      bursts = Math.min(4, bursts + 1);
+      score += 50; sfx.mote();
+      burstParticles(player.x, player.y, "#c9a7ff", 10);
+    }
+  }
+}
+
+/* ---------- drawing ---------- */
+function drawBackground(){
+  const cfg = LEVELS[Math.min(level, LEVELS.length-1)];
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, cfg.sky[0]); g.addColorStop(0.55, cfg.sky[1]); g.addColorStop(1, cfg.sky[2]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "#fff";
+  for (const s of bgStars){
+    ctx.globalAlpha = 0.35 + 0.35*Math.sin(tGlobal*2 + s.tw);
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill();
+  }
+  for (const c of bgClouds){
+    const cg = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.w);
+    cg.addColorStop(0, "rgba(255,255,255,0.09)");
+    cg.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = cg;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.scale(1, 0.3); ctx.translate(-c.x, -c.y);
+    ctx.beginPath(); ctx.arc(c.x, c.y, c.w, 0, 6.28); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  /* treeline silhouettes */
+  ctx.fillStyle = "rgba(10,6,24,0.55)";
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=20) ctx.lineTo(x, H - 46 - Math.sin(x*0.021+2)*18 - Math.sin(x*0.008)*10);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(6,4,18,0.85)";
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=16) ctx.lineTo(x, H - 22 - Math.sin(x*0.035)*12);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+}
+function drawFairy(){
+  const blink = inv > 0 && Math.floor(tGlobal*14) % 2 === 0;
+  if (blink && state === "play") return;
+  const x = player.x, y = player.y + Math.sin(tGlobal*3)*2.5;
+  ctx.save(); ctx.translate(x, y);
+  /* glow */
+  const glow = ctx.createRadialGradient(0,0,2,0,0,38);
+  glow.addColorStop(0,"rgba(255,240,180,0.55)"); glow.addColorStop(1,"rgba(255,240,180,0)");
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0,0,38,0,6.28); ctx.fill();
+  /* wings */
+  const f = Math.sin(player.wing)*0.5 + 0.6;
+  ctx.fillStyle = "rgba(190,225,255,0.75)";
+  ctx.beginPath(); ctx.ellipse(-8,-6, 15, 8*f + 5, -0.7, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-8, 5, 12, 7*f + 4, 0.6, 0, 6.28); ctx.fill();
+  /* body */
+  ctx.fillStyle = "#ffe9b8";
+  ctx.beginPath(); ctx.ellipse(2, 2, 9, 12, 0.25, 0, 6.28); ctx.fill();
+  /* dress */
+  ctx.fillStyle = "#9d7bff";
+  ctx.beginPath(); ctx.moveTo(-2,-2); ctx.lineTo(10,10); ctx.lineTo(-6,10); ctx.closePath(); ctx.fill();
+  /* head */
+  ctx.fillStyle = "#ffe9b8";
+  ctx.beginPath(); ctx.arc(7,-9, 6.5, 0, 6.28); ctx.fill();
+  /* hair */
+  ctx.fillStyle = "#ff8fd8";
+  ctx.beginPath(); ctx.arc(4.5,-11.5, 5.2, 2.6, 5.9); ctx.fill();
+  /* eye */
+  ctx.fillStyle = "#2b1b4d";
+  ctx.beginPath(); ctx.arc(9.3,-9.4, 1.2, 0, 6.28); ctx.fill();
+  /* wand sparkle */
+  ctx.fillStyle = "#ffd166";
+  const tw = 2 + Math.sin(tGlobal*9)*1;
+  ctx.beginPath(); ctx.arc(16, -1, tw, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawEagle(e){
+  ctx.save(); ctx.translate(e.x, e.y);
+  const f = Math.sin(e.flap);
+  /* wings */
+  ctx.fillStyle = "#4a3220";
+  ctx.beginPath(); ctx.moveTo(2,-2); ctx.lineTo(20, -14 - f*10); ctx.lineTo(26, -2); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(2, 2); ctx.lineTo(20, 12 + f*8); ctx.lineTo(26, 4); ctx.closePath(); ctx.fill();
+  /* body */
+  ctx.fillStyle = "#6b4a2f";
+  ctx.beginPath(); ctx.ellipse(6, 0, 17, 10, 0, 0, 6.28); ctx.fill();
+  /* tail */
+  ctx.fillStyle = "#4a3220";
+  ctx.beginPath(); ctx.moveTo(20,0); ctx.lineTo(31,-6); ctx.lineTo(31,6); ctx.closePath(); ctx.fill();
+  /* head */
+  ctx.fillStyle = "#e8e2d5";
+  ctx.beginPath(); ctx.arc(-9, -4, 7, 0, 6.28); ctx.fill();
+  /* beak with fire glow */
+  ctx.fillStyle = "#ff8c1a";
+  ctx.beginPath(); ctx.moveTo(-15,-5); ctx.lineTo(-23,-2); ctx.lineTo(-14,-1); ctx.closePath(); ctx.fill();
+  if (e.glow > 0){
+    ctx.fillStyle = `rgba(255,120,30,${e.glow*2})`;
+    ctx.beginPath(); ctx.arc(-20, -3, 7, 0, 6.28); ctx.fill();
+  }
+  /* eye */
+  ctx.fillStyle = "#d92525";
+  ctx.beginPath(); ctx.arc(-9,-6, 1.7, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawBoss(){
+  const b = boss;
+  ctx.save(); ctx.translate(b.x, b.y);
+  const f = Math.sin(b.t*10);
+  const hurt = b.hurt > 0;
+  /* aura */
+  const aura = ctx.createRadialGradient(0,0,10,0,0,95);
+  aura.addColorStop(0,"rgba(255,80,30,0.35)"); aura.addColorStop(1,"rgba(255,80,30,0)");
+  ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(0,0,95,0,6.28); ctx.fill();
+  /* wings (metal) */
+  ctx.fillStyle = hurt ? "#c8c8d8" : "#5a5a6e";
+  ctx.beginPath(); ctx.moveTo(8,-6); ctx.lineTo(62, -44 - f*18); ctx.lineTo(74, -8); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(62, 40 + f*16); ctx.lineTo(74, 10); ctx.closePath(); ctx.fill();
+  /* body */
+  ctx.fillStyle = hurt ? "#e0e0ea" : "#3c3c4c";
+  ctx.beginPath(); ctx.ellipse(14, 0, 48, 30, 0, 0, 6.28); ctx.fill();
+  /* glowing core */
+  ctx.fillStyle = "#ff5a3c";
+  ctx.beginPath(); ctx.arc(16, 2, 10 + Math.sin(b.t*4)*2, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath(); ctx.arc(16, 2, 4.5, 0, 6.28); ctx.fill();
+  /* tail */
+  ctx.fillStyle = hurt ? "#c8c8d8" : "#50506a";
+  ctx.beginPath(); ctx.moveTo(55,0); ctx.lineTo(88,-16); ctx.lineTo(88,16); ctx.closePath(); ctx.fill();
+  /* head */
+  ctx.fillStyle = hurt ? "#f0f0f5" : "#8a8aa0";
+  ctx.beginPath(); ctx.arc(-30, -10, 18, 0, 6.28); ctx.fill();
+  /* beak */
+  ctx.fillStyle = "#ff8c1a";
+  ctx.beginPath(); ctx.moveTo(-45,-12); ctx.lineTo(-66,-5); ctx.lineTo(-43,-2); ctx.closePath(); ctx.fill();
+  /* eyes: two red screens */
+  ctx.fillStyle = "#ff2020";
+  ctx.beginPath(); ctx.arc(-31,-15, 4, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(-22,-13, 3, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawFire(f){
+  ctx.save(); ctx.translate(f.x, f.y);
+  const r = f.r + Math.sin(f.t*22)*1.5;
+  const g = ctx.createRadialGradient(0,0,1,0,0,r*2.1);
+  g.addColorStop(0,"rgba(255,230,150,0.95)");
+  g.addColorStop(0.45,"rgba(255,120,30,0.8)");
+  g.addColorStop(1,"rgba(255,60,10,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0,0,r*2.1,0,6.28); ctx.fill();
+  ctx.fillStyle = "#fff3c4";
+  ctx.beginPath(); ctx.arc(0,0,r*0.45,0,6.28); ctx.fill();
+  ctx.restore();
+}
+function drawMote(m){
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.t*2);
+  const g = ctx.createRadialGradient(0,0,1,0,0,16);
+  g.addColorStop(0,"rgba(201,167,255,0.8)"); g.addColorStop(1,"rgba(201,167,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,16,0,6.28); ctx.fill();
+  ctx.fillStyle = "#c9a7ff";
+  ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(6,0); ctx.lineTo(0,8); ctx.lineTo(-6,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(3,0); ctx.lineTo(0,4); ctx.lineTo(-3,0); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawHUD(){
+  const cfg = LEVELS[level];
+  ctx.textBaseline = "top";
+  /* hearts */
+  ctx.font = "22px sans-serif";
+  for (let i=0;i<3;i++){
+    ctx.fillStyle = i < hearts ? "#ff5a76" : "rgba(255,255,255,0.18)";
+    ctx.fillText("♥", 16 + i*26, 12);
+  }
+  /* bursts */
+  ctx.font = "20px sans-serif";
+  const slots = Math.max(3, bursts);
+  for (let i=0;i<slots;i++){
+    ctx.fillStyle = i < bursts ? "#c9a7ff" : "rgba(255,255,255,0.18)";
+    ctx.fillText("✦", 16 + i*22, 40);
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "10px sans-serif";
+  ctx.fillText("2x SPACE = CLARITY BURST", 16, 64);
+  /* level + progress */
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font = "600 15px sans-serif";
+  ctx.fillText(`${cfg.name} · ${cfg.concept}`, W/2, 12);
+  if (!boss){
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "12px sans-serif";
+    ctx.fillText(`eagles turned back: ${killCount} / ${quota}`, W/2, 32);
+  } else if (boss.entered){
+    const bw = 300;
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(W/2-bw/2, 32, bw, 10);
+    ctx.fillStyle = boss.enraged ? "#ff5a3c" : "#ff8c1a";
+    ctx.fillRect(W/2-bw/2, 32, bw * Math.max(0, boss.hp/boss.maxhp), 10);
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.strokeRect(W/2-bw/2, 32, bw, 10);
+  }
+  /* score */
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "700 18px sans-serif";
+  ctx.fillText(String(score), W-16, 12);
+  ctx.textAlign = "left";
+}
+function drawBanner(){
+  if (!banner) return;
+  const a = Math.min(1, banner.t*3, (banner.max - banner.t)*2);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, a);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 34px sans-serif";
+  ctx.shadowColor = "#9d7bff"; ctx.shadowBlur = 24;
+  ctx.fillText(banner.text, W/2, H/2 - 40);
+  if (banner.sub){
+    ctx.font = "600 17px sans-serif";
+    ctx.fillStyle = "#ffd166";
+    ctx.fillText(banner.sub, W/2, H/2 - 4);
+  }
+  ctx.restore();
+}
+function draw(){
+  ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+  if (shake > 0) ctx.translate(rand(-shake,shake), rand(-shake,shake));
+  drawBackground();
+  for (const m of motes) drawMote(m);
+  for (const e of eagles) drawEagle(e);
+  if (boss) drawBoss();
+  for (const f of fires) drawFire(f);
+  /* bullets */
+  for (const b of bullets){
+    ctx.fillStyle = "rgba(150,230,255,0.35)";
+    ctx.beginPath(); ctx.ellipse(b.x-8, b.y, 12, 3.5, 0, 0, 6.28); ctx.fill();
+    ctx.fillStyle = "#eafcff";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.28); ctx.fill();
+  }
+  /* particles */
+  for (const p of parts){
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  drawFairy();
+  if (state === "play" || state === "hit" || state === "pause" || state === "clear") drawHUD();
+  drawBanner();
+  if (flash > 0){
+    ctx.fillStyle = `rgba(255,255,255,${flash*0.85})`;
+    ctx.fillRect(-20,-20,W+40,H+40);
+  }
+}
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+function frame(now){
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.033) dt = 0.033;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+showTitle();
+})();
+</script>
+</body>
+</html>
