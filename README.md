@@ -45,7 +45,7 @@ Purple **insight motes** dropped by defeated eagles refill Clarity Burst charges
 
 ## Running it
 
-It is a single `index.html` file with no dependencies, no build step, no network requests, and no external assets. Open the file in any modern browser, or serve the folder with any static server. It works offline and on phones and tablets.
+It is a single `index.html` file with no dependencies, no build step, no network requests, and no external assets. Open the file in any modern browser, or serve the folder with any static server. It works offline and on phones and tablets (on a phone, turn it sideways to landscape for the best view).
 
 Sound is generated with the Web Audio API (no audio files). Press M to mute.
 

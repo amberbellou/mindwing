@@ -24,7 +24,7 @@
     border:1px solid #3a2f6e;border-radius:18px;padding:28px 32px;color:var(--ink);
     box-shadow:0 0 60px rgba(157,123,255,.25), inset 0 0 40px rgba(157,123,255,.05);
     line-height:1.55;-webkit-user-select:none;user-select:none;cursor:pointer;}
-  #card .big{font-size:52px;font-weight:800;letter-spacing:2px;margin:0 0 4px 0;
+  #card .big{font-size:clamp(28px,9vw,52px);font-weight:800;letter-spacing:2px;margin:0 0 4px 0;
     background:linear-gradient(90deg,#ffd166,#ff8fd8,#9d7bff);
     -webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;}
   #card .tag{color:var(--accent);font-size:13px;font-weight:700;text-transform:uppercase;
@@ -42,6 +42,11 @@
   #card .hint{margin-top:18px;text-align:center;font-size:13px;color:var(--accent);
     letter-spacing:1px;animation:pulse 1.4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  @media (max-width:520px){
+    #card{padding:20px 18px;border-radius:14px;}
+    #card h2{font-size:22px;}
+    #card p, #card ul{font-size:15px;}
+  }
 </style>
 </head>
 <body>
@@ -209,7 +214,7 @@ function titleCards(){
   return [
     { big:"MINDWING",
       sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
-      p:[ best > 0 ? `<strong style="color:var(--accent)">Best score: ${best}</strong>` : "" ].filter(Boolean),
+      p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "" ].filter(Boolean),
       hint:"Press SPACE or tap to begin" },
     { tag:"The story", h:"The Grove of Minds",
       p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
@@ -340,7 +345,7 @@ canvas.addEventListener("pointerdown", e => {
   if (overlayOpen) return;
   const p = canvasPoint(e);
   touchActive = true; touchX = p.x; touchY = p.y;
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch(err){}
   const now = performance.now();
   if (now - lastTap < 300 && state === "play") tryBurst();
   lastTap = now;
