@@ -35,8 +35,8 @@ const EVENT_TYPES = {
   burst:       { level: true }
 };
 
-const LIMITS = {                 // requests per minute per (hashed) IP
-  session: 10, events: 60, score: 6, read: 120
+const LIMITS = {                 // requests per minute per (hashed) IP; sized so a whole classroom behind one address is fine
+  session: 40, events: 240, score: 20, read: 300
 };
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_EVENTS_PER_REQUEST = 50;

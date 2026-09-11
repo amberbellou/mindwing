@@ -21,7 +21,7 @@ Backend for the [Mindwing](../README.md) game: a Cloudflare Worker with a D1 (SQ
 
 Event types: `lesson_view` (n = ms reading), `level_start`, `level_clear` (n = ms, v = score), `hit` (n = fact index), `game_over` (v = score), `win` (n = ms, v = score), `quiz` (n = question, v = correct 0/1, w = choice), `burst`. Everything is validated and clamped server-side. Bodies may be `text/plain` so the browser's `sendBeacon` can flush the last events when a tab closes.
 
-Rate limits per IP per minute: 10 sessions, 60 event batches, 6 score submissions, 120 reads.
+Rate limits per IP per minute: 40 new sessions, 240 event batches, 20 score submissions, 300 reads. That is enough for a whole classroom sharing one network address; change `LIMITS` at the top of `src/index.js` if you need more.
 
 ## Run the tests (no account needed)
 

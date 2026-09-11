@@ -253,7 +253,7 @@ test("export: admin key required, json and csv formats, pagination", async () =>
 
 test("rate limiting: per-IP buckets return 429, other IPs unaffected, prune works", async () => {
   const env = makeEnv();
-  for (let i = 0; i < 10; i++) assert.equal((await call(env, "POST", "/v1/session", {}, {}, "192.0.2.7")).status, 200);
+  for (let i = 0; i < 40; i++) assert.equal((await call(env, "POST", "/v1/session", {}, {}, "192.0.2.7")).status, 200);
   assert.equal((await call(env, "POST", "/v1/session", {}, {}, "192.0.2.7")).status, 429);
   assert.equal((await call(env, "POST", "/v1/session", {}, {}, "192.0.2.8")).status, 200);
   env.DB._raw.prepare("UPDATE rate_limits SET bucket = bucket - 100").run();
