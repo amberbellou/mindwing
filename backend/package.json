@@ -1,0 +1,17 @@
+{
+  "name": "mindwing-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Leaderboard and anonymous learning-analytics backend for the Mindwing game (Cloudflare Workers + D1).",
+  "scripts": {
+    "test": "node --test test/",
+    "dev": "wrangler dev --port 8787",
+    "migrate:local": "wrangler d1 migrations apply mindwing --local",
+    "migrate": "wrangler d1 migrations apply mindwing --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

@@ -1,0 +1,80 @@
+# Mindwing API
+
+Backend for the [Mindwing](../README.md) game: a Cloudflare Worker with a D1 (SQLite) database. It stores a global leaderboard and anonymous learning analytics, and nothing personal.
+
+- No accounts, no names, no emails. Leaderboard entries are three letters.
+- The browser generates a random `clientId` so returning players can be counted. It is not linked to a person.
+- IP addresses are never stored. They are hashed with a daily salt and used only to rate-limit abuse.
+- Game sessions are signed by the server (HMAC), and scores are checked for plausibility against the recorded session (duration, level reached, gameplay events), so a casual "edit the request" cheat is rejected. A determined attacker who replays realistic events can still fake a score; the leaderboard is for fun, not for prizes.
+
+## Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/v1/health` | Liveness, database and configuration check |
+| POST | `/v1/session` | Start a run. Body `{ clientId?, startLevel?, input? }`. Returns `{ sid, sig }` |
+| POST | `/v1/events` | Record gameplay events for a run. Body `{ sid, sig, events: [...] }` (max 50 per request, 500 per run) |
+| POST | `/v1/score` | Submit a score. Body `{ sid, sig, initials, score, level }`. Returns `{ rank }` |
+| GET | `/v1/leaderboard?limit=10` | Top scores (limit 1 to 50) |
+| GET | `/v1/stats` | Aggregated learning analytics: level funnel, hits per attempt, average lesson reading time, quiz correct rates, most-shown facts |
+| GET | `/v1/export?key=ADMIN_KEY&after=0&limit=5000&format=json\|csv` | Raw event export for research (admin only) |
+
+Event types: `lesson_view` (n = ms reading), `level_start`, `level_clear` (n = ms, v = score), `hit` (n = fact index), `game_over` (v = score), `win` (n = ms, v = score), `quiz` (n = question, v = correct 0/1, w = choice), `burst`. Everything is validated and clamped server-side. Bodies may be `text/plain` so the browser's `sendBeacon` can flush the last events when a tab closes.
+
+Rate limits per IP per minute: 10 sessions, 60 event batches, 6 score submissions, 120 reads.
+
+## Run the tests (no account needed)
+
+The Worker runs unchanged in Node against an in-memory SQLite database (`test/d1-shim.mjs`), so the whole API is tested without Cloudflare:
+
+```bash
+cd backend
+npm test
+```
+
+## Run locally
+
+```bash
+cd backend
+npm install
+cp .dev.vars.example .dev.vars
+npm run migrate:local
+npm run dev            # http://localhost:8787
+```
+
+Then open the game with the API override: `http://localhost:8765/?api=http://localhost:8787` (only `localhost` URLs are accepted by the override).
+
+## Deploy (one time, about five minutes)
+
+1. Create a free Cloudflare account at https://dash.cloudflare.com/sign-up if you do not have one.
+2. From the `backend` folder:
+
+```bash
+npm install
+npx wrangler login
+npx wrangler d1 create mindwing
+```
+
+3. Copy the `database_id` that the last command prints into `wrangler.toml`.
+4. Apply the schema and set the two secrets (paste a long random string for each; `openssl rand -base64 48` makes a good one):
+
+```bash
+npm run migrate
+npx wrangler secret put SESSION_SECRET
+npx wrangler secret put ADMIN_KEY
+npx wrangler deploy
+```
+
+5. `wrangler deploy` prints the API URL, something like `https://mindwing-api.yourname.workers.dev`. Put it in `index.html` at the top of the script (`API_BASE_DEFAULT`) and push. If the game is ever served from another domain, add that origin to `ALLOWED_ORIGINS` in `wrangler.toml` and redeploy.
+
+Check it is alive: `curl https://mindwing-api.yourname.workers.dev/v1/health`
+
+## Reading the data
+
+- Leaderboard and statistics are public JSON and are also shown inside the game (title screen, "Grove records").
+- For research, download every event as CSV: `https://<api>/v1/export?key=<ADMIN_KEY>&format=csv` (5000 rows per page; use `after=<last id>` for the next page).
+- `npx wrangler d1 execute mindwing --remote --command "SELECT COUNT(*) FROM sessions"` runs SQL directly.
+
+## Cost
+
+Everything fits comfortably in Cloudflare's free tier (100k Worker requests per day, 5 million D1 reads per day).

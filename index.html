@@ -42,6 +42,23 @@
   #card .hint{margin-top:18px;text-align:center;font-size:13px;color:var(--accent);
     letter-spacing:1px;animation:pulse 1.4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  #card .opts{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px 0;}
+  #card button{font:inherit;font-size:15px;line-height:1.35;text-align:left;background:rgba(157,123,255,.14);color:var(--ink);
+    border:1px solid #4a3d8a;border-radius:10px;padding:10px 14px;cursor:pointer;}
+  #card button:hover,#card button:focus{background:rgba(157,123,255,.3);outline:none;border-color:var(--accent2);}
+  #card button.primary{background:var(--accent2);color:#12092b;font-weight:700;text-align:center;}
+  #card button.ghost{background:transparent;text-align:center;color:var(--dim);}
+  #card .row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:8px;}
+  #card input.ini{font:inherit;font-size:28px;letter-spacing:10px;text-transform:uppercase;width:120px;text-align:center;
+    background:#0e0a24;color:var(--accent);border:1px solid #4a3d8a;border-radius:10px;padding:8px 4px 8px 14px;}
+  #card input.ini:focus{outline:none;border-color:var(--accent);}
+  #card table{width:100%;border-collapse:collapse;font-size:15px;color:var(--dim);margin:4px 0 8px 0;}
+  #card td,#card th{padding:4px 6px;text-align:left;border-bottom:1px solid #2a2350;}
+  #card th{color:var(--accent);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;}
+  #card tr.me td{color:var(--ink);font-weight:700;}
+  #card .ok{color:#7ee2a8;font-weight:700;}
+  #card .bad{color:#ff8fa3;font-weight:700;}
+  #card .muted{color:var(--dim);font-size:13px;text-align:center;margin-top:6px;}
   @media (max-width:520px){
     #card{padding:20px 18px;border-radius:14px;}
     #card h2{font-size:22px;}
@@ -70,6 +87,100 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const ov = document.getElementById("ov");
 const cardEl = document.getElementById("card");
+
+/* ---------- optional backend: global leaderboard + anonymous learning analytics ----------
+   Set API_BASE_DEFAULT to your deployed Cloudflare Worker URL (see backend/README.md).
+   Leave it empty and the game runs fully offline. For local development, open the game
+   with ?api=http://localhost:8787 (only localhost URLs are accepted by the override).
+   Nothing personal is ever sent: a random client id, gameplay events, and 3-letter initials. */
+const API_BASE_DEFAULT = "";
+const api = (() => {
+  let base = API_BASE_DEFAULT;
+  try {
+    const q = new URLSearchParams(location.search).get("api");
+    if (q && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(q)) base = q;
+  } catch(e){}
+  base = String(base || "").replace(/\/+$/, "");
+  const enabled = !!base && typeof fetch === "function";
+  let online = enabled, sid = null, sig = null, queue = [], runT0 = 0, starting = null, flushing = null;
+  let clientId = null;
+  try {
+    clientId = localStorage.getItem("mindwing_cid");
+    if (!clientId || !/^[A-Za-z0-9_-]{8,64}$/.test(clientId)){
+      clientId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("c" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36));
+      localStorage.setItem("mindwing_cid", clientId);
+    }
+  } catch(e){ clientId = null; }
+  async function call(path, opts){
+    opts = opts || {};
+    if (!enabled) return null;
+    const ctl = (typeof AbortController === "function") ? new AbortController() : null;
+    const timer = setTimeout(() => { if (ctl) ctl.abort(); }, opts.timeout || 7000);
+    try {
+      const res = await fetch(base + path, {
+        method: opts.method || "GET",
+        headers: opts.body ? { "content-type": "text/plain" } : undefined,
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: ctl ? ctl.signal : undefined,
+        keepalive: !!opts.keepalive
+      });
+      online = true;
+      const data = await res.json().catch(() => null);
+      if (!res.ok) return { ok:false, status:res.status, error:(data && data.error) || ("HTTP " + res.status) };
+      return data || { ok:false, error:"empty response" };
+    } catch(e){ online = false; return null; }
+    finally { clearTimeout(timer); }
+  }
+  function startRun(startLevel){
+    if (!enabled) return;
+    sid = null; sig = null; queue = []; runT0 = performance.now();
+    starting = call("/v1/session", { method:"POST", body:{ clientId: clientId || undefined, startLevel: startLevel + 1, input: usedTouch ? "touch" : "keyboard" } })
+      .then(r => { if (r && r.ok && r.sid){ sid = r.sid; sig = r.sig; } })
+      .finally(() => { starting = null; flush(); });
+  }
+  function track(type, level, n, v, w){
+    if (!enabled || queue.length >= 200) return;
+    const ev = { type, t: Math.max(0, Math.round(performance.now() - runT0)) };
+    if (level != null) ev.level = level;
+    if (n != null) ev.n = n;
+    if (v != null) ev.v = v;
+    if (w != null) ev.w = w;
+    queue.push(ev);
+    if (queue.length >= 25) flush();
+  }
+  function flush(final){
+    if (!enabled || !sid || !queue.length) return Promise.resolve();
+    if (final && typeof navigator !== "undefined" && navigator.sendBeacon){
+      const body = { sid, sig, events: queue.splice(0, 50) };
+      try { navigator.sendBeacon(base + "/v1/events", new Blob([JSON.stringify(body)], { type:"text/plain" })); } catch(e){}
+      return Promise.resolve();
+    }
+    if (flushing) return flushing;
+    flushing = (async () => {
+      while (sid && queue.length){
+        const batch = queue.splice(0, 50);
+        const r = await call("/v1/events", { method:"POST", body:{ sid, sig, events: batch } });
+        if (r === null){ queue.unshift(...batch); if (queue.length > 200) queue.length = 200; break; }   // network failure: keep for later
+      }
+    })().finally(() => { flushing = null; });
+    return flushing;
+  }
+  async function submitScore(initials, score, level){
+    if (!enabled) return null;
+    if (starting) await starting;
+    await flush();
+    if (!sid) return null;
+    return call("/v1/score", { method:"POST", body:{ sid, sig, initials, score, level } });
+  }
+  const leaderboard = () => call("/v1/leaderboard?limit=10");
+  const stats = () => call("/v1/stats");
+  if (enabled){
+    setInterval(() => { flush(); }, 15000);
+    window.addEventListener("pagehide", () => { flush(true); });
+  }
+  return { enabled, get online(){ return online; }, startRun, track, flush, submitScore, leaderboard, stats,
+           debug: () => ({ queued: queue.length, sid: !!sid, base }) };
+})();
 
 /* ---------- responsive scaling ---------- */
 let dpr = 1;
@@ -150,6 +261,35 @@ const HIT_FACTS = [
 ];
 let hitFactIdx = 0;
 
+/* Two quick understanding checks after each lesson. Right answers earn +100 focus; wrong ones cost nothing.
+   Answers are recorded anonymously when the backend is enabled. */
+const QUIZ = [
+  { lesson:0, q:"When a chatbot writes an answer, what is it actually doing?",
+    a:["Looking up facts in a database of true statements", "Predicting the most likely next token, one chunk at a time", "Asking a human expert behind the scenes"], correct:1,
+    why:"It continues the pattern of the text it was trained on. Checking whether something is true is not part of that calculation." },
+  { lesson:0, q:"A chatbot gives you a fluent, confident answer. What does that tell you?",
+    a:["It must be correct, fluent answers come from real understanding", "Nothing yet. Fluent text can be right or wrong, so verify what matters", "It must be wrong, chatbots are usually wrong"], correct:1,
+    why:"Fluency comes from pattern prediction, not from fact-checking. Confidence is a style, not a signal." },
+  { lesson:1, q:"Where is a language model's knowledge stored?",
+    a:["In one file of facts that engineers typed in", "Spread across billions of number-dials called weights", "On the internet, which it searches every time"], correct:1,
+    why:"Training nudges billions of weights a tiny bit at a time. No single weight holds a fact, which is why a model can be brilliant and wrong at once." },
+  { lesson:1, q:"How does a neural network learn during training?",
+    a:["It guesses the next token, gets corrected, and adjusts its weights, over and over", "It memorizes a dictionary of definitions", "A programmer writes a rule for every situation"], correct:0,
+    why:"Guess, get corrected, adjust, repeat an astronomical number of times. Nobody hand-writes its answers." },
+  { lesson:2, q:"What is a retention model designed to increase?",
+    a:["How much you learn", "How much time you spend and how often you come back", "How accurate the app's answers are"], correct:1,
+    why:"Retention systems measure what keeps you coming back and serve you more of it. Your time is the target." },
+  { lesson:2, q:"Which habit best defeats retention tricks?",
+    a:["Turning on every notification so you never miss anything", "Keeping a daily streak going no matter what", "Deciding what you came to do, doing it, and leaving"], correct:2,
+    why:"Arriving with a purpose and leaving when it is done takes the power away from streaks, feeds and endless follow-up questions." },
+  { lesson:3, q:"Which of these is cognitive offloading that could weaken a skill over time?",
+    a:["Using a calculator to check arithmetic you already tried yourself", "Having AI write every draft so you never practice writing", "Writing a shopping list on paper"], correct:1,
+    why:"Offloading is fine when you keep the skill alive. Skills you never practice fade." },
+  { lesson:3, q:"What is cognitive drift?",
+    a:["Forgetting a password you rarely use", "A computer clock slowly running behind", "Your attention, opinions and style sliding toward whatever the machine feeds you"], correct:2,
+    why:"Drift is slow and quiet. The fix is noticing: is this still what I opened the app to do, and is this still what I think?" }
+];
+
 const LEVELS = [
   { name:"Token Thicket", concept:"Tokens", quota:8,  spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
     sky:["#141034","#3b2a6d","#8a4f8f"] },
@@ -170,7 +310,7 @@ let startLevel = 0;   // ?level=1..4 lets reviewers jump straight to a level
 try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10); if (q >= 1 && q <= LEVELS.length) startLevel = q - 1; } catch(e){}
 let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
 let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
-let hitBlink = false;
+let hitBlink = false, levelStartAt = 0, runStartAt = 0;
 const player = { x:140, y:H/2, r:15, cool:0, wing:0 };
 let bullets = [], eagles = [], fires = [], parts = [], motes = [];
 let boss = null;
@@ -184,7 +324,9 @@ const clamp = (v,a,b) => v<a?a:(v>b?b:v);
 const dist2 = (ax,ay,bx,by) => { const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
 
 /* ---------- overlay card system ---------- */
-let cardQueue = [], cardDone = null, cardShownAt = 0, overlayOpen = false;
+let cardQueue = [], cardDone = null, cardShownAt = 0, overlayOpen = false, currentCard = null, cardSerial = 0;
+let lastRank = null, lastInitials = null;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
 function buildCard(c){
   let html = "";
   if (c.big) html += `<p class="big">${c.big}</p>`;
@@ -193,32 +335,128 @@ function buildCard(c){
   if (c.sub) html += `<p class="sub">${c.sub}</p>`;
   if (c.p) for (const t of c.p) html += `<p>${t}</p>`;
   if (c.list){ html += "<ul>"; for (const t of c.list) html += `<li>${t}</li>`; html += "</ul>"; }
+  if (c.type === "quiz"){
+    html += `<div class="opts">` + c.options.map((o, i) => `<button type="button" data-act="choose" data-val="${i}"><b>${i + 1}.</b> ${esc(o)}</button>`).join("") + `</div>`;
+    html += `<p class="muted">Press 1, 2 or 3, or tap an answer. Wrong answers cost nothing; right ones earn +100 focus.</p>`;
+  }
+  if (c.type === "initials"){
+    html += `<div class="row"><input class="ini" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" aria-label="Your initials"></div>`;
+    html += `<div class="row"><button type="button" class="primary" data-act="submit">Record score</button><button type="button" class="ghost" data-act="skip">Skip</button></div>`;
+    html += `<p class="muted" data-slot="msg">Enter to record, Esc to skip.</p>`;
+  }
+  if (c.type === "leaderboard" || c.type === "stats") html += `<div data-slot="async"><p class="muted">Loading…</p></div>`;
+  if (c.buttons) html += `<div class="row">` + c.buttons.map(b => `<button type="button" class="ghost" data-act="${b.act}">${b.label}</button>`).join("") + `</div>`;
   if (c.note) html += `<div class="note">${c.note}</div>`;
-  html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
+  if (c.hint !== "") html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
   return html;
+}
+function renderCard(c){
+  currentCard = c; cardSerial++;
+  cardEl.innerHTML = buildCard(c);
+  cardShownAt = performance.now();
+  if (c.type === "initials"){
+    const inp = cardEl.querySelector("input");
+    if (inp){
+      if (lastInitials) inp.value = lastInitials;
+      inp.addEventListener("input", () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3); });
+      try { inp.focus(); } catch(e){}
+    }
+  }
+  if (c.type === "leaderboard") fillAsync(cardSerial, api.leaderboard(), leaderboardHTML);
+  if (c.type === "stats") fillAsync(cardSerial, api.stats(), statsHTML);
+}
+function fillAsync(serial, promise, toHTML){
+  Promise.resolve(promise).then(data => {
+    if (serial !== cardSerial) return;                    // that card is already gone
+    const slot = cardEl.querySelector("[data-slot=async]");
+    if (!slot) return;
+    slot.innerHTML = (data && data.ok) ? toHTML(data)
+      : `<p class="muted">${api.enabled ? "The grove records are out of reach right now. Are you offline?" : "Grove records are not enabled in this build."}</p>`;
+  }).catch(() => {});
+}
+function leaderboardHTML(d){
+  if (!d.top || !d.top.length) return `<p class="muted">No scores recorded yet. Be the first keeper on the ledger.</p>`;
+  const rows = d.top.map(r => `<tr class="${lastRank === r.rank && lastInitials === r.initials ? "me" : ""}"><td>${r.rank}</td><td>${esc(r.initials)}</td><td>${r.score}</td><td>${r.won ? "Engine defeated" : "Level " + r.level}</td></tr>`).join("");
+  const you = lastRank ? `<p class="muted">Your score is ranked <strong>#${lastRank}</strong> of ${d.total}.</p>` : `<p class="muted">${d.total} score${d.total === 1 ? "" : "s"} recorded so far.</p>`;
+  return `<table><tr><th>#</th><th>Keeper</th><th>Score</th><th>Reached</th></tr>${rows}</table>${you}`;
+}
+function statsHTML(d){
+  const pct = x => Math.round((x || 0) * 100) + "%";
+  const rows = d.levels.map(l => `<tr><td>${l.level}. ${esc(l.name)}</td><td>${pct(l.reach_rate)}</td><td>${l.hits_per_attempt}</td><td>${l.avg_lesson_seconds == null ? "–" : l.avg_lesson_seconds + "s"}</td></tr>`).join("");
+  const quiz = d.quiz && d.quiz.length ? `<p class="muted">Quick-check answers correct: ` + d.quiz.map(q => `Q${q.q + 1} ${pct(q.correct_rate)}`).join(" · ") + `</p>` : "";
+  return `<p>${d.runs} run${d.runs === 1 ? "" : "s"} by ${d.players} player${d.players === 1 ? "" : "s"}. The Engine has been defeated ${d.wins} time${d.wins === 1 ? "" : "s"} (${pct(d.win_rate)} of runs).</p>
+    <table><tr><th>Level</th><th>Reached</th><th>Hits / try</th><th>Lesson read</th></tr>${rows}</table>${quiz}`;
 }
 function showCards(cards, done){
   cardQueue = cards.slice(); cardDone = done; overlayOpen = true;
   ov.classList.remove("hidden");
-  cardEl.innerHTML = buildCard(cardQueue.shift());
-  cardShownAt = performance.now();
+  renderCard(cardQueue.shift());
 }
-function advanceCard(){
+function leaveCurrentCard(){
+  const c = currentCard;
+  if (c && c.lesson != null) api.track("lesson_view", c.lesson + 1, Math.min(600000, Math.round(performance.now() - cardShownAt)));
+}
+function advanceCard(force){
+  if (!overlayOpen) return;
   if (performance.now() - cardShownAt < 400) return;   // guard against double-tap skipping
+  if (!force && currentCard && (currentCard.type === "quiz" || currentCard.type === "initials")) return;   // these need a choice
   sfx.card();
+  leaveCurrentCard();
   if (cardQueue.length){
-    cardEl.innerHTML = buildCard(cardQueue.shift());
-    cardShownAt = performance.now();
+    renderCard(cardQueue.shift());
   } else {
-    overlayOpen = false;
+    overlayOpen = false; currentCard = null;
     ov.classList.add("hidden");
     keys[" "] = false;
     const d = cardDone; cardDone = null;
     if (d) d();
   }
 }
-// "click" rather than "pointerdown": a finger scrolling a long card on a small screen must not advance it
-ov.addEventListener("click", e => { e.preventDefault(); ensureAudio(); advanceCard(); });
+function cardAction(act, val){
+  const c = currentCard;
+  if (!overlayOpen || !c) return;
+  if (act === "choose" && c.type === "quiz"){
+    const choice = parseInt(val, 10);
+    if (!(choice >= 0 && choice < c.options.length)) return;
+    const correct = choice === c.correct;
+    if (correct) score += 100;
+    api.track("quiz", c.lessonIdx + 1, c.qIndex, correct ? 1 : 0, choice);
+    cardQueue.unshift({ tag: c.tag, h: correct ? "Correct! +100 focus" : "Not quite",
+      p: [ (correct ? `<span class="ok">✓</span> ` : `<span class="bad">✗</span> The answer: <strong>${esc(c.options[c.correct])}</strong>. `) + esc(c.why) ],
+      hint: "Press SPACE or tap to continue" });
+    cardShownAt = 0; currentCard = null;
+    advanceCard(true);
+    return;
+  }
+  if (act === "submit" && c.type === "initials"){
+    if (c.busy) return;
+    const inp = cardEl.querySelector("input");
+    const msg = cardEl.querySelector("[data-slot=msg]");
+    const initials = (inp ? String(inp.value) : "").toUpperCase().replace(/[^A-Z]/g, "");
+    if (initials.length !== 3){ if (msg) msg.textContent = "Three letters, A to Z."; return; }
+    c.busy = true; if (msg) msg.textContent = "Recording…";
+    const serial = cardSerial;
+    api.submitScore(initials, c.score, c.level).then(r => {
+      if (serial !== cardSerial) return;
+      if (r && r.ok){ lastRank = r.rank; lastInitials = r.initials; cardShownAt = 0; advanceCard(true); }
+      else { c.busy = false; if (msg) msg.textContent = (r && r.error) ? "Not recorded: " + r.error : "Could not reach the grove records. Try again, or skip."; }
+    });
+    return;
+  }
+  if (act === "skip" && c.type === "initials"){ cardShownAt = 0; advanceCard(true); return; }
+  if (act === "records"){ showCards([leaderboardCard(), statsCard()], showTitle); return; }
+  if (act === "next"){ advanceCard(true); }
+}
+// "click" rather than "pointerdown": a finger scrolling a long card on a small screen must not advance it.
+// Buttons inside cards carry data-act and are handled here too, so they never fall through to "advance".
+ov.addEventListener("click", e => {
+  ensureAudio();
+  const t = e.target;
+  const btn = t && t.closest ? t.closest("[data-act]") : null;
+  if (btn){ e.preventDefault(); cardAction(btn.dataset.act, btn.dataset.val); return; }
+  if (t && t.closest && t.closest("input")) return;
+  e.preventDefault(); advanceCard();
+});
 
 /* ---------- flow ---------- */
 function titleCards(){
@@ -226,6 +464,7 @@ function titleCards(){
     { big:"MINDWING",
       sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
       p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "" ].filter(Boolean),
+      buttons: api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : undefined,
       hint:"Press SPACE or tap to begin" },
     { tag:"The story", h:"The Grove of Minds",
       p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
@@ -242,12 +481,35 @@ function titleCards(){
 }
 function lessonCard(i){
   const l = LESSONS[i];
-  return { tag:l.tag, h:l.h, p:l.p, note:l.note, hint:"Press SPACE or tap to fly" };
+  return { tag:l.tag, h:l.h, p:l.p, note:l.note, lesson:i, hint:"Press SPACE or tap for a quick check" };
 }
+let quizDone = [false, false, false, false];
 function showTitle(){
-  state = "title"; score = 0; boss = null;
+  state = "title"; score = 0; boss = null; lastRank = null;
+  quizDone = [false, false, false, false];
   eagles = []; fires = []; bullets = []; motes = []; parts = [];
-  showCards([...titleCards(), lessonCard(startLevel)], () => beginLevel(startLevel));
+  showCards(titleCards(), () => { runStartAt = performance.now(); api.startRun(startLevel); showLessonThen(startLevel); });
+}
+function showLessonThen(i){
+  showCards([lessonCard(i), ...quizCards(i)], () => beginLevel(i));
+}
+function quizCards(i){
+  if (quizDone[i]) return [];
+  quizDone[i] = true;
+  return QUIZ.map((q, idx) => ({ q, idx })).filter(x => x.q.lesson === i)
+    .map((x, k) => ({ type:"quiz", tag:`Quick check ${k + 1} of 2 · ${LESSONS[i].h}`, h: esc(x.q.q), options: x.q.a, correct: x.q.correct, why: x.q.why, lessonIdx: i, qIndex: x.idx, hint:"" }));
+}
+function initialsCard(scoreVal, levelVal){
+  return { type:"initials", tag:"Grove records", h:"Sign the grove ledger",
+    p:[ `Score <strong style="color:var(--accent)">${scoreVal}</strong>. Enter three letters to record it on the global leaderboard. No names, no accounts, just initials.` ],
+    score: scoreVal, level: levelVal, hint:"" };
+}
+function leaderboardCard(hint){
+  return { type:"leaderboard", tag:"Grove records", h:"Top keepers of the grove", hint: hint || "Press SPACE or tap to continue" };
+}
+function statsCard(){
+  return { type:"stats", tag:"Grove statistics", h:"What players are learning",
+    p:[ "Anonymous and aggregated across everyone who has played. No names, no accounts." ], hint:"Press SPACE or tap to continue" };
 }
 function beginLevel(i){
   level = i;
@@ -259,6 +521,8 @@ function beginLevel(i){
   inv = 1.2; spawnT = 1.0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
   levelStartScore = score;
   hitBlink = false;
+  levelStartAt = performance.now();
+  api.track("level_start", i + 1); api.flush();
   boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:55, maxhp:55, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false } : null;
   banner = { text:`Level ${i+1} · ${cfg.name}`, sub:`Concept: ${cfg.concept}`, t:0, max:2.4 };
   state = "play";
@@ -269,14 +533,15 @@ function levelCleared(){
   eagles = []; fires = [];
   const untouched = !tookDamage;
   if (untouched) score += 500;
+  api.track("level_clear", level + 1, Math.round(performance.now() - levelStartAt), score);
   banner = { text:"GROVE SECTION CLEARED", sub: untouched ? "Untouched! +500 focus bonus" : "Onward!", t:0, max:1.6 };
 }
 function afterClear(){
   if (level >= LEVELS.length - 1){ winGame(); return; }
-  showCards([lessonCard(level+1)], () => beginLevel(level+1));
+  showLessonThen(level + 1);
 }
-function hitFactCard(){
-  const f = HIT_FACTS[hitFactIdx % HIT_FACTS.length]; hitFactIdx++;
+function hitFactCard(fi){
+  const f = HIT_FACTS[fi]; hitFactIdx++;
   return { tag:"Singed! · a spark of insight", h:"While your wings recover…",
     p:[ f ], hint:"Press SPACE or tap to keep flying" };
 }
@@ -288,32 +553,42 @@ function onPlayerHit(){
   if (hearts <= 0){ gameOver(); return; }
   inv = 2.4;
   state = "hit";
-  showCards([hitFactCard()], () => { state = "play"; });
+  const fi = hitFactIdx % HIT_FACTS.length;
+  api.track("hit", level + 1, fi);
+  showCards([hitFactCard(fi)], () => { state = "play"; });
 }
 function gameOver(){
   state = "over";
+  const scoreAtDeath = score;
+  api.track("game_over", level + 1, null, scoreAtDeath); api.flush();
   const f = HIT_FACTS[hitFactIdx % HIT_FACTS.length]; hitFactIdx++;
-  showCards([{ tag:"The grove dims…", h:"But minds regrow",
+  const record = api.enabled && scoreAtDeath > 0;
+  const cards = [{ tag:"The grove dims…", h:"But minds regrow",
     p:[ "The eagles overwhelmed Lumen this time. While the embers cool, one thing worth keeping:",
         `<strong>${f}</strong>` ],
-    hint:"Press SPACE or tap to retry this level" }],
-    () => { score = levelStartScore; beginLevel(level); });
+    hint: record ? "Press SPACE or tap to continue" : "Press SPACE or tap to retry this level" }];
+  if (record) cards.push(initialsCard(scoreAtDeath, level + 1), leaderboardCard("Press SPACE or tap to retry this level"));
+  showCards(cards, () => { score = levelStartScore; beginLevel(level); });
 }
 function winGame(){
   state = "win"; sfx.win();
+  api.track("win", null, Math.round(performance.now() - runStartAt), score); api.flush();
   if (score > best){ best = score; try { localStorage.setItem("mindwing_best", String(best)); } catch(e){} }
-  showCards([
+  const cards = [
     { tag:"Victory", h:"The Engagement Engine powers down",
       p:[ "It was never invincible. It only worked while nobody understood it.",
-          `<strong style="color:var(--accent)">Final score: ${score}</strong> &nbsp;·&nbsp; Best: ${best}` ] },
-    { tag:"What Lumen learned", h:"Your field guide",
+          `<strong style="color:var(--accent)">Final score: ${score}</strong> &nbsp;·&nbsp; Best: ${best}` ] }
+  ];
+  if (api.enabled) cards.push(initialsCard(score, 4), leaderboardCard());
+  cards.push({ tag:"What Lumen learned", h:"Your field guide",
       list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",
              "<b>Neural networks:</b> billions of tuned number-dials, pattern power without understanding.",
              "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done.",
              "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, and keep practicing your own skills." ],
       note:"<b>The grove stays safe</b> while its keeper stays curious. Share what you learned with someone today.",
-      hint:"Press SPACE or tap to play again" }
-  ], showTitle);
+      hint: api.enabled ? "Press SPACE or tap to continue" : "Press SPACE or tap to play again" });
+  if (api.enabled) cards.push(statsCard());
+  showCards(cards, showTitle);
 }
 function pauseGame(){
   if (state !== "play") return;
@@ -332,12 +607,21 @@ let tapT1 = -1e9, tapT2 = -1e9, ptT1 = -1e9, ptT2 = -1e9;
 const isolatedDoubleTap = (now, t1, t2, gap) => now - t1 < gap && t1 - t2 > 350;
 window.addEventListener("keydown", e => {
   const key = e.key || "";
+  if (e.target && e.target.tagName === "INPUT"){            // typing initials: leave the field alone
+    if (key === "Enter"){ e.preventDefault(); cardAction("submit"); }
+    else if (key === "Escape") cardAction("skip");
+    return;
+  }
   if ([" ","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(key)) e.preventDefault();
   ensureAudio();
   if (e.repeat) return;
   const k = key.length === 1 ? key.toLowerCase() : key;
   keys[k] = true;
   if (overlayOpen){
+    const c = currentCard;
+    if (c && c.type === "quiz"){ const n = parseInt(key, 10); if (n >= 1 && n <= c.options.length) cardAction("choose", String(n - 1)); return; }
+    if (c && c.type === "initials"){ if (key === "Enter") cardAction("submit"); else if (key === "Escape") cardAction("skip"); return; }
+    if (k === "l" && state === "title" && api.enabled && c && c.big){ cardAction("records"); return; }
     if (key === " " || key === "Enter") advanceCard();
     return;
   }
@@ -382,7 +666,7 @@ window.addEventListener("pointerup", () => { touchActive = false; });
 window.addEventListener("pointercancel", () => { touchActive = false; });
 window.addEventListener("blur", () => { touchActive = false; for (const k in keys) keys[k] = false; pauseGame(); });
 window.addEventListener("contextmenu", e => e.preventDefault());
-document.addEventListener("visibilitychange", () => { if (document.hidden) pauseGame(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden){ pauseGame(); api.flush(true); } });
 
 /* ---------- actions ---------- */
 function shoot(){
@@ -396,6 +680,7 @@ function tryBurst(){
     return;   // never spend a charge on an empty sky
   }
   bursts--; flash = 1; shake = 6; sfx.burst();
+  api.track("burst", level + 1);
   fires = [];
   for (const e of eagles){
     score += e.pts;

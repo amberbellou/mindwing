@@ -1,0 +1,27 @@
+# Mindwing API on Cloudflare Workers + D1.
+# Deploy steps are in backend/README.md.
+name = "mindwing-api"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mindwing"
+# Replace with the id printed by:  npx wrangler d1 create mindwing
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[triggers]
+# Hourly cleanup of expired rate-limit buckets.
+crons = ["17 * * * *"]
+
+[vars]
+# Browser origins allowed to call the API (comma separated). "*" allows any origin.
+ALLOWED_ORIGINS = "https://amberbellou.github.io,http://localhost:8765,http://127.0.0.1:8765"
+
+[observability]
+enabled = true
+
+# Secrets (never in this file):
+#   npx wrangler secret put SESSION_SECRET   # long random string, signs game sessions
+#   npx wrangler secret put ADMIN_KEY        # protects the /v1/export endpoint

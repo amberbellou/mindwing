@@ -21,9 +21,10 @@ The game is built around the idea that a message lands best when it arrives at a
 
 - **Start of the game**: a short story frame, the controls, and Lesson 1.
 - **Between levels**: one focused lesson card per concept, each ending in a practical "Field note" the player can use the same day.
+- **Quick checks**: two multiple-choice questions right after each lesson (eight in total). A right answer earns +100 focus, a wrong one costs nothing and shows the correct answer with a one-line explanation, so the check teaches rather than punishes.
 - **When you get hit**: the game pauses on a one-sentence "spark of insight" drawn from a rotating set of ten facts and self-check questions. Getting hit is the moment a player is most likely to actually read, and the short pause doubles as a breather.
 - **Game over**: an encouraging retry screen that repeats one insight, so even losing teaches something.
-- **When you win**: a recap "field guide" that consolidates all four concepts into four sentences.
+- **When you win**: a recap "field guide" that consolidates all four concepts into four sentences, then the global leaderboard and the "Grove statistics" card showing what everyone who has played is learning.
 
 The pause screen itself asks a small reflective question about whether the break was chosen on purpose, which is the game's central theme in miniature.
 
@@ -40,6 +41,8 @@ Language is pitched for roughly ages 11 and up. It avoids jargon where possible 
 | Touch: double-tap | Clarity Burst |
 | P or Esc | Pause |
 | M | Mute |
+| 1, 2, 3 | Answer a quick-check question |
+| L (title screen) | Grove records: leaderboard and statistics |
 
 The double-tap has to be a deliberate one (a short pause, then two quick taps), so players who mash the fire key do not burn their charges by accident. A burst is never spent on an empty sky.
 
@@ -47,25 +50,41 @@ Purple **insight motes** dropped by defeated eagles refill Clarity Burst charges
 
 ## Running it
 
-It is a single `index.html` file with no dependencies, no build step, no network requests, and no external assets. Open the file in any modern browser, or serve the folder with any static server. It works offline and on phones and tablets (on a phone, turn it sideways to landscape for the best view).
+The game is a single `index.html` file with no dependencies, no build step, and no external assets. Open the file in any modern browser, or serve the folder with any static server. It works offline and on phones and tablets (on a phone, turn it sideways to landscape for the best view).
+
+The optional backend (see below) adds a leaderboard and statistics. Without it, or when it cannot be reached, the game runs exactly the same minus those two cards.
 
 Sound is generated with the Web Audio API (no audio files). Press M to mute.
 
 **For reviewers with limited time:** add `?level=2`, `?level=3`, or `?level=4` to the URL to start at that level (with its lesson card). For example: https://amberbellou.github.io/mindwing/?level=4 jumps to the boss.
 
+## Backend: leaderboard and learning analytics
+
+`backend/` holds a small Cloudflare Worker with a D1 (SQLite) database. It gives the game:
+
+- a **global leaderboard** with arcade-style three-letter initials (no names, no accounts);
+- **anonymous learning analytics**: how far players get, hits per attempt, how long each lesson is read, and quick-check correct rates, shown in-game as "Grove statistics" and exportable as CSV for research;
+- **abuse resistance**: server-signed sessions, plausibility checks on submitted scores (duration, level reached, recorded gameplay), strict validation of every event, per-IP rate limits, body size limits, and CORS restricted to the game's origin.
+
+No personal data is stored. IP addresses are only hashed with a daily salt for rate limiting. Full details, the API reference, and the five-minute deploy steps are in [backend/README.md](backend/README.md). To connect a deployed backend, set `API_BASE_DEFAULT` at the top of the script in `index.html`.
+
 ## Testing
 
-`test/fuzz.mjs` runs the real game script headlessly in Node (no browser needed) with a stubbed canvas. It hammers the game with random input (keys, taps, drags, pauses, focus loss, resizes, malformed events) for thousands of frames while checking invariants every frame, then plays the game for real with a simple aimbot to prove it can be completed from level 1 and from the `?level=4` shortcut.
+Two test suites, both plain Node with no extra dependencies:
+
+- `backend/`: `npm test` runs the Worker unchanged against an in-memory SQLite database and checks every endpoint: signatures, validation, clamping, score plausibility, initials rules, rate limits, CORS, stats aggregation, export, and error handling.
+- `test/fuzz.mjs` runs the real game script headlessly with a stubbed canvas, and routes its `fetch` calls in-process to the real Worker. It hammers the game with random input (keys, taps, drags, card buttons, pauses, focus loss, resizes, malformed events) across four network conditions (no backend, working, flaky, down) while checking invariants every frame. Then an aimbot plays the whole game for real, answering the quizzes and signing the leaderboard, and the harness verifies the database ends up with exactly the expected records.
 
 ```bash
 node test/fuzz.mjs
+cd backend && npm test
 ```
 
 ## Design notes
 
 - Everything is drawn procedurally on a `<canvas>` (the fairy, the eagles, the mechanical boss, fireballs, particles, parallax sky).
-- Lesson and message text lives at the top of the script in three plain arrays (`LESSONS`, `HIT_FACTS`, `LEVELS`) so educators can edit the content without touching game code.
-- The best score is remembered in `localStorage` on the player's device only. Nothing is sent anywhere.
+- Lesson, quiz and message text lives at the top of the script in plain arrays (`LESSONS`, `QUIZ`, `HIT_FACTS`, `LEVELS`) so educators can edit the content without touching game code.
+- The best score is remembered in `localStorage` on the player's device. With the backend enabled, the game also sends anonymous gameplay events and, if the player chooses, three initials and a score.
 
 ## License
 
