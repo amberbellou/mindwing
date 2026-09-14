@@ -66,7 +66,7 @@ Sound is generated with the Web Audio API (no audio files). Press M to mute.
 - **anonymous learning analytics**: how far players get, hits per attempt, how long each lesson is read, and quick-check correct rates, shown in-game as "Grove statistics" and exportable as CSV for research;
 - **abuse resistance**: server-signed sessions, plausibility checks on submitted scores (duration, level reached, recorded gameplay), strict validation of every event, per-IP rate limits, body size limits, and CORS restricted to the game's origin.
 
-No personal data is stored. IP addresses are only hashed with a daily salt for rate limiting. Full details, the API reference, and the five-minute deploy steps are in [backend/README.md](backend/README.md). To connect a deployed backend, set `API_BASE_DEFAULT` at the top of the script in `index.html`.
+No personal data is stored. IP addresses are only hashed with a daily salt for rate limiting. Full details, the API reference, and the five-minute deploy steps are in [backend/README.md](backend/README.md). The live backend runs at https://mindwing-api.amberbellou.workers.dev (check it with `/v1/health`); the game points at it through `API_BASE_DEFAULT` at the top of the script in `index.html`. Redeploy with `backend/deploy.sh`.
 
 ## Testing
 

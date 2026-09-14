@@ -25,6 +25,10 @@ const SCHEMA = fs.readFileSync(path.join(here, "..", "backend", "migrations", "0
 const match = html.match(/<script>([\s\S]*?)<\/script>/);
 if (!match) throw new Error("no <script> block found in index.html");
 let src = match[1];
+// Tests stay hermetic: blank the shipped production API URL so only ?api=localhost scenarios touch the in-process Worker.
+const API_LINE = /const API_BASE_DEFAULT = "[^"]*";/;
+if (!API_LINE.test(src)) throw new Error("API_BASE_DEFAULT line not found in index.html");
+src = src.replace(API_LINE, 'const API_BASE_DEFAULT = "";');
 // Expose internals for assertions (test build only; the shipped file has no such hook).
 const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug() });\n`;
 const tail = src.lastIndexOf("})();");

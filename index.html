@@ -93,7 +93,7 @@ const cardEl = document.getElementById("card");
    Leave it empty and the game runs fully offline. For local development, open the game
    with ?api=http://localhost:8787 (only localhost URLs are accepted by the override).
    Nothing personal is ever sent: a random client id, gameplay events, and 3-letter initials. */
-const API_BASE_DEFAULT = "";
+const API_BASE_DEFAULT = "https://mindwing-api.amberbellou.workers.dev";
 const api = (() => {
   let base = API_BASE_DEFAULT;
   try {

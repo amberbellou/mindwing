@@ -8,7 +8,7 @@ compatibility_date = "2025-06-01"
 binding = "DB"
 database_name = "mindwing"
 # Replace with the id printed by:  npx wrangler d1 create mindwing
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "3e46ebff-602e-471c-a3c6-23d5dff0a510"
 migrations_dir = "migrations"
 
 [triggers]
