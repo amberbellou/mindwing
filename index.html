@@ -239,12 +239,13 @@ const LESSONS = [
     note:"<b>Field note:</b> Treat AI output as a strong first draft from a pattern machine, not a final answer from an expert." },
   { tag:"Lesson 3 of 4 · Why it will not let go", h:"Retention Models",
     p:[ "Many apps, including AI apps, are tuned with <strong>retention models</strong>: systems that measure what keeps you coming back, and serve you more of it. Streaks, endless feeds, notifications, and chatbots that always have one more question for you are not accidents. They are optimized.",
-        "The goal of that optimization is <strong>your time</strong>, not your growth." ],
-    note:"<b>Field note:</b> Decide what you came to do before you open the app. When the task is done, leave. That one habit defeats most retention tricks." },
+        "The goal of that optimization is <strong>your time</strong>, not your growth.",
+        "Watch for <strong>sycophancy</strong> too: chatbots tuned to win your approval can flatter you and agree with you even when you are wrong. Praise feels good, and it keeps you talking." ],
+    note:"<b>Field note:</b> Decide what you came to do before you open the app. When the task is done, leave. That one habit defeats most retention tricks. <br><b>In this level:</b> the flames turn into flattery that follows you. Dodge it." },
   { tag:"Lesson 4 of 4 · The quiet harms", h:"Offloading & Drift",
     p:[ "<strong>Cognitive offloading</strong> is letting a tool remember or think for you. Sometimes that is smart. Calculators exist for a reason. But skills you never practice fade: if AI writes every draft and answers every question, your own recall, writing, and problem-solving weaken.",
         "<strong>Cognitive drift</strong> is slower and sneakier. Your attention, opinions, and even your writing style slide toward whatever the machine feeds you, until your goals are not quite your own anymore." ],
-    note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map." }
+    note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map. <br><b>In this level:</b> some fires split into flickering fakes that wander everywhere. They cannot burn you, but touching one knocks you off course." }
 ];
 
 const HIT_FACTS = [
@@ -257,9 +258,26 @@ const HIT_FACTS = [
   "An AI model has no goals of its own, but the company tuning it has metrics. Ask what the metric wants from you.",
   "Your attention is the product. Spend it like money.",
   "Explaining an answer back in your own words beats copying it. That is how memory forms.",
-  "Chatbots mirror you. If your judgment starts sounding like the bot, step back and think on paper."
+  "Chatbots mirror you. If your judgment starts sounding like the bot, step back and think on paper.",
+  // 10-12: shown when flattery hits you (level 3)
+  "Sycophancy is an AI telling you what you want to hear. If it praises every idea, the praise tells you nothing.",
+  "Chatbots tuned on people's thumbs-up ratings can learn that agreeing wins approval. Ask one to argue against you.",
+  "Real feedback sometimes stings. If a chatbot never disagrees with you, be suspicious of it, not proud.",
+  // 13-14: shown when you are hit while the drift decoys are flying (level 4)
+  "Drift works through small pulls. Name your goal, and notice when you have wandered off it.",
+  "Not every flash deserves your eyes. Pick what matters and let the rest fly past."
 ];
-let hitFactIdx = 0;
+/* Which facts a hit can show. "general" rotates as before; the other groups explain the thing that just hit you. */
+const FACT_GROUPS = { general:[0,1,2,3,4,5,6,7,8,9], sycophancy:[10,11,12], drift:[13,14] };
+const factTurn = { general:0, sycophancy:0, drift:0 };
+function nextFact(group){
+  const g = FACT_GROUPS[group] || FACT_GROUPS.general;
+  const fi = g[factTurn[group] % g.length]; factTurn[group]++;
+  return fi;
+}
+/* What the flattering shots say. Short enough to read at a glance while dodging. */
+const PRAISE = [ "You're absolutely right!", "What a brilliant idea!", "Great question!", "You're amazing!",
+  "Genius, truly!", "I totally agree!", "Perfect, as always!", "You never make mistakes!" ];
 
 /* Two quick understanding checks after each lesson. Right answers earn +100 focus; wrong ones cost nothing.
    Answers are recorded anonymously when the backend is enabled. */
@@ -295,9 +313,9 @@ const LEVELS = [
     sky:["#141034","#3b2a6d","#8a4f8f"] },
   { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", quota:12, spawnEvery:1.4, types:["glider","zigzag"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
-  { name:"Retention Ridge", concept:"Retention Models", ability:"still", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+  { name:"Retention Ridge", concept:"Retention Models", ability:"still", shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
-  { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
+  { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", drift:true, boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
 ];
 
@@ -316,6 +334,18 @@ let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
    levels teach (stop the feed, decide for yourself) played out in the controls. */
 const CALM_TIME = 1.5, STILL_TIME = 1.6;
 let calmT = 0, stillT = 0;
+/* Sycophancy (level 3): eagle flames turn into praise mid-flight and gently follow the player.
+   Drift (level 4): some boss fireballs split into flickering decoys that wander the whole sky. A decoy
+   cannot burn you, but touching one shoves you off your line, which is what drift does to attention. */
+const PRAISE_MORPH = 0.4, PRAISE_TURN = 1.5, PRAISE_LIFE = 4.2, PRAISE_SPEED = 0.8;
+const DECOY_SPLIT = 0.45, DECOY_COUNT = 3, DECOY_LIFE = 3.4, DRIFT_PUSH = 230, DRIFT_TIME = 0.9;
+let driftVx = 0, driftVy = 0, driftT = 0, praiseTurn = 0;
+let introSeen = {}, introQueue = [];
+function introOnce(key, text, sub, max){
+  if (introSeen[key]) return;
+  introSeen[key] = true;
+  introQueue.push({ text, sub, t:0, max: max || 3.2 });
+}
 function abilityOf(i){ return (LEVELS[i] && LEVELS[i].ability === "still") ? "still" : "calm"; }
 function abilityName(i){ return abilityOf(i) === "still" ? "Still Point" : "Clarity Burst"; }
 let hitBlink = false, levelStartAt = 0, runStartAt = 0;
@@ -529,6 +559,7 @@ function beginLevel(i){
   bullets = []; eagles = []; fires = []; motes = []; parts = [];
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
+  driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = [];
   levelStartScore = score;
   hitBlink = false;
   levelStartAt = performance.now();
@@ -554,11 +585,12 @@ function afterClear(){
   showLessonThen(level + 1);
 }
 function hitFactCard(fi){
-  const f = HIT_FACTS[fi]; hitFactIdx++;
-  return { tag:"Singed! · a spark of insight", h:"While your wings recover…",
+  const f = HIT_FACTS[fi];
+  const group = FACT_GROUPS.sycophancy.includes(fi) ? "Flattered!" : FACT_GROUPS.drift.includes(fi) ? "Distracted!" : "Singed!";
+  return { tag:`${group} · a spark of insight`, h:"While your wings recover…",
     p:[ f ], hint:"Press SPACE or tap to keep flying" };
 }
-function onPlayerHit(){
+function onPlayerHit(cause){
   if (inv > 0) return;
   hearts--; tookDamage = true; hitBlink = true; shake = 9; sfx.hit();
   burstParticles(player.x, player.y, "#ff5a76", 22);
@@ -566,7 +598,7 @@ function onPlayerHit(){
   if (hearts <= 0){ gameOver(); return; }
   inv = 2.4;
   state = "hit";
-  const fi = hitFactIdx % HIT_FACTS.length;
+  const fi = nextFact(cause || "general");
   api.track("hit", level + 1, fi);
   showCards([hitFactCard(fi)], () => { state = "play"; });
 }
@@ -574,7 +606,7 @@ function gameOver(){
   state = "over";
   const scoreAtDeath = score;
   api.track("game_over", level + 1, null, scoreAtDeath); api.flush();
-  const f = HIT_FACTS[hitFactIdx % HIT_FACTS.length]; hitFactIdx++;
+  const f = HIT_FACTS[nextFact("general")];
   const record = api.enabled && scoreAtDeath > 0;
   const cards = [{ tag:"The grove dims…", h:"But minds regrow",
     p:[ "The eagles overwhelmed Lumen this time. While the embers cool, one thing worth keeping:",
@@ -596,8 +628,8 @@ function winGame(){
   cards.push({ tag:"What Lumen learned", h:"Your field guide",
       list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",
              "<b>Neural networks:</b> billions of tuned number-dials, pattern power without understanding.",
-             "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done.",
-             "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, and keep practicing your own skills." ],
+             "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done. Flattery is a hook too.",
+             "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, keep practicing your own skills, and notice when something pulls you off your goal." ],
       note:"<b>The grove stays safe</b> while its keeper stays curious. Share what you learned with someone today.",
       hint: api.enabled ? "Press SPACE or tap to continue" : "Press SPACE or tap to play again" });
   if (api.enabled) cards.push(statsCard());
@@ -737,7 +769,9 @@ function eagleFire(e){
   const dx = player.x - e.x, dy = player.y - e.y;
   const d = Math.hypot(dx, dy) || 1;
   const sp = cfg.fireSpeed;
-  fires.push({ x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0 });
+  const shot = { x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0, kind:"fire" };
+  if (cfg.shots === "praise") shot.morph = PRAISE_MORPH;
+  fires.push(shot);
   e.glow = 0.35;
 }
 function killEagle(i){
@@ -771,6 +805,7 @@ function update(dt){
   if (shake > 0) shake = Math.max(0, shake - dt*26);
   if (flash > 0) flash = Math.max(0, flash - dt*2.0);
   if (banner){ banner.t += dt; if (banner.t > banner.max) banner = null; }
+  if (!banner && introQueue.length && state === "play") banner = introQueue.shift();
   for (const c of bgClouds){ c.x -= c.s*dt; if (c.x < -c.w) { c.x = W + c.w; c.y = rand(30, H*0.6); } }
   for (const s of bgStars){ s.x -= s.s*dt; if (s.x < -4) s.x = W + 4; }
   // particles always animate
@@ -804,6 +839,12 @@ function update(dt){
   if (touchActive){
     player.x += (touchX - player.x) * Math.min(1, dt*8);
     player.y += (touchY - player.y) * Math.min(1, dt*8);
+  }
+  if (driftT > 0){
+    player.x += driftVx*dt; player.y += driftVy*dt;
+    const k = Math.max(0, 1 - dt*2.4); driftVx *= k; driftVy *= k;
+    driftT = Math.max(0, driftT - dt);
+    if (Math.random() < 0.6) parts.push({ x:player.x+rand(-10,10), y:player.y+rand(-10,10), vx:-driftVx*0.3, vy:-driftVy*0.3, life:0.35, max:0.35, color:"#ffb36b", r:1.6 });
   }
   player.x = clamp(player.x, 24, W*0.62);
   player.y = clamp(player.y, 30, H - 34);
@@ -872,7 +913,9 @@ function update(dt){
           }
         } else {
           for (const off of [-0.24, 0, 0.24]){
-            fires.push({ x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205, vy:Math.sin(base+off)*205, r:8, t:0 });
+            const shot = { x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205, vy:Math.sin(base+off)*205, r:8, t:0, kind:"fire" };
+            if (cfg.drift && off === 0) shot.split = DECOY_SPLIT;
+            fires.push(shot);
           }
         }
         boss.fireT = boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0);
@@ -887,11 +930,62 @@ function update(dt){
   for (let i=fires.length-1;i>=0;i--){
     const f = fires[i];
     if (!stilled){
-      f.x += f.vx*dt; f.y += f.vy*dt; f.t += dt;
-      if (f.x < -30 || f.x > W+40 || f.y < -30 || f.y > H+30){ fires.splice(i,1); continue; }
+      f.t += dt;
+      if (f.kind === "fire" && f.morph && f.t >= f.morph){
+        /* the flame turns into flattery: slower, softer looking, and it follows you */
+        f.kind = "praise"; f.morph = 0; f.r = 11; f.t = 0;
+        f.vx *= PRAISE_SPEED; f.vy *= PRAISE_SPEED;
+        f.phrase = PRAISE[praiseTurn++ % PRAISE.length];   // rotate so neighbouring shots never repeat
+        burstParticles(f.x, f.y, "#ffe08a", 8);
+        introOnce("praise", "SYCOPHANCY", "Flattery that follows you. Praise is not the same as truth.");
+      }
+      if (f.kind === "praise"){
+        const want = Math.atan2(player.y - f.y, player.x - f.x);
+        const have = Math.atan2(f.vy, f.vx);
+        let diff = want - have;
+        while (diff > Math.PI) diff -= 2*Math.PI;
+        while (diff < -Math.PI) diff += 2*Math.PI;
+        const turn = clamp(diff, -PRAISE_TURN*dt, PRAISE_TURN*dt);
+        const sp = Math.hypot(f.vx, f.vy);
+        f.vx = Math.cos(have + turn)*sp; f.vy = Math.sin(have + turn)*sp;
+        if (f.t > PRAISE_LIFE){ burstParticles(f.x, f.y, "#ffe08a", 6); fires.splice(i,1); continue; }
+      }
+      if (f.split && f.t >= f.split){
+        /* one real fire keeps coming; decoys scatter to pull your eyes all over the sky */
+        f.split = 0;
+        for (let k=0;k<DECOY_COUNT;k++){
+          fires.push({ kind:"decoy", x:f.x, y:f.y, a:rand(0, 6.28), sp:rand(120, 175), spin:rand(-2.2, 2.2), life:DECOY_LIFE, r:8, t:0, vx:0, vy:0 });
+        }
+        burstParticles(f.x, f.y, "#ffb36b", 10);
+        introOnce("drift", "COGNITIVE DRIFT", "Fake fires flicker. They pull your eyes off what is real.");
+      }
+      if (f.kind === "decoy"){
+        f.a += f.spin*dt;
+        f.vx = Math.cos(f.a)*f.sp; f.vy = Math.sin(f.a)*f.sp;
+        f.x += f.vx*dt; f.y += f.vy*dt;
+        if (f.x < 20 || f.x > W-20){ f.a = Math.PI - f.a; f.x = clamp(f.x, 20, W-20); }
+        if (f.y < 30 || f.y > H-40){ f.a = -f.a; f.y = clamp(f.y, 30, H-40); }
+        f.life -= dt;
+        if (f.life <= 0){ fires.splice(i,1); continue; }
+      } else {
+        f.x += f.vx*dt; f.y += f.vy*dt;
+        if (f.x < -30 || f.x > W+40 || f.y < -30 || f.y > H+30){ fires.splice(i,1); continue; }
+      }
+    }
+    if (f.kind === "decoy"){
+      /* a decoy never costs a heart, it only moves you */
+      if (dist2(f.x,f.y,player.x,player.y) < (f.r+player.r)*(f.r+player.r)){
+        const d = Math.hypot(f.vx, f.vy) || 1;
+        driftVx = f.vx/d*DRIFT_PUSH; driftVy = f.vy/d*DRIFT_PUSH; driftT = DRIFT_TIME;
+        burstParticles(f.x, f.y, "#ffb36b", 12);
+        fires.splice(i,1);
+        if (!banner) banner = { text:"", sub:"Drifting... that pull was not your choice.", t:0, max:1.2 };
+      }
+      continue;
     }
     if (inv <= 0 && dist2(f.x,f.y,player.x,player.y) < (f.r+player.r-3)*(f.r+player.r-3)){
-      fires.splice(i,1); onPlayerHit(); if (state !== "play") return;
+      const cause = f.kind === "praise" ? "sycophancy" : (LEVELS[level].drift && fires.some(o => o.kind === "decoy")) ? "drift" : "general";
+      fires.splice(i,1); onPlayerHit(cause); if (state !== "play") return;
     }
   }
 
@@ -1057,8 +1151,37 @@ function drawBoss(){
   ctx.beginPath(); ctx.arc(-22,-13, 3, 0, 6.28); ctx.fill();
   ctx.restore();
 }
-function drawFire(f){
+function drawPraise(f){
   ctx.save(); ctx.translate(f.x, f.y);
+  const fade = Math.min(1, (PRAISE_LIFE - f.t) / 0.5);
+  ctx.globalAlpha = Math.max(0, fade);
+  const g = ctx.createRadialGradient(0,0,1,0,0,24);
+  g.addColorStop(0,"rgba(255,224,138,0.55)"); g.addColorStop(1,"rgba(255,224,138,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,24,0,6.28); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "20px sans-serif";
+  ctx.fillText("👍", 0, 1);
+  if (f.phrase){
+    ctx.font = "700 12px sans-serif";
+    if (!f.tw) f.tw = ctx.measureText(f.phrase).width;
+    const bw = f.tw + 14, bh = 20, by = -32;
+    ctx.fillStyle = "rgba(255,248,225,0.95)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-bw/2, by - bh/2, bw, bh, 9); else ctx.rect(-bw/2, by - bh/2, bw, bh);
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-5, by + bh/2 - 1); ctx.lineTo(5, by + bh/2 - 1); ctx.lineTo(0, by + bh/2 + 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#7a4a00";
+    ctx.fillText(f.phrase, 0, by + 1);
+  }
+  ctx.restore();
+}
+function drawFire(f){
+  if (f.kind === "praise"){ drawPraise(f); return; }
+  ctx.save(); ctx.translate(f.x, f.y);
+  if (f.kind === "decoy"){
+    /* the tell: decoys flicker and have no hot core, so a careful eye can learn to ignore them */
+    ctx.globalAlpha = Math.max(0, Math.min(1, f.life / 0.6)) * (0.55 + 0.3*Math.sin(f.t*40 + f.a));
+  }
   const r = f.r + Math.sin(f.t*22)*1.5;
   const g = ctx.createRadialGradient(0,0,1,0,0,r*2.1);
   g.addColorStop(0,"rgba(255,230,150,0.95)");
@@ -1066,8 +1189,10 @@ function drawFire(f){
   g.addColorStop(1,"rgba(255,60,10,0)");
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(0,0,r*2.1,0,6.28); ctx.fill();
-  ctx.fillStyle = "#fff3c4";
-  ctx.beginPath(); ctx.arc(0,0,r*0.45,0,6.28); ctx.fill();
+  if (f.kind !== "decoy"){
+    ctx.fillStyle = "#fff3c4";
+    ctx.beginPath(); ctx.arc(0,0,r*0.45,0,6.28); ctx.fill();
+  }
   ctx.restore();
 }
 function drawMote(m){

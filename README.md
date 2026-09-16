@@ -12,8 +12,8 @@ You are Lumen, a fairy guarding the Grove of Minds. The Engagement Engine, a mac
 |---|---|---|
 | 1 | Token Thicket | **Tokens**: language models chop text into chunks and predict the next one. They continue patterns; they do not check truth. |
 | 2 | Pattern Canopy | **Neural networks**: billions of tuned weights arranged in layers. Knowledge is spread across all of them, which is why a model can be brilliant and confidently wrong at once. |
-| 3 | Retention Ridge | **Retention models**: apps, including AI apps, are optimized to measure and maximize the time you spend. Streaks, feeds, and "one more question" are design, not accident. |
-| 4 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. |
+| 3 | Retention Ridge | **Retention models**: apps, including AI apps, are optimized to measure and maximize the time you spend. Streaks, feeds, and "one more question" are design, not accident. Also **sycophancy**: chatbots tuned to win approval can flatter you even when you are wrong. In play, the eagles' flames turn into thumbs-up praise bubbles ("You're absolutely right!") that follow you. |
+| 4 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. In play, some of the Engine's fireballs split into flickering fakes that wander the whole sky. A fake cannot burn you, but touching one shoves you off course. |
 
 ## How the learning is delivered
 
@@ -22,7 +22,7 @@ The game is built around the idea that a message lands best when it arrives at a
 - **Start of the game**: a short story frame, the controls, and Lesson 1.
 - **Between levels**: one focused lesson card per concept, each ending in a practical "Field note" the player can use the same day.
 - **Quick checks**: two multiple-choice questions right after each lesson (eight in total). A right answer earns +100 focus, a wrong one costs nothing and shows the correct answer with a one-line explanation, so the check teaches rather than punishes.
-- **When you get hit**: the game pauses on a one-sentence "spark of insight" drawn from a rotating set of ten facts and self-check questions. Getting hit is the moment a player is most likely to actually read, and the short pause doubles as a breather.
+- **When you get hit**: the game pauses on a one-sentence "spark of insight". A hit from flattery explains sycophancy ("Flattered!"), a hit while the fake fires are flying explains drift ("Distracted!"), and any other hit rotates through ten general facts. The first time flattery or fakes appear in a level, a short banner names the idea ("SYCOPHANCY", "COGNITIVE DRIFT"). Getting hit is the moment a player is most likely to actually read, and the short pause doubles as a breather.
 - **Game over**: an encouraging retry screen that repeats one insight, so even losing teaches something.
 - **When you win**: a recap "field guide" that consolidates all four concepts into four sentences, then the global leaderboard and the "Grove statistics" card showing what everyone who has played is learning.
 

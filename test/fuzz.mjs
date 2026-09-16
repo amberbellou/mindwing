@@ -30,7 +30,7 @@ const API_LINE = /const API_BASE_DEFAULT = "[^"]*";/;
 if (!API_LINE.test(src)) throw new Error("API_BASE_DEFAULT line not found in index.html");
 src = src.replace(API_LINE, 'const API_BASE_DEFAULT = "";');
 // Expose internals for assertions (test build only; the shipped file has no such hook).
-const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug() });\n`;
+const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug() });\nwindow.__setInv = v => { inv = v; };\n`;
 const tail = src.lastIndexOf("})();");
 src = src.slice(0, tail) + hook + src.slice(tail);
 
@@ -125,7 +125,8 @@ function makeWorld(seed, { search = "", net = "off" } = {}){
     resize(w, h){ sandbox.innerWidth = w; sandbox.innerHeight = h; fire("window", "resize", {}); },
     collapseCanvas(zero){ rectW = zero ? 0 : 960; rectH = zero ? 0 : 540; },
     calls: () => calls, beacons: () => beacons, now: () => clock,
-    state: () => sandbox.__mw()
+    state: () => sandbox.__mw(),
+    setInv: v => sandbox.__setInv(v)
   };
 }
 
@@ -403,6 +404,107 @@ console.log("ability: level 3 Still Point freezes without destroying");
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
   else console.log("  nothing destroyed, everything held ~1.6s, then motion resumed");
+}
+
+
+/* Level 3 flames turn into flattery that follows the player; level 4 fires split into harmless decoys
+   that shove the player off course. Each shows its explainer once, and a hit explains what hit you. */
+const SYCO_FACTS = [10, 11, 12], DRIFT_FACTS = [13, 14];
+async function watchUntil(w, pred, guard = 3000, seen){
+  for (let i = 0; i < guard; i++){
+    const s = w.state();
+    if (seen && s.banner && s.banner.text) seen.add(s.banner.text);
+    if (s.state === "hit" && s.overlayOpen){ w.click(); }           // keep flying if something clips us
+    if (s.state === "play") w.setInv(99);
+    const r = pred(s); if (r) return r;
+    w.step(16.7); await settle(1);
+  }
+  return null;
+}
+
+console.log("sycophancy: level 3 flames turn into praise that follows you");
+{
+  const errs = [];
+  const w = makeWorld(21, { search: "?level=3", net: "off" });
+  const banners = new Set();
+  if (!await toPlay(w)) errs.push("never reached level 3 play");
+  else {
+    const praise = await watchUntil(w, s => s.fires.find(f => f.kind === "praise"), 3000, banners);
+    if (!praise) errs.push("no shot ever turned into praise");
+    else {
+      if (!praise.phrase || typeof praise.phrase !== "string") errs.push("praise shot has no phrase");
+      // homing: after a moment the shot's heading should point closer to the player than before
+      const s0 = w.state();
+      const off = (f, pl) => { let d = Math.atan2(pl.y - f.y, pl.x - f.x) - Math.atan2(f.vy, f.vx); while (d > Math.PI) d -= 2*Math.PI; while (d < -Math.PI) d += 2*Math.PI; return Math.abs(d); };
+      s0.player.y = praise.y < 270 ? 480 : 60;                        // move away so it has to turn
+      const before = off(praise, s0.player);
+      for (let i = 0; i < 20; i++){ w.step(16.7); await settle(1); }
+      const s1 = w.state();
+      if (s1.fires.includes(praise) && before > 0.1 && off(praise, s1.player) >= before) errs.push("praise did not steer toward the player");
+      await watchUntil(w, () => false, 240, banners);
+      if (!banners.has("SYCOPHANCY")) errs.push("sycophancy explainer never shown: " + [...banners].join(" | "));
+      // take a hit from flattery on purpose: the card must explain sycophancy
+      const s2 = w.state();
+      const p2 = s2.fires.find(f => f.kind === "praise") || (await watchUntil(w, s => s.fires.find(f => f.kind === "praise")));
+      const s3 = w.state();
+      if (!p2) errs.push("no praise shot available to test the hit card");
+      else {
+        w.setInv(0); p2.x = s3.player.x; p2.y = s3.player.y;
+        w.step(16.7); await settle(2);
+        const s4 = w.state();
+        const text = s4.card && s4.card.p && s4.card.p[0];
+        if (s4.state !== "hit") errs.push("praise touched the player without hurting (state " + s4.state + ")");
+        else if (!/^Flattered!/.test(s4.card.tag || "")) errs.push("hit card tag was " + s4.card.tag);
+        else if (!/[Ss]ycophan|agree|disagrees/.test(text || "")) errs.push("hit card did not explain sycophancy: " + text);
+      }
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  flame became praise with a phrase, steered after the player, explainer shown, hit card explains it");
+}
+
+console.log("drift: level 4 fires split into decoys that push you but never burn");
+{
+  const errs = [];
+  const w = makeWorld(23, { search: "?level=4", net: "off" });
+  const banners = new Set();
+  if (!await toPlay(w)) errs.push("never reached level 4 play");
+  else {
+    const decoy = await watchUntil(w, s => s.fires.find(f => f.kind === "decoy"), 6000, banners);
+    if (!decoy) errs.push("no fireball ever split into decoys");
+    else {
+      const count = w.state().fires.filter(f => f.kind === "decoy").length;
+      if (count < 3) errs.push(`expected 3 decoys from a split, saw ${count}`);
+      await watchUntil(w, () => false, 240, banners);
+      if (!banners.has("COGNITIVE DRIFT")) errs.push("drift explainer never shown: " + [...banners].join(" | "));
+      // touch a decoy: no heart lost, no hit card, but the fairy is shoved
+      const d = await watchUntil(w, s => s.fires.find(f => f.kind === "decoy"), 6000);
+      if (!d) errs.push("no decoy left to touch");
+      else {
+        const s = w.state();
+        const hearts = s.hearts, px = s.player.x, py = s.player.y;
+        d.x = px; d.y = py; d.vx = 150; d.vy = 0; d.a = 0; d.spin = 0;
+        for (let i = 0; i < 12; i++){ w.step(16.7); await settle(1); }
+        const t = w.state();
+        if (t.hearts !== hearts) errs.push("a decoy cost a heart");
+        if (t.state !== "play") errs.push("a decoy interrupted play (state " + t.state + ")");
+        if (Math.hypot(t.player.x - px, t.player.y - py) < 15) errs.push("touching a decoy did not push the fairy");
+      }
+      // a real fire landing while decoys fly explains drift
+      const real = await watchUntil(w, s => s.fires.some(f => f.kind === "decoy") && s.fires.find(f => f.kind === "fire"), 8000);
+      if (!real) errs.push("never saw a real fire alongside decoys");
+      else {
+        const s = w.state();
+        w.setInv(0); real.x = s.player.x; real.y = s.player.y;
+        w.step(16.7); await settle(2);
+        const h = w.state();
+        if (h.state !== "hit") errs.push("real fire amid decoys did not hit (state " + h.state + ")");
+        else if (!/^Distracted!/.test(h.card.tag || "")) errs.push("drift hit card tag was " + h.card.tag);
+      }
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  decoys split off, explainer shown, touching one pushes without damage, real hit explains drift");
 }
 
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
