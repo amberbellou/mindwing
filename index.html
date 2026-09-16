@@ -694,7 +694,7 @@ function tryBurst(){
     return;   // never spend a charge on an empty sky
   }
   bursts--; sfx.burst();
-  api.track("burst", level + 1);
+  api.track(still ? "still" : "burst", level + 1);   // the two moves are separate in the research data
   if (still){
     /* Levels 3-4: hold the sky instead of clearing it. Nothing dies, nothing moves, and the player
        flies through the gap. Stacking is not allowed to stretch the window past STILL_TIME. */

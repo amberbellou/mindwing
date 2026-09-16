@@ -129,15 +129,19 @@ test("events: signature is enforced, invalid events dropped, limits applied", as
     { type: "teleport", level: 1 },               // unknown type
     { type: "lesson_view", level: 2, n: 99999999 }, // clamped, still accepted
     { type: "quiz", level: 1, n: 0, v: 5, w: 1 },  // v clamped to 1
+    { type: "burst", level: 1 },                   // Clarity Burst, levels 1-2
+    { type: "still", level: 3 },                   // Still Point, levels 3-4
     "garbage", null, 42
   ]});
   assert.equal(mixed.status, 200, mixed.text);
-  assert.deepEqual([mixed.data.accepted, mixed.data.rejected], [3, 5]);
+  assert.deepEqual([mixed.data.accepted, mixed.data.rejected], [5, 5]);
   const rows = env.DB._raw.prepare("SELECT type, level, n, v FROM events ORDER BY id").all();
   assert.equal(rows.find(r => r.type === "lesson_view").n, 600000, "reading time clamped to 10 minutes");
   assert.equal(rows.find(r => r.type === "quiz").v, 1);
+  assert.equal(rows.filter(r => r.type === "burst").length, 1, "Clarity Burst recorded under its own type");
+  assert.equal(rows.find(r => r.type === "still").level, 3, "Still Point recorded separately, with its level");
   const session = env.DB._raw.prepare("SELECT event_count, max_level FROM sessions WHERE id = ?").get(s.sid);
-  assert.deepEqual([session.event_count, session.max_level], [3, 2]);
+  assert.deepEqual([session.event_count, session.max_level], [5, 3]);
   const allBad = await call(env, "POST", "/v1/events", { sid: s.sid, sig: s.sig, events: [{ type: "nope" }] });
   assert.equal(allBad.status, 400);
   const tooMany = await call(env, "POST", "/v1/events", { sid: s.sid, sig: s.sig, events: Array(51).fill({ type: "burst", level: 1 }) });

@@ -32,7 +32,8 @@ const EVENT_TYPES = {
   game_over:   { level: true,  v: [0, 10000000] },                     // v = score at death
   win:         { level: false, n: [0, 36000000], v: [0, 10000000] },   // n = total ms, v = final score
   quiz:        { level: true,  n: [0, 99], v: [0, 1], w: [0, 9] },     // n = question, v = correct, w = choice
-  burst:       { level: true }
+  burst:       { level: true },                                        // Clarity Burst, levels 1-2
+  still:       { level: true }                                         // Still Point, levels 3-4
 };
 
 const LIMITS = {                 // requests per minute per (hashed) IP; sized so a whole classroom behind one address is fine

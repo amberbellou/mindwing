@@ -268,6 +268,11 @@ async function aimbot(seed, { search = "", net = "off", maxFrames = 120000 } = {
   const out = { ok: true, wins, overs, hits, maxLevel, frames: framesUsed, minutes: (framesUsed * 16.7 / 60000).toFixed(1), calls: w.calls(), winScore };
   if (w.backend){
     const raw = w.backend.env.DB._raw;
+    const clarity = raw.prepare("SELECT type, level, COUNT(*) AS c FROM events WHERE type IN ('burst','still') GROUP BY type, level").all();
+    for (const r of clarity){
+      if (r.type === "burst" && r.level > 2) expect.push(`burst event logged on level ${r.level} (levels 3-4 use the still point)`);
+      if (r.type === "still" && r.level < 3) expect.push(`still event logged on level ${r.level} (levels 1-2 use the burst)`);
+    }
     const count = (sql, ...a) => raw.prepare(sql).get(...a).c;
     out.db = {
       sessions: count("SELECT COUNT(*) AS c FROM sessions"),
@@ -276,6 +281,7 @@ async function aimbot(seed, { search = "", net = "off", maxFrames = 120000 } = {
       quiz_correct: count("SELECT COUNT(*) AS c FROM events WHERE type = 'quiz' AND v = 1"),
       level_clears: count("SELECT COUNT(DISTINCT level) AS c FROM events WHERE type = 'level_clear'"),
       wins: count("SELECT COUNT(*) AS c FROM events WHERE type = 'win'"),
+      clarity: raw.prepare("SELECT type, level, COUNT(*) AS c FROM events WHERE type IN ('burst','still') GROUP BY type, level ORDER BY type, level").all(),
       scores: raw.prepare("SELECT initials, score, level, won FROM scores").all()
     };
     const st = await (await worker.fetch(new Request("http://localhost:8787/v1/stats"), w.backend.env, w.backend.ctx)).json();
@@ -369,7 +375,7 @@ console.log("ability: level 1 Clarity Burst clears the sky, then holds it clear"
 console.log("ability: level 3 Still Point freezes without destroying");
 {
   const errs = [];
-  const w = makeWorld(5, { search: "?level=3", net: "off" });
+  const w = makeWorld(5, { search: "?level=3&api=http://localhost:8787", net: "real" });
   if (!await toPlay(w) || !await untilEagles(w, 2)) errs.push("never reached level 3 play with eagles");
   else {
     await runMs(w, 600);                       // let a fireball or two exist
@@ -393,6 +399,7 @@ console.log("ability: level 3 Still Point freezes without destroying");
       const movedAfter = after.eagles.some((e, i) => snap[i] && (Math.abs(e.x - snap[i].x) > 0.5 || Math.abs(e.y - snap[i].y) > 0.5));
       if (!movedAfter && after.eagles.length) errs.push("eagles stayed frozen after the still window expired");
     }
+    if (after.apiq && before.apiq && after.apiq.queued <= before.apiq.queued) errs.push("the still point logged nothing for the research data");
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
   else console.log("  nothing destroyed, everything held ~1.6s, then motion resumed");
