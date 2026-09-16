@@ -36,7 +36,7 @@ Language is pitched for roughly ages 11 and up. It avoids jargon where possible 
 |---|---|
 | Arrow keys / WASD | Fly |
 | SPACE (tap or hold) | Shoot sparks |
-| Double-tap SPACE (or X) | Clarity Burst: blanks the surroundings, clearing all eagles and fireballs on screen (limited charges, shown as ✦) |
+| Double-tap SPACE (or X) | Your clarity move (limited charges, shown as ✦). It differs by level: **levels 1-2, Clarity Burst** clears every eagle and fireball on screen and then holds the sky empty for about 1.5 seconds; **levels 3-4, Still Point** destroys nothing but freezes every eagle and fireball where it hangs for about 1.6 seconds while you fly through the gap |
 | Touch: drag | Fly (auto-fires while touching) |
 | Touch: double-tap | Clarity Burst |
 | P or Esc | Pause |
@@ -46,7 +46,9 @@ Language is pitched for roughly ages 11 and up. It avoids jargon where possible 
 
 The double-tap has to be a deliberate one (a short pause, then two quick taps), so players who mash the fire key do not burn their charges by accident. A burst is never spent on an empty sky.
 
-Purple **insight motes** dropped by defeated eagles refill Clarity Burst charges. Finishing a level without taking damage earns a focus bonus.
+The split is deliberate: the early levels reward clearing the noise, and the later levels, which teach retention design and cognitive drift, reward stopping the feed and choosing your own line rather than destroying anything. A charge is never spent on an empty sky.
+
+Purple **insight motes** dropped by defeated eagles refill your charges. Finishing a level without taking damage earns a focus bonus.
 
 ## Running it
 

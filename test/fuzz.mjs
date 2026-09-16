@@ -321,5 +321,82 @@ const c = await aimbot(11, { search: "?api=http://localhost:8787", net: "down" }
 if (!c.ok){ failed = true; console.log(`  FAIL at frame ${c.frame}: ${c.errs.join("; ")}`); }
 else { console.log(`  wins=${c.wins} gameOvers=${c.overs} hits=${c.hits} frames=${c.frames} apiCalls=${c.calls} (all failed)`); if (!c.wins){ failed = true; console.log("  FAIL: game must still be completable when the backend is unreachable"); } }
 
+
+/* The clarity move differs by level: levels 1-2 clear the sky and hold spawns off for a moment,
+   levels 3-4 destroy nothing but freeze every eagle and fireball where it hangs. */
+async function toPlay(w, guard = 4000){
+  for (let i = 0; i < guard; i++){
+    const s = w.state();
+    if (s.state === "play" && !s.overlayOpen) return true;
+    if (s.overlayOpen){ const c = s.card; if (c && c.type === "quiz") w.click("choose", String(c.correct)); else w.click(); }
+    w.step(16.7); await settle(1);
+  }
+  return false;
+}
+async function untilEagles(w, n = 2, guard = 4000){
+  for (let i = 0; i < guard; i++){
+    if (w.state().eagles.length >= n) return true;
+    w.step(16.7); await settle(1);
+  }
+  return false;
+}
+const runMs = async (w, ms) => { for (let t = 0; t < ms; t += 16.7){ w.step(16.7); await settle(1); } };
+
+console.log("ability: level 1 Clarity Burst clears the sky, then holds it clear");
+{
+  const errs = [];
+  const w = makeWorld(3, { search: "?level=1", net: "off" });
+  if (!await toPlay(w) || !await untilEagles(w, 2)) errs.push("never reached level 1 play with eagles");
+  else {
+    const before = w.state();
+    w.key("keydown", "x"); w.key("keyup", "x");
+    w.step(16.7); await settle(1);
+    const after = w.state();
+    if (after.eagles.length !== 0 || after.fires.length !== 0) errs.push(`burst left ${after.eagles.length} eagles and ${after.fires.length} fireballs`);
+    if (after.bursts !== before.bursts - 1) errs.push("burst did not spend a charge");
+    await runMs(w, 1200);
+    const calm = w.state();
+    if (calm.state === "play" && calm.eagles.length !== 0) errs.push(`sky refilled during the calm window (${calm.eagles.length} eagles after 1.2s)`);
+    await runMs(w, 2000);
+    const later = w.state();
+    if (later.state === "play" && later.eagles.length === 0) errs.push("eagles never came back after the calm window");
+    if (later.state === "play" && later.hearts !== before.hearts) errs.push("calm window cost the player a heart");
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  cleared on press, stayed clear ~1.5s, then the wave resumed");
+}
+
+console.log("ability: level 3 Still Point freezes without destroying");
+{
+  const errs = [];
+  const w = makeWorld(5, { search: "?level=3", net: "off" });
+  if (!await toPlay(w) || !await untilEagles(w, 2)) errs.push("never reached level 3 play with eagles");
+  else {
+    await runMs(w, 600);                       // let a fireball or two exist
+    const before = w.state();
+    const snap = before.eagles.map(e => ({ x: e.x, y: e.y }));
+    w.key("keydown", "x"); w.key("keyup", "x");
+    w.step(16.7); await settle(1);
+    const held = w.state();
+    if (held.eagles.length !== before.eagles.length) errs.push(`still point destroyed eagles (${before.eagles.length} -> ${held.eagles.length})`);
+    if (held.bursts !== before.bursts - 1) errs.push("still point did not spend a charge");
+    await runMs(w, 800);
+    const mid = w.state();
+    if (mid.state === "play"){
+      const moved = mid.eagles.some((e, i) => snap[i] && (Math.abs(e.x - snap[i].x) > 0.01 || Math.abs(e.y - snap[i].y) > 0.01));
+      if (moved) errs.push("an eagle moved while the sky was held still");
+      if (mid.eagles.length > before.eagles.length) errs.push("new eagles spawned during the still window");
+    }
+    await runMs(w, 1400);
+    const after = w.state();
+    if (after.state === "play"){
+      const movedAfter = after.eagles.some((e, i) => snap[i] && (Math.abs(e.x - snap[i].x) > 0.5 || Math.abs(e.y - snap[i].y) > 0.5));
+      if (!movedAfter && after.eagles.length) errs.push("eagles stayed frozen after the still window expired");
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  nothing destroyed, everything held ~1.6s, then motion resumed");
+}
+
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
 process.exit(failed ? 1 : 0);
