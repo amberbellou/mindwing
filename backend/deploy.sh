@@ -10,6 +10,9 @@ mkdir -p "$DIR" && chmod 700 "$DIR"
 [ -f "$DIR/admin-key" ] || { openssl rand -hex 24 > "$DIR/admin-key"; NEW=1; }
 chmod 600 "$DIR/session-secret" "$DIR/admin-key"
 
+# Apply any new database migrations first: new Worker code may rely on new tables or columns,
+# while the old code keeps working with them. Already-applied migrations are skipped.
+yes | npx wrangler d1 migrations apply mindwing --remote
 npx wrangler deploy
 if [ -n "$NEW" ] || [ "$1" = "--secrets" ]; then
   npx wrangler secret put SESSION_SECRET < "$DIR/session-secret"

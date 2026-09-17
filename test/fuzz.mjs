@@ -7,7 +7,7 @@
 //   fuzz    random keys, taps, drags, card buttons, pauses, focus loss, resizes, malformed events,
 //           across four network modes: off (no backend), real, flaky, down
 //   aimbot  plays for real (tracks enemies, answers quizzes, signs the leaderboard) to prove the game can be
-//           completed from level 1 with the backend, from the ?level=4 shortcut offline, and with the network down
+//           completed from level 1 with the backend, from the ?level=5 boss shortcut offline, and with the network down
 //
 // Usage: node test/fuzz.mjs [seeds=8] [frames=20000]
 // Exit code is non-zero on any exception, invariant violation, or missing backend record.
@@ -21,7 +21,8 @@ import { makeD1 } from "../backend/test/d1-shim.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const html = fs.readFileSync(path.join(here, "..", "index.html"), "utf8");
-const SCHEMA = fs.readFileSync(path.join(here, "..", "backend", "migrations", "0001_init.sql"), "utf8");
+const MIGRATIONS = path.join(here, "..", "backend", "migrations");
+const SCHEMA = fs.readdirSync(MIGRATIONS).filter(f => f.endsWith(".sql")).sort().map(f => fs.readFileSync(path.join(MIGRATIONS, f), "utf8")).join("\n");
 const match = html.match(/<script>([\s\S]*?)<\/script>/);
 if (!match) throw new Error("no <script> block found in index.html");
 let src = match[1];
@@ -30,7 +31,7 @@ const API_LINE = /const API_BASE_DEFAULT = "[^"]*";/;
 if (!API_LINE.test(src)) throw new Error("API_BASE_DEFAULT line not found in index.html");
 src = src.replace(API_LINE, 'const API_BASE_DEFAULT = "";');
 // Expose internals for assertions (test build only; the shipped file has no such hook).
-const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF });\nwindow.__setInv = v => { inv = v; };\n`;
+const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF, orbs, classStatus, classCode });\nwindow.__setInv = v => { inv = v; };\n`;
 const tail = src.lastIndexOf("})();");
 src = src.slice(0, tail) + hook + src.slice(tail);
 
@@ -277,7 +278,7 @@ async function aimbot(seed, { search = "", net = "off", maxFrames = 120000 } = {
     const count = (sql, ...a) => raw.prepare(sql).get(...a).c;
     out.db = {
       sessions: count("SELECT COUNT(*) AS c FROM sessions"),
-      won: count("SELECT COUNT(*) AS c FROM sessions WHERE won = 1 AND max_level = 4"),
+      won: count("SELECT COUNT(*) AS c FROM sessions WHERE won = 1 AND max_level = 5"),
       lesson_views: count("SELECT COUNT(*) AS c FROM events WHERE type = 'lesson_view' AND n > 0"),
       quiz_correct: count("SELECT COUNT(*) AS c FROM events WHERE type = 'quiz' AND v = 1"),
       level_clears: count("SELECT COUNT(DISTINCT level) AS c FROM events WHERE type = 'level_clear'"),
@@ -286,7 +287,7 @@ async function aimbot(seed, { search = "", net = "off", maxFrames = 120000 } = {
       scores: raw.prepare("SELECT initials, score, level, won FROM scores").all()
     };
     const st = await (await worker.fetch(new Request("http://localhost:8787/v1/stats"), w.backend.env, w.backend.ctx)).json();
-    out.stats = { runs: st.runs, wins: st.wins, l4_started: st.levels[3].started, quiz_answers: st.quiz.reduce((a, q) => a + q.answers, 0) };
+    out.stats = { runs: st.runs, wins: st.wins, l5_started: st.levels[4].started, orbs: st.orbs, quiz_answers: st.quiz.reduce((a, q) => a + q.answers, 0) };
   }
   return out;
 }
@@ -310,16 +311,16 @@ else {
   const d = a.db, expect = [];
   if (!a.wins) expect.push("aimbot did not finish the game");
   if (d.sessions !== 1 || d.won !== 1) expect.push("session not recorded as won");
-  if (d.lesson_views !== 4) expect.push("expected 4 lesson_view events, got " + d.lesson_views);
-  if (d.quiz_correct !== 8) expect.push("expected 8 correct quiz events, got " + d.quiz_correct);
-  if (d.level_clears !== 3 || d.wins !== 1) expect.push("level_clear/win events missing");
+  if (d.lesson_views !== 5) expect.push("expected 5 lesson_view events, got " + d.lesson_views);
+  if (d.quiz_correct !== 10) expect.push("expected 10 correct quiz events, got " + d.quiz_correct);
+  if (d.level_clears !== 4 || d.wins !== 1) expect.push("level_clear/win events missing");
   if (d.scores.length !== 1 || d.scores[0].initials !== "AMB" || d.scores[0].won !== 1 || d.scores[0].score !== a.winScore) expect.push("leaderboard row wrong: " + JSON.stringify(d.scores));
-  if (!a.stats || a.stats.runs !== 1 || a.stats.wins !== 1 || a.stats.quiz_answers !== 8) expect.push("stats endpoint disagrees");
+  if (!a.stats || a.stats.runs !== 1 || a.stats.wins !== 1 || a.stats.quiz_answers !== 10) expect.push("stats endpoint disagrees");
   if (expect.length){ failed = true; console.log("  FAIL: " + expect.join("; ")); }
 }
 
-console.log("aimbot: ?level=4 shortcut, offline build (no API configured)");
-const b = await aimbot(7, { search: "?level=4", net: "off", maxFrames: 60000 });
+console.log("aimbot: ?level=5 boss shortcut, offline build (no API configured)");
+const b = await aimbot(7, { search: "?level=5", net: "off", maxFrames: 60000 });
 if (!b.ok){ failed = true; console.log(`  FAIL at frame ${b.frame}: ${b.errs.join("; ")}`); }
 else { console.log(`  wins=${b.wins} gameOvers=${b.overs} hits=${b.hits} startedAtLevel=${b.maxLevel + 1} frames=${b.frames} apiCalls=${b.calls}`); if (!b.wins || b.calls !== 0){ failed = true; console.log("  FAIL: expected a win with zero network calls"); } }
 
@@ -463,12 +464,12 @@ console.log("sycophancy: level 3 flames turn into praise that follows you");
   else console.log("  flame became praise with a phrase, steered after the player, explainer shown, hit card explains it");
 }
 
-console.log("drift: level 4 fires split into decoys that push you but never burn");
+console.log("drift: level 5 fires split into decoys that push you but never burn");
 {
   const errs = [];
-  const w = makeWorld(23, { search: "?level=4", net: "off" });
+  const w = makeWorld(23, { search: "?level=5", net: "off" });
   const banners = new Set();
-  if (!await toPlay(w)) errs.push("never reached level 4 play");
+  if (!await toPlay(w)) errs.push("never reached level 5 play");
   else {
     const decoy = await watchUntil(w, s => s.fires.find(f => f.kind === "decoy"), 6000, banners);
     if (!decoy) errs.push("no fireball ever split into decoys");
@@ -608,9 +609,9 @@ console.log("polish: armored eagles take two sparks, swoopers dive, the boss has
   }
   // boss: knocking it below a quarter health starts phase 3 and a spiral volley
   {
-    const w = makeWorld(47, { search: "?level=4", net: "off" });
+    const w = makeWorld(47, { search: "?level=5", net: "off" });
     const banners = new Set();
-    if (!await toPlay(w)) errs.push("never reached level 4");
+    if (!await toPlay(w)) errs.push("never reached level 5");
     else {
       const b = await watchUntil(w, s => s.boss && s.boss.entered && s.boss, 6000, banners);
       if (!b) errs.push("boss never entered");
@@ -626,6 +627,113 @@ console.log("polish: armored eagles take two sparks, swoopers dive, the boss has
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
   else console.log("  armor absorbs one spark then breaks, swoopers dive, phase 3 announces itself and spirals");
+}
+
+
+console.log("hallucination: level 4 answer orbs reward checked sources and punish confident fakes");
+{
+  const errs = [];
+  const w = makeWorld(51, { search: "?level=4", net: "off" });
+  const banners = new Set();
+  if (!await toPlay(w)) errs.push("never reached level 4");
+  else {
+    const s0 = w.state();
+    if (s0.level !== 3) errs.push("?level=4 should open the marsh (index 3), got " + s0.level);
+    const first = await watchUntil(w, s => s.orbs.length > 0 && s.orbs[0], 600, banners);
+    if (!first) errs.push("no answer orb ever appeared");
+    else {
+      await watchUntil(w, () => false, 200, banners);
+      if (!banners.has("HALLUCINATION")) errs.push("hallucination explainer not shown: " + [...banners].join(" | "));
+      // a real orb: +1 charge (up to the cap) and points
+      let st = w.state();
+      const pl = st.player;
+      st.orbs.push({ x: pl.x, y: pl.y, baseY: pl.y, t: 0, real: true, text: "2 sources agree" });
+      const beforeReal = { score: st.score, bursts: st.bursts };
+      w.step(16.7); await settle(1);
+      st = w.state();
+      if (st.score <= beforeReal.score) errs.push("a real orb gave no points");
+      if (st.bursts !== Math.min(4, beforeReal.bursts + 1)) errs.push(`a real orb should add a charge (${beforeReal.bursts} -> ${st.bursts})`);
+      // a fake orb: loses focus and a charge, explains itself once
+      for (let i = 0; i < 30; i++){ w.step(16.7); await settle(1); }
+      st = w.state();
+      st.orbs.push({ x: st.player.x, y: st.player.y, baseY: st.player.y, t: 0, real: false, text: "Trust me!" });
+      const beforeFake = { score: st.score, bursts: st.bursts };
+      w.step(16.7); await settle(1);
+      st = w.state();
+      if (!(st.score < beforeFake.score)) errs.push("a fake orb cost no focus");
+      if (beforeFake.bursts > 0 && st.bursts !== beforeFake.bursts - 1) errs.push("a fake orb should cost a charge");
+      if (st.score < 0) errs.push("score went negative");
+      await watchUntil(w, () => false, 260, banners);
+      if (!banners.has("YOU BELIEVED IT")) errs.push("fooled explainer not shown");
+      // a hit in the marsh explains hallucination
+      w.setInv(0);
+      const pp = w.state().player;
+      w.state().fires.push({ kind:"fire", x: pp.x, y: pp.y, vx:0, vy:0, r:8, t:0 });
+      w.step(16.7); await settle(2);
+      const h = w.state();
+      const text = h.card && h.card.p && h.card.p[0] || "";
+      if (h.state !== "hit") errs.push("could not force a marsh hit (state " + h.state + ")");
+      else if (!/source|Fluent|confident/i.test(text)) errs.push("marsh hit card did not explain hallucination: " + text);
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  orbs spawn with an explainer; real refills and scores; fake costs focus and a charge and explains itself; hits teach hallucination");
+}
+
+console.log("classroom: a class link joins runs to the class, bad codes never block play");
+{
+  const errs = [];
+  // a real class: the title shows it and the session is attached
+  {
+    const w = makeWorld(61, { search: "?class=abc234&api=http://localhost:8787", net: "real" });
+    w.backend.env.DB._raw.prepare("INSERT INTO classes (code, key_hash, label, created_at) VALUES (?, ?, ?, ?)").run("ABC234", "x".repeat(64), "Period 3", Date.now());
+    for (let i = 0; i < 20; i++){ w.step(16.7); await settle(3); }
+    const t = w.state();
+    if (t.classCode !== "ABC234") errs.push("class code not picked up from the link: " + t.classCode);
+    if (t.classStatus !== "ok") errs.push("class lookup status should be ok, got " + t.classStatus);
+    if (!t.card || !/Class ABC234 · Period 3/.test(t.card.note || "")) errs.push("title card does not name the class: " + (t.card && t.card.note));
+    if (!await toPlay(w)) errs.push("could not start a class run");
+    else {
+      for (let i = 0; i < 20; i++){ w.step(16.7); await settle(3); }
+      const row = w.backend.env.DB._raw.prepare("SELECT s.build, s.difficulty, c.code FROM sessions s LEFT JOIN classes c ON c.id = s.class_id").get();
+      if (!row || row.code !== "ABC234") errs.push("session was not attached to the class: " + JSON.stringify(row));
+      else if (!row.build || row.difficulty !== "normal") errs.push("session missing build or difficulty: " + JSON.stringify(row));
+    }
+  }
+  // an unknown class: play still works and nothing is attached
+  {
+    const w = makeWorld(62, { search: "?class=ZZZ999&api=http://localhost:8787", net: "real" });
+    for (let i = 0; i < 20; i++){ w.step(16.7); await settle(3); }
+    const t = w.state();
+    if (t.classStatus !== "unknown") errs.push("unknown class should say so, got " + t.classStatus);
+    if (!t.card || !/was not found/.test(t.card.note || "")) errs.push("title card does not explain the unknown code");
+    w.click("leaveclass"); w.step(16.7); await settle(2);
+    if (w.state().classCode !== null) errs.push("leave class did not clear the code");
+    if (w.state().card && w.state().card.note) errs.push("title card still shows a class note after leaving");
+    if (!await toPlay(w)) errs.push("unknown class blocked play");
+  }
+  // a malformed code is ignored entirely
+  {
+    const w = makeWorld(63, { search: "?class=<script>&api=http://localhost:8787", net: "real" });
+    w.step(16.7); await settle(2);
+    if (w.state().classCode !== null) errs.push("malformed class code was accepted");
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  class link names the class and attaches runs; unknown codes explain themselves and can be left; junk is ignored");
+}
+
+
+console.log("teacher page: dashboard question text matches the game's quiz");
+{
+  const teacher = fs.readFileSync(path.join(here, "..", "teacher.html"), "utf8");
+  const quizBlock = src.slice(src.indexOf("const QUIZ = ["), src.indexOf("const LEVELS = ["));
+  const gameQs = [...quizBlock.matchAll(/q:"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  const tBlock = teacher.slice(teacher.indexOf("const QUIZ_TEXT = ["), teacher.indexOf("];", teacher.indexOf("const QUIZ_TEXT = [")));
+  const teacherQs = [...tBlock.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  if (gameQs.length === 0 || JSON.stringify(gameQs) !== JSON.stringify(teacherQs)){
+    failed = true;
+    console.log("  FAIL: teacher.html QUIZ_TEXT is out of step with index.html QUIZ\n    game:    " + JSON.stringify(gameQs) + "\n    teacher: " + JSON.stringify(teacherQs));
+  } else console.log(`  ${gameQs.length} questions match`);
 }
 
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");

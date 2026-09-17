@@ -13,7 +13,8 @@ You are Lumen, a fairy guarding the Grove of Minds. The Engagement Engine, a mac
 | 1 | Token Thicket | **Tokens**: language models chop text into chunks and predict the next one. They continue patterns; they do not check truth. |
 | 2 | Pattern Canopy | **Neural networks**: billions of tuned weights arranged in layers. Knowledge is spread across all of them, which is why a model can be brilliant and confidently wrong at once. |
 | 3 | Retention Ridge | **Retention models**: apps, including AI apps, are optimized to measure and maximize the time you spend. Streaks, feeds, and "one more question" are design, not accident. Also **sycophancy**: chatbots tuned to win approval can flatter you even when you are wrong. In play, the eagles' flames turn into thumbs-up praise bubbles ("You're absolutely right!") that follow you. |
-| 4 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. In play, some of the Engine's fireballs split into flickering fakes that wander the whole sky. A fake cannot burn you, but touching one shoves you off course. |
+| 4 | Mirage Marsh | **Hallucination**: a language model can produce fluent, confident answers that are false, including invented facts, quotes and sources. In play, answer orbs drift through the marsh: orbs with a ✓ source badge are real insight and refill a charge; the shinier, surer ones ("100% certain!", "Studies prove it!") are hallucinations that cost focus and a charge. |
+| 5 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. In play, some of the Engine's fireballs split into flickering fakes that wander the whole sky. A fake cannot burn you, but touching one shoves you off course. |
 
 ## How the learning is delivered
 
@@ -78,14 +79,26 @@ The optional backend (see below) adds a leaderboard and statistics. Without it, 
 
 Sound is generated with the Web Audio API (no audio files). Press M to mute.
 
-**For reviewers with limited time:** add `?level=2`, `?level=3`, or `?level=4` to the URL to start at that level (with its lesson card). For example: https://amberbellou.github.io/mindwing/?level=4 jumps to the boss.
+**For reviewers with limited time:** add `?level=2` to `?level=5` to the URL to start at that level (with its lesson card). For example: https://amberbellou.github.io/mindwing/?level=4 opens the Mirage Marsh and `?level=5` jumps to the boss.
+
+## For teachers: classes and a dashboard
+
+Open **[teacher.html](https://amberbellou.github.io/mindwing/teacher.html)** (also linked from the game's title screen) and press **Create class**. No account is needed. You get:
+
+1. a **class code** and a **student link** (`https://amberbellou.github.io/mindwing/?class=CODE`) that opens the game already joined to the class. The game remembers the class in that browser; students see the class name on the title screen, a plain statement of what the teacher can see, and a **Leave class** button;
+2. a **private dashboard link**, shown once. It carries a key that only this browser page sends to the backend; the backend stores only a SHA-256 hash of it, so a lost link cannot be recovered.
+
+The dashboard shows, for the whole class, how far students got, hits per attempt on each level, lesson reading time, every quick-check question with its correct rate, and how well students told real answers from hallucinated ones in the Mirage Marsh. Below that is one row per run: the three-letter initials if the student signed the leaderboard, start time, difficulty, furthest level, result, score, hits, quick checks right, answer orbs grabbed, and minutes played, with a CSV download. Quick checks below half right are highlighted. No names are collected; the page reminds teachers that initials in a small class can still point to a child.
+
+An unknown or mistyped class code never blocks play: the student is told the code was not found and the run is simply not attached to a class.
 
 ## Backend: leaderboard and learning analytics
 
 `backend/` holds a small Cloudflare Worker with a D1 (SQLite) database. It gives the game:
 
 - a **global leaderboard** with arcade-style three-letter initials (no names, no accounts);
-- **anonymous learning analytics**: how far players get, hits per attempt, how long each lesson is read, and quick-check correct rates, shown in-game as "Grove statistics" and exportable as CSV for research;
+- **anonymous learning analytics**: how far players get, hits per attempt, how long each lesson is read, quick-check correct rates, and real-versus-hallucinated answer orb choices, shown in-game as "Grove statistics" and exportable as CSV for research;
+- **classes**: self-serve class codes and a key-protected teacher dashboard (see above);
 - **abuse resistance**: server-signed sessions, plausibility checks on submitted scores (duration, level reached, recorded gameplay), strict validation of every event, per-IP rate limits, body size limits, and CORS restricted to the game's origin.
 
 No personal data is stored. IP addresses are only hashed with a daily salt for rate limiting. Full details, the API reference, and the five-minute deploy steps are in [backend/README.md](backend/README.md). The live backend runs at https://mindwing-api.amberbellou.workers.dev (check it with `/v1/health`); the game points at it through `API_BASE_DEFAULT` at the top of the script in `index.html`. Redeploy with `backend/deploy.sh`.

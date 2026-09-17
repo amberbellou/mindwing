@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Mindwing for Teachers</title>
+<meta name="description" content="Set up a Mindwing class and see how your students are learning: no accounts, no student names.">
+<style>
+  :root{
+    --bg:#0b0820; --panel:#171233; --line:#2e2660; --ink:#f2edff; --dim:#b9aee0; --accent:#ffd166; --accent2:#9d7bff;
+    --ok:#7ee2a8; --warn:#ff8fa3;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;line-height:1.5;}
+  a{color:var(--accent);}
+  main{max-width:1040px;margin:0 auto;padding:28px 20px 60px;}
+  header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+  .brand{font-size:28px;font-weight:800;letter-spacing:1px;background:linear-gradient(90deg,#ffd166,#ff8fd8,#9d7bff);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .brand small{display:block;font-size:13px;letter-spacing:2px;color:var(--accent);-webkit-text-fill-color:var(--accent);text-transform:uppercase;}
+  h1{font-size:26px;margin:0 0 8px;}
+  h2{font-size:18px;margin:28px 0 10px;color:var(--ink);}
+  p{color:var(--dim);margin:0 0 12px;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:16px;}
+  label{display:block;font-weight:700;margin:6px 0 6px;}
+  input[type=text]{font:inherit;font-size:16px;width:100%;max-width:420px;background:#0e0a24;color:var(--ink);border:1px solid #4a3d8a;border-radius:10px;padding:10px 12px;}
+  input[type=text]:focus{outline:2px solid var(--accent2);outline-offset:1px;}
+  button{font:inherit;font-size:15px;background:rgba(157,123,255,.16);color:var(--ink);border:1px solid #4a3d8a;border-radius:10px;padding:9px 14px;cursor:pointer;}
+  button:hover,button:focus-visible{background:rgba(157,123,255,.32);border-color:var(--accent2);outline:none;}
+  button.primary{background:var(--accent2);color:#12092b;font-weight:700;border-color:var(--accent2);}
+  button:disabled{opacity:.55;cursor:default;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;}
+  .note{background:rgba(157,123,255,.12);border-left:3px solid var(--accent2);border-radius:0 10px 10px 0;padding:10px 14px;color:var(--ink);font-size:15px;margin:12px 0;}
+  .note.warn{background:rgba(255,143,163,.12);border-left-color:var(--warn);}
+  .code{font-size:40px;font-weight:800;letter-spacing:8px;color:var(--accent);font-variant-numeric:tabular-nums;}
+  .linkbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 14px;}
+  .linkbox code{background:#0e0a24;border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:14px;word-break:break-all;flex:1 1 320px;}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .tile{background:#120d2b;border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .tile .v{font-size:28px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .tile .k{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);}
+  .tile .s{font-size:13px;color:var(--dim);}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent);background:#120d2b;position:sticky;top:0;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tr:last-child td{border-bottom:none;}
+  .bar{height:8px;border-radius:4px;background:#2a2350;overflow:hidden;min-width:60px;}
+  .bar > span{display:block;height:100%;background:var(--accent2);}
+  .ok{color:var(--ok);font-weight:700;}
+  .low{color:var(--warn);font-weight:700;}
+  .muted{color:var(--dim);font-size:13px;}
+  p code{white-space:nowrap;background:#0e0a24;border-radius:6px;padding:1px 6px;}
+  .hidden{display:none !important;}
+  footer{margin-top:34px;color:var(--dim);font-size:13px;}
+  @media (max-width:560px){ .code{font-size:32px;letter-spacing:5px;} .panel{padding:18px;} }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand"><small>Mindwing</small>For teachers</div>
+    <a href="./">Play the game</a>
+  </header>
+
+  <!-- ===================== create a class ===================== -->
+  <section id="create" class="hidden">
+    <div class="panel">
+      <h1>Set up a class</h1>
+      <p>Mindwing is a short game about how AI works and how to keep your mind your own. Make a class and you get two links: one for your students, and a private dashboard for you. No accounts, and no student names.</p>
+      <label for="label">Class name (optional)</label>
+      <input id="label" type="text" maxlength="40" placeholder="For example: Period 3 Science" autocomplete="off">
+      <p class="muted">Shown to students on the game's title screen. Please do not use any student's name.</p>
+      <div class="row"><button id="makeBtn" class="primary" type="button">Create class</button><span id="makeMsg" class="muted" role="status"></span></div>
+    </div>
+    <div class="panel">
+      <h2 style="margin-top:0">What you will see</h2>
+      <p>For the whole class: how far students got, how often they were hit on each level, how long they read each lesson, how many quick-check answers were right, and how well they told real answers from hallucinated ones in the Mirage Marsh.</p>
+      <p>For each run: the three-letter initials a student typed on the leaderboard (if they signed it), the difficulty, the furthest level, their score, their quick-check results and their answer-orb choices. Initials are not names, but in a small class they can point to a child, so treat the dashboard as class records.</p>
+    </div>
+  </section>
+
+  <!-- ===================== the class was just created ===================== -->
+  <section id="created" class="hidden">
+    <div class="panel">
+      <h1>Your class is ready</h1>
+      <p>Class code</p>
+      <div class="code" id="newCode"></div>
+      <h2>1. Student link</h2>
+      <p>Share this with students. It opens the game already joined to your class. They can also type the code into the address as <code>?class=CODE</code>.</p>
+      <div class="linkbox"><code id="studentLink"></code><button type="button" data-copy="studentLink">Copy</button></div>
+      <h2>2. Your private dashboard link</h2>
+      <div class="note warn"><b>Save this link now.</b> It holds the key to your dashboard and it is shown only once. Anyone with it can see your class's results, and it cannot be recovered if lost.</div>
+      <div class="linkbox"><code id="dashLink"></code><button type="button" data-copy="dashLink">Copy</button></div>
+      <div class="row"><button id="openDash" class="primary" type="button">Open my dashboard</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== dashboard ===================== -->
+  <section id="dash" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-top:0">
+        <div>
+          <h1 id="dashTitle">Class</h1>
+          <p class="muted" id="dashSub"></p>
+        </div>
+        <div class="row" style="margin-top:0">
+          <button id="refresh" type="button">Refresh</button>
+          <button id="csv" type="button">Download CSV</button>
+        </div>
+      </div>
+      <div class="linkbox"><code id="dashStudentLink"></code><button type="button" data-copy="dashStudentLink">Copy student link</button></div>
+      <p class="muted" id="dashStatus" role="status">Loading…</p>
+    </div>
+
+    <div id="dashBody" class="hidden">
+      <div class="tiles" id="tiles"></div>
+
+      <h2>Levels</h2>
+      <p class="muted">Reached: share of runs that started the level. Hits per try: how often students were hit per attempt. Lesson read: average seconds on the lesson card before the level.</p>
+      <div class="scroll"><table id="levels"></table></div>
+
+      <h2>Quick checks</h2>
+      <p class="muted">Two questions after each lesson. A low score on one question is a good place to start a class discussion.</p>
+      <div class="scroll"><table id="quiz"></table></div>
+
+      <h2>Runs</h2>
+      <p class="muted">One row per game started, newest first. Initials appear only when a student signed the leaderboard. Quick checks below half right are highlighted.</p>
+      <div class="scroll"><table id="runs"></table></div>
+      <p class="muted" id="truncated"></p>
+    </div>
+  </section>
+
+  <section id="error" class="hidden">
+    <div class="panel">
+      <h1 id="errTitle">Something went wrong</h1>
+      <p id="errText"></p>
+      <div class="row"><button id="errRetry" type="button">Try again</button><a href="teacher.html">Set up a new class</a></div>
+    </div>
+  </section>
+
+  <footer>Mindwing stores no student names and no accounts. Runs are linked to a class only by its code. <a href="./">Back to the game</a></footer>
+</main>
+
+<script>
+(() => {
+"use strict";
+/* Same backend as the game. For local testing, ?api=http://localhost:8787 overrides it (localhost only). */
+const API_BASE_DEFAULT = "https://mindwing-api.amberbellou.workers.dev";
+let API = API_BASE_DEFAULT;
+try {
+  const q = new URLSearchParams(location.search).get("api");
+  if (q && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(q)) API = q.replace(/\/+$/, "");
+} catch(e){}
+
+/* Question text for the dashboard. Keep in step with QUIZ in index.html: the game's test suite checks they match. */
+const QUIZ_TEXT = [
+  "When a chatbot writes an answer, what is it actually doing?",
+  "A chatbot gives you a fluent, confident answer. What does that tell you?",
+  "Where is a language model's knowledge stored?",
+  "How does a neural network learn during training?",
+  "What is a retention model designed to increase?",
+  "Which habit best defeats retention tricks?",
+  "Which of these is cognitive offloading that could weaken a skill over time?",
+  "What is cognitive drift?",
+  "What is an AI hallucination?",
+  "A chatbot gives you a quote and names the study it came from. What is the best next step?"
+];
+const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const pct = x => x == null ? "n/a" : Math.round(x * 100) + "%";
+const show = id => { for (const s of ["create", "created", "dash", "error"]) $(s).classList.toggle("hidden", s !== id); };
+const studentUrl = code => new URL("./?class=" + code, location.href).href;
+const dashUrl = (code, key) => new URL("teacher.html#class=" + code + "&key=" + encodeURIComponent(key), location.href).href;
+
+async function api(path, opts){
+  opts = opts || {};
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const res = await fetch(API + path, { method: opts.method || "GET", headers: opts.headers, body: opts.body, signal: ctl.signal, referrerPolicy: "no-referrer" });
+    const data = await res.json().catch(() => null);
+    return { status: res.status, data };
+  } catch(e){
+    return { status: 0, data: null };
+  } finally { clearTimeout(timer); }
+}
+
+/* copy buttons */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-copy]");
+  if (!b) return;
+  const text = $(b.dataset.copy).textContent;
+  let done = false;
+  try { await navigator.clipboard.writeText(text); done = true; } catch(err){}
+  if (!done){
+    const r = document.createRange(); r.selectNodeContents($(b.dataset.copy));
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  }
+  const old = b.textContent; b.textContent = done ? "Copied" : "Selected, press Ctrl/Cmd+C"; setTimeout(() => { b.textContent = old; }, 1800);
+});
+
+/* ---------------- create ---------------- */
+$("makeBtn").addEventListener("click", async () => {
+  const btn = $("makeBtn"), msg = $("makeMsg");
+  btn.disabled = true; msg.textContent = "Creating…";
+  const r = await api("/v1/classes", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ label: $("label").value }) });
+  btn.disabled = false;
+  if (r.status === 200 && r.data && r.data.ok){
+    msg.textContent = "";
+    const { code, teacher_key } = r.data;
+    $("newCode").textContent = code;
+    $("studentLink").textContent = studentUrl(code);
+    $("dashLink").textContent = dashUrl(code, teacher_key);
+    $("openDash").onclick = () => { location.hash = "class=" + code + "&key=" + encodeURIComponent(teacher_key); };
+    show("created");
+    return;
+  }
+  msg.textContent = r.status === 429 ? "Too many classes made from this network just now. Wait a minute and try again."
+    : r.status === 0 ? "Could not reach the Mindwing server. Check your connection and try again."
+    : "Could not create the class" + (r.data && r.data.error ? ": " + r.data.error : ".");
+});
+
+/* ---------------- dashboard ---------------- */
+let lastReport = null, current = null;
+function readHash(){
+  const h = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const code = String(h.get("class") || "").toUpperCase();
+  const key = h.get("key") || "";
+  return CODE_RE.test(code) && key ? { code, key } : null;
+}
+async function loadDashboard(){
+  current = readHash();
+  if (!current){ show("create"); return; }
+  show("dash");
+  $("dashTitle").textContent = "Class " + current.code;
+  $("dashStudentLink").textContent = studentUrl(current.code);
+  $("dashStatus").textContent = "Loading…";
+  const r = await api("/v1/classes/" + current.code + "/report", { headers: { authorization: "Bearer " + current.key } });
+  if (r.status === 200 && r.data && r.data.ok){ lastReport = r.data; render(r.data); return; }
+  const [title, text] = r.status === 401 ? ["This dashboard link does not open this class", "The key in the link does not match. Use the full dashboard link you saved when you created the class."]
+    : r.status === 404 ? ["Class not found", "There is no class with the code " + current.code + ". Check the link."]
+    : r.status === 429 ? ["Slow down a moment", "Too many requests from this network. Wait a minute, then refresh."]
+    : ["Could not load the dashboard", "The Mindwing server could not be reached. Check your connection and try again."];
+  $("errTitle").textContent = title; $("errText").textContent = text;
+  show("error");
+}
+$("errRetry").addEventListener("click", loadDashboard);
+$("refresh").addEventListener("click", loadDashboard);
+window.addEventListener("hashchange", loadDashboard);
+
+function render(d){
+  const c = d.class;
+  $("dashTitle").textContent = "Class " + c.code + (c.label ? " · " + c.label : "");
+  $("dashSub").textContent = "Created " + new Date(c.created_at).toLocaleDateString() + ". Updated " + new Date(d.generated_at).toLocaleTimeString() + ".";
+  $("dashStatus").textContent = d.runs ? "" : "No runs yet. Share the student link, and results appear here as students play.";
+  $("dashBody").classList.toggle("hidden", !d.runs);
+  if (!d.runs) return;
+
+  const answers = d.quiz.reduce((a, q) => a + q.answers, 0);
+  const right = d.quiz.reduce((a, q) => a + q.answers * q.correct_rate, 0);
+  const tiles = [
+    { k: "Runs", v: d.runs, s: d.players + " device" + (d.players === 1 ? "" : "s") },
+    { k: "Beat the Engine", v: d.wins, s: pct(d.win_rate) + " of runs" },
+    { k: "Quick checks right", v: answers ? pct(right / answers) : "n/a", s: answers + " answers" },
+    { k: "Real answers picked", v: d.orbs && d.orbs.picked ? pct(d.orbs.real_rate) : "n/a", s: d.orbs && d.orbs.picked ? d.orbs.real + " real, " + d.orbs.fake + " hallucinated" : "Mirage Marsh not reached yet" }
+  ];
+  $("tiles").innerHTML = tiles.map(t => `<div class="tile"><div class="k">${esc(t.k)}</div><div class="v">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+
+  $("levels").innerHTML = `<tr><th>Level</th><th>Lesson</th><th class="num">Reached</th><th></th><th class="num">Cleared</th><th class="num">Hits per try</th><th class="num">Lesson read</th></tr>` +
+    d.levels.map(l => `<tr><td>${l.level}. ${esc(l.name)}</td><td>${esc(l.lesson)}</td><td class="num">${pct(l.reach_rate)}</td>
+      <td><div class="bar" aria-hidden="true"><span style="width:${Math.round((l.reach_rate || 0) * 100)}%"></span></div></td>
+      <td class="num">${l.cleared}</td><td class="num">${l.hits_per_attempt}</td><td class="num">${l.avg_lesson_seconds == null ? "n/a" : l.avg_lesson_seconds + "s"}</td></tr>`).join("");
+
+  $("quiz").innerHTML = `<tr><th>#</th><th>Lesson</th><th>Question</th><th class="num">Answers</th><th class="num">Right</th></tr>` +
+    (d.quiz.length ? d.quiz.map(q => `<tr><td>${q.q + 1}</td><td>${esc(q.lesson || "")}</td><td>${esc(QUIZ_TEXT[q.q] || "")}</td><td class="num">${q.answers}</td>
+      <td class="num ${q.correct_rate < 0.5 ? "low" : q.correct_rate >= 0.8 ? "ok" : ""}">${pct(q.correct_rate)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="muted">No quick-check answers yet.</td></tr>`);
+
+  const levelName = n => (d.levels[n - 1] ? n + ". " + d.levels[n - 1].name : "Level " + n);
+  $("runs").innerHTML = `<tr><th>Initials</th><th>Started</th><th>Difficulty</th><th>Furthest level</th><th>Result</th><th class="num">Score</th><th class="num">Hits</th><th class="num">Quick checks</th><th class="num">Answer orbs</th><th class="num">Minutes</th></tr>` +
+    d.students.map(r => {
+      const low = r.quiz_answers >= 2 && r.quiz_correct / r.quiz_answers < 0.5;
+      const orbs = r.orbs_real + r.orbs_fake ? `${r.orbs_real} real / ${r.orbs_fake} fake` : "none";
+      return `<tr><td>${r.initials ? "<b>" + esc(r.initials) + "</b>" : '<span class="muted">not signed</span>'}</td>
+        <td>${esc(new Date(r.started_at).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }))}</td>
+        <td>${esc(r.difficulty || "normal")}</td><td>${esc(levelName(r.reached))}</td>
+        <td>${r.won ? '<span class="ok">Won</span>' : "In progress or ended"}</td>
+        <td class="num">${r.score == null ? '<span class="muted">n/a</span>' : r.score}</td><td class="num">${r.hits}</td>
+        <td class="num ${low ? "low" : ""}">${r.quiz_correct} / ${r.quiz_answers}</td><td class="num">${esc(orbs)}</td><td class="num">${r.minutes}</td></tr>`;
+    }).join("");
+  $("truncated").textContent = d.truncated ? "Showing the newest " + d.students.length + " runs." : "";
+}
+
+$("csv").addEventListener("click", () => {
+  const d = lastReport; if (!d) return;
+  const cols = ["initials", "started_at", "difficulty", "start_level", "reached", "won", "score", "hits", "quiz_correct", "quiz_answers", "orbs_real", "orbs_fake", "minutes"];
+  const cell = v => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const rows = d.students.map(r => cols.map(c => c === "started_at" ? new Date(r[c]).toISOString() : cell(r[c])).join(","));
+  const blob = new Blob([[cols.join(",")].concat(rows).join("\n") + "\n"], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "mindwing-class-" + d.class.code + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+
+loadDashboard();
+})();
+</script>
+</body>
+</html>

@@ -7,7 +7,8 @@ import worker from "../src/index.js";
 import { makeD1 } from "./d1-shim.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SCHEMA = fs.readFileSync(path.join(here, "..", "migrations", "0001_init.sql"), "utf8");
+const MIGRATIONS = path.join(here, "..", "migrations");
+const SCHEMA = fs.readdirSync(MIGRATIONS).filter(f => f.endsWith(".sql")).sort().map(f => fs.readFileSync(path.join(MIGRATIONS, f), "utf8")).join("\n");
 const ORIGIN = "https://amberbellou.github.io";
 const ctx = { waitUntil(p){ return p; }, passThroughOnException(){} };
 
@@ -27,7 +28,7 @@ async function call(env, method, p, body, headers = {}, ip){
   return { status: res.status, data, text, headers: res.headers };
 }
 async function newSession(env, extra = {}, ip){
-  const r = await call(env, "POST", "/v1/session", { clientId: "client-abcdef-123", startLevel: 1, input: "keyboard", ...extra }, {}, ip);
+  const r = await call(env, "POST", "/v1/session", { clientId: "client-abcdef-123", startLevel: 1, input: "keyboard", build: "5L-test", ...extra }, {}, ip);
   assert.equal(r.status, 200, r.text);
   return r.data;
 }
@@ -213,6 +214,8 @@ test("stats: aggregates the learning analytics correctly", async () => {
   const a = await newSession(env, { clientId: "client-aaaaaaaa" }, "203.0.113.1");
   const b = await newSession(env, { clientId: "client-bbbbbbbb" }, "203.0.113.2");
   const c = await newSession(env, { clientId: "client-aaaaaaaa" }, "203.0.113.3");   // same player again
+  const legacy = await newSession(env, { clientId: "client-legacy-01", build: undefined }, "203.0.113.4");
+  await playThrough(env, legacy, { win: true });                                          // old 4-level run: export only
   await playThrough(env, a);
   await playThrough(env, b, { win: true });
   await call(env, "POST", "/v1/events", { sid: c.sid, sig: c.sig, events: [{ type: "level_start", level: 1 }, { type: "hit", level: 1, n: 3 }, { type: "hit", level: 1, n: 5 }, { type: "game_over", level: 1, v: 200 }, { type: "level_start", level: 1 }] }, {}, "203.0.113.3");
@@ -251,8 +254,104 @@ test("export: admin key required, json and csv formats, pagination", async () =>
   const csv = await call(env, "GET", "/v1/export?key=admin-key-123&format=csv");
   assert.match(csv.headers.get("content-type"), /text\/csv/);
   const lines = csv.text.trim().split("\n");
-  assert.equal(lines[0], "id,session_id,client_id,start_level,input,session_won,type,level,n,v,w,client_t,server_at");
+  assert.equal(lines[0], "id,session_id,client_id,start_level,input,session_won,build,difficulty,class_code,type,level,n,v,w,client_t,server_at");
   assert.equal(lines.length, 11);
+});
+
+test("five levels: level 5 accepted, orb events counted, quiz questions mapped to the right lesson", async () => {
+  const env = makeEnv();
+  const s = await newSession(env, { startLevel: 5, difficulty: "hard" });
+  const r = await call(env, "POST", "/v1/events", { sid: s.sid, sig: s.sig, events: [
+    { type: "level_start", level: 4 }, { type: "level_start", level: 5 }, { type: "level_start", level: 6 },
+    { type: "orb", level: 4, v: 1 }, { type: "orb", level: 4, v: 0 }, { type: "orb", level: 4, v: 1 }, { type: "orb", level: 4 },
+    { type: "quiz", level: 4, n: 8, v: 1, w: 1 }, { type: "quiz", level: 5, n: 6, v: 0, w: 0 }
+  ]});
+  assert.equal(r.status, 200, r.text);
+  assert.deepEqual([r.data.accepted, r.data.rejected], [7, 2], "level 6 and an orb without v are rejected");
+  const row = env.DB._raw.prepare("SELECT start_level, max_level, difficulty, build FROM sessions WHERE id = ?").get(s.sid);
+  assert.deepEqual([row.start_level, row.max_level, row.difficulty, row.build], [5, 5, "hard", "5L-test"]);
+  const st = (await call(env, "GET", "/v1/stats")).data;
+  assert.equal(st.levels.length, 5);
+  assert.deepEqual([st.levels[3].name, st.levels[3].lesson, st.levels[4].name], ["Mirage Marsh", "Hallucination", "The Engine's Roost"]);
+  assert.deepEqual(st.orbs, { picked: 3, real: 2, fake: 1, real_rate: 0.667 });
+  assert.equal(st.quiz.find(q => q.q === 8).lesson, "Hallucination");
+  assert.equal(st.quiz.find(q => q.q === 6).lesson, "Offloading & Drift");
+  const bad = await call(env, "POST", "/v1/session", { startLevel: 6 });
+  assert.equal(bad.status, 400);
+  const odd = await newSession(env, { difficulty: "impossible", build: "<script>" });
+  const oddRow = env.DB._raw.prepare("SELECT difficulty, build FROM sessions WHERE id = ?").get(odd.sid);
+  assert.deepEqual([oddRow.difficulty, oddRow.build], [null, null], "unknown difficulty and malformed build are dropped, not stored");
+});
+
+test("classes: create, look up, join from a session, and report with a teacher key", async () => {
+  const env = makeEnv();
+  const created = await call(env, "POST", "/v1/classes", { label: "  Period <3>   Science\x07 " });
+  assert.equal(created.status, 200, created.text);
+  const { code, teacher_key } = created.data;
+  assert.match(code, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+  assert.ok(teacher_key.length >= 30);
+  assert.equal(created.data.label, "Period 3 Science", "label is trimmed, collapsed and stripped of markup and control characters");
+  const stored = env.DB._raw.prepare("SELECT key_hash FROM classes WHERE code = ?").get(code);
+  assert.notEqual(stored.key_hash, teacher_key, "the key itself is never stored");
+  assert.equal(stored.key_hash.length, 64);
+
+  const look = await call(env, "GET", `/v1/classes/${code.toLowerCase()}`);
+  assert.equal(look.status, 200);
+  assert.deepEqual([look.data.code, look.data.label], [code, "Period 3 Science"]);
+  assert.equal((await call(env, "GET", "/v1/classes/ZZZZZZ")).status, 404);
+  assert.equal((await call(env, "GET", "/v1/classes/0O1IL0")).status, 404, "codes outside the alphabet are simply unknown");
+
+  // two students in the class, one outsider, one student with a bad code
+  const s1 = await newSession(env, { clientId: "student-one-01", classCode: code.toLowerCase(), difficulty: "easy" });
+  const s2 = await newSession(env, { clientId: "student-two-02", classCode: code });
+  const out = await newSession(env, { clientId: "outsider-zz-99" });
+  const typo = await newSession(env, { clientId: "student-typo-3", classCode: "ABCDEF" });
+  assert.deepEqual([s1.class, s2.class, out.class, typo.class], [code, code, null, null]);
+  await playThrough(env, s1, { win: true });
+  await playThrough(env, s2);
+  await playThrough(env, out, { win: true });
+  await call(env, "POST", "/v1/events", { sid: s1.sid, sig: s1.sig, events: [{ type: "orb", level: 4, v: 1 }, { type: "orb", level: 4, v: 0 }] });
+  ageSession(env, s1.sid, 400);
+  const sc = await call(env, "POST", "/v1/score", { sid: s1.sid, sig: s1.sig, initials: "LUM", score: 6100, level: 5 });
+  assert.equal(sc.status, 200, sc.text);
+
+  const url = `/v1/classes/${code}/report`;
+  assert.equal((await call(env, "GET", url)).status, 401, "no key");
+  assert.equal((await call(env, "GET", url, undefined, { authorization: "Bearer wrong-key" })).status, 401, "wrong key");
+  assert.equal((await call(env, "GET", url, undefined, { authorization: teacher_key })).status, 401, "key without Bearer scheme");
+  const other = (await call(env, "POST", "/v1/classes", {})).data;
+  assert.equal((await call(env, "GET", url, undefined, { authorization: "Bearer " + other.teacher_key })).status, 401, "another class's key");
+
+  const rep = await call(env, "GET", url, undefined, { authorization: "Bearer " + teacher_key });
+  assert.equal(rep.status, 200, rep.text);
+  const d = rep.data;
+  assert.deepEqual([d.class.code, d.class.label], [code, "Period 3 Science"]);
+  assert.deepEqual([d.runs, d.players, d.wins], [2, 2, 1], "only this class's runs, never the outsider's");
+  assert.equal(d.students.length, 2);
+  const lum = d.students.find(x => x.initials === "LUM");
+  assert.ok(lum, "the signed run shows its initials");
+  assert.deepEqual([lum.won, lum.score, lum.difficulty, lum.orbs_real, lum.orbs_fake, lum.quiz_answers, lum.quiz_correct], [true, 6100, "easy", 1, 1, 2, 1]);
+  const anon = d.students.find(x => x.initials === null);
+  assert.ok(anon && anon.won === false, "an unsigned run appears without initials");
+  assert.ok(!("session_id" in lum) && !("client_id" in lum), "report rows never expose ids");
+  assert.deepEqual(d.orbs, { picked: 2, real: 1, fake: 1, real_rate: 0.5 });
+
+  const exp = await call(env, "GET", "/v1/export?key=admin-key-123&limit=5000");
+  const classed = exp.data.rows.filter(r => r.class_code === code);
+  assert.ok(classed.length > 0 && exp.data.rows.some(r => r.class_code === null), "export labels class runs and leaves others unlabelled");
+
+  assert.equal((await call(env, "POST", "/v1/classes", { label: 42 })).status, 400);
+  const noLabel = await call(env, "POST", "/v1/classes", { label: "   " });
+  assert.equal(noLabel.data.label, null);
+  const pre = await call(env, "OPTIONS", url, undefined, { "access-control-request-headers": "authorization" });
+  assert.match(pre.headers.get("access-control-allow-headers"), /authorization/);
+});
+
+test("classes: creation is rate limited per IP", async () => {
+  const env = makeEnv();
+  for (let i = 0; i < 10; i++) assert.equal((await call(env, "POST", "/v1/classes", {}, {}, "198.51.100.9")).status, 200);
+  assert.equal((await call(env, "POST", "/v1/classes", {}, {}, "198.51.100.9")).status, 429);
+  assert.equal((await call(env, "POST", "/v1/classes", {}, {}, "198.51.100.10")).status, 200);
 });
 
 test("rate limiting: per-IP buckets return 429, other IPs unaffected, prune works", async () => {

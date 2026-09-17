@@ -7,21 +7,34 @@
  *
  * Endpoints (JSON in, JSON out; bodies may be sent as text/plain so sendBeacon works):
  *   GET  /v1/health
- *   POST /v1/session      { clientId?, startLevel?, input? }               -> { sid, sig }
+ *   POST /v1/session      { clientId?, startLevel?, input?, build?, difficulty?, classCode? } -> { sid, sig, class }
  *   POST /v1/events       { sid, sig, events: [{ type, level?, n?, v?, w?, t? }] }
  *   POST /v1/score        { sid, sig, initials, score, level }             -> { rank }
  *   GET  /v1/leaderboard?limit=10
  *   GET  /v1/stats
  *   GET  /v1/export?key=ADMIN_KEY&after=0&limit=5000&format=json|csv
+ *   POST /v1/classes      { label? }                                       -> { code, teacher_key }
+ *   GET  /v1/classes/:code                                                 -> { code, label }
+ *   GET  /v1/classes/:code/report   (Authorization: Bearer <teacher_key>)  -> class totals + one row per run
  *
- * Privacy: no accounts, no names, no IP storage. clientId is a random id the browser
+ * Privacy: no accounts, no names, no IP storage. Teacher keys are stored only as SHA-256 hashes. clientId is a random id the browser
  * makes up; IPs are only hashed with a daily salt to rate-limit abuse.
  */
 
-const VERSION = "1.0.0";   // not exported: the Workers runtime only allows handler exports
+const VERSION = "1.1.0";   // not exported: the Workers runtime only allows handler exports
 
-const LEVEL_NAMES = ["Token Thicket", "Pattern Canopy", "Retention Ridge", "The Engine's Roost"];
-const LESSON_NAMES = ["Tokens", "Neural Networks", "Retention Models", "Offloading & Drift"];
+/* The 5-level game. Runs from the original 4-level game (build NULL) keep their data in the export but are
+   left out of the aggregate stats, because their level 4 was the boss. */
+const LEVEL_COUNT = 5;
+const LEVEL_NAMES = ["Token Thicket", "Pattern Canopy", "Retention Ridge", "Mirage Marsh", "The Engine's Roost"];
+const LESSON_NAMES = ["Tokens", "Neural Networks", "Retention Models", "Hallucination", "Offloading & Drift"];
+/** Quiz question index -> lesson index. Questions are appended, never reordered, so old answers keep their meaning:
+ *  0-5 are lessons 1-3, 6-7 are offloading & drift, 8-9 are hallucination. */
+const QUIZ_LESSON = [0, 0, 1, 1, 2, 2, 4, 4, 3, 3];
+const DIFFICULTIES = ["easy", "normal", "hard"];
+const CLASS_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";   // no 0/O, 1/I/L: codes are read aloud and copied off boards
+const CLASS_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+const MAX_REPORT_RUNS = 300;
 
 /** Allowed event types and the integer fields each one carries (with clamp ranges). */
 const EVENT_TYPES = {
@@ -32,21 +45,22 @@ const EVENT_TYPES = {
   game_over:   { level: true,  v: [0, 10000000] },                     // v = score at death
   win:         { level: false, n: [0, 36000000], v: [0, 10000000] },   // n = total ms, v = final score
   quiz:        { level: true,  n: [0, 99], v: [0, 1], w: [0, 9] },     // n = question, v = correct, w = choice
+  orb:         { level: true,  v: [0, 1] },                            // answer orb collected: v = 1 real insight, 0 hallucination
   burst:       { level: true },                                        // Clarity Burst, levels 1-2
   still:       { level: true }                                         // Still Point, levels 3-4
 };
 
 const LIMITS = {                 // requests per minute per (hashed) IP; sized so a whole classroom behind one address is fine
-  session: 40, events: 240, score: 20, read: 300
+  session: 40, events: 240, score: 20, read: 300, classes: 10
 };
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_EVENTS_PER_REQUEST = 50;
 const MAX_EVENTS_PER_SESSION = 500;
 const MAX_SCORE = 10000000;
-/** Score plausibility: the game cannot award more than about 200 points per second of play,
- *  plus fixed bonuses (4 x 500 untouched, 1500 boss, 8 x 100 quiz). */
-const SCORE_PER_SECOND = 220;
-const SCORE_FIXED_BONUS = 4500;
+/** Score plausibility: the game cannot award more than about 300 points per second of play on Hard (1.3x),
+ *  plus fixed bonuses (4 x 500 untouched and 1500 boss, both x1.3 on Hard, and 10 x 100 quiz). */
+const SCORE_PER_SECOND = 300;
+const SCORE_FIXED_BONUS = 6500;
 const MIN_SESSION_SECONDS = 5;
 
 const INITIALS_BLOCKLIST = new Set([
@@ -61,6 +75,7 @@ class HttpError extends Error {
 /* ---------- small helpers ---------- */
 const enc = new TextEncoder();
 const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+const sha256hex = async text => hex(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(text))));
 const b64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
 function json(data, status = 200, headers = {}){
@@ -119,7 +134,7 @@ function corsHeaders(req, env){
   const allowed = String(env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
   const headers = {
     "access-control-allow-methods": "GET, POST, OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type, authorization",
     "access-control-max-age": "86400",
     "vary": "origin"
   };
@@ -158,15 +173,22 @@ async function createSession(req, env){
   }
   let startLevel = 1;
   if (body.startLevel !== undefined){
-    startLevel = intIn(body.startLevel, 1, 4);
-    if (startLevel === null) throw new HttpError(400, "startLevel must be an integer 1-4");
+    startLevel = intIn(body.startLevel, 1, LEVEL_COUNT);
+    if (startLevel === null) throw new HttpError(400, `startLevel must be an integer 1-${LEVEL_COUNT}`);
   }
   const input = ["touch", "keyboard"].includes(body.input) ? body.input : "unknown";
+  const build = typeof body.build === "string" && /^[0-9A-Za-z.-]{1,24}$/.test(body.build) ? body.build : null;
+  const difficulty = DIFFICULTIES.includes(body.difficulty) ? body.difficulty : null;
+  // An unknown or malformed class code never blocks play: the run is simply not attached to a class.
+  let classRow = null;
+  if (typeof body.classCode === "string" && CLASS_CODE_RE.test(body.classCode.toUpperCase())){
+    classRow = await env.DB.prepare("SELECT id, code FROM classes WHERE code = ?").bind(body.classCode.toUpperCase()).first();
+  }
   const sid = crypto.randomUUID();
   const now = Date.now();
-  await env.DB.prepare("INSERT INTO sessions (id, client_id, created_at, last_seen, start_level, input, max_level) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(sid, clientId, now, now, startLevel, input, startLevel).run();
-  return json({ ok: true, sid, sig: await hmac(secret, sid) });
+  await env.DB.prepare("INSERT INTO sessions (id, client_id, created_at, last_seen, start_level, input, max_level, build, difficulty, class_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(sid, clientId, now, now, startLevel, input, startLevel, build, difficulty, classRow ? classRow.id : null).run();
+  return json({ ok: true, sid, sig: await hmac(secret, sid), class: classRow ? classRow.code : null });
 }
 
 async function authSession(env, body){
@@ -187,7 +209,7 @@ function validateEvent(raw){
   if (!spec) return null;
   const out = { type: raw.type, level: null, n: null, v: null, w: null, t: clampInt(raw.t, 0, 1e9) ?? 0 };
   if (spec.level){
-    out.level = intIn(raw.level, 1, 4);
+    out.level = intIn(raw.level, 1, LEVEL_COUNT);
     if (out.level === null) return null;
   }
   for (const f of ["n", "v", "w"]){
@@ -217,7 +239,7 @@ async function postEvents(req, env){
     if (valid.length + session.event_count >= MAX_EVENTS_PER_SESSION) break;
     valid.push(e);
     if (e.level && e.level > maxLevel) maxLevel = e.level;
-    if (e.type === "win"){ won = 1; maxLevel = 4; }
+    if (e.type === "win"){ won = 1; maxLevel = session.build ? LEVEL_COUNT : 4; }
     stmts.push(env.DB.prepare("INSERT INTO events (session_id, type, level, n, v, w, client_t, server_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(session.id, e.type, e.level, e.n, e.v, e.w, e.t, now));
   }
@@ -239,8 +261,8 @@ async function postScore(req, env){
   if (INITIALS_BLOCKLIST.has(initials)) throw new HttpError(400, "those initials are not allowed");
   const score = intIn(body.score, 0, MAX_SCORE);
   if (score === null) throw new HttpError(400, "score must be an integer 0-" + MAX_SCORE);
-  const level = intIn(body.level, 1, 4);
-  if (level === null) throw new HttpError(400, "level must be an integer 1-4");
+  const level = intIn(body.level, 1, LEVEL_COUNT);
+  if (level === null) throw new HttpError(400, `level must be an integer 1-${LEVEL_COUNT}`);
 
   const now = Date.now();
   const elapsedS = Math.max(0, (now - session.created_at) / 1000);
@@ -279,28 +301,31 @@ async function getLeaderboard(req, env, url){
 }
 
 /* ---------- learning analytics ---------- */
-async function getStats(req, env){
-  await checkRate(env, req, "read");
-  const q = sql => env.DB.prepare(sql);
-  const [totals, started, cleared, overs, hits, lessons, quiz, facts, retries] = await env.DB.batch([
-    q("SELECT COUNT(*) AS runs, COUNT(DISTINCT client_id) AS players, COALESCE(SUM(won), 0) AS wins FROM sessions"),
-    q("SELECT level, COUNT(DISTINCT session_id) AS c FROM events WHERE type = 'level_start' GROUP BY level"),
-    q("SELECT level, COUNT(DISTINCT session_id) AS c FROM events WHERE type = 'level_clear' GROUP BY level"),
-    q("SELECT level, COUNT(*) AS c FROM events WHERE type = 'game_over' GROUP BY level"),
-    q("SELECT level, COUNT(*) AS c FROM events WHERE type = 'hit' GROUP BY level"),
-    q("SELECT level, COUNT(*) AS c, AVG(n) AS avg_ms FROM events WHERE type = 'lesson_view' GROUP BY level"),
-    q("SELECT n AS q, COUNT(*) AS answers, AVG(v) AS correct_rate FROM events WHERE type = 'quiz' GROUP BY n ORDER BY n"),
-    q("SELECT n AS fact, COUNT(*) AS shown FROM events WHERE type = 'hit' GROUP BY n ORDER BY shown DESC, n ASC LIMIT 5"),
-    q("SELECT level, COUNT(*) AS c FROM events WHERE type = 'level_start' GROUP BY level")
+/** Aggregates for a set of runs. `where` selects sessions (alias s); `args` are its bound values. */
+async function buildAnalytics(env, where, args){
+  const q = sql => env.DB.prepare(sql).bind(...args);
+  const ev = (select, type, tail = "") => q(`SELECT ${select} FROM events e JOIN sessions s ON s.id = e.session_id WHERE ${where} AND e.type = '${type}' ${tail}`);
+  const [totals, started, cleared, overs, hits, lessons, quiz, facts, retries, orbs] = await env.DB.batch([
+    q(`SELECT COUNT(*) AS runs, COUNT(DISTINCT s.client_id) AS players, COALESCE(SUM(s.won), 0) AS wins FROM sessions s WHERE ${where}`),
+    ev("e.level, COUNT(DISTINCT e.session_id) AS c", "level_start", "GROUP BY e.level"),
+    ev("e.level, COUNT(DISTINCT e.session_id) AS c", "level_clear", "GROUP BY e.level"),
+    ev("e.level, COUNT(*) AS c", "game_over", "GROUP BY e.level"),
+    ev("e.level, COUNT(*) AS c", "hit", "GROUP BY e.level"),
+    ev("e.level, COUNT(*) AS c, AVG(e.n) AS avg_ms", "lesson_view", "GROUP BY e.level"),
+    ev("e.n AS q, COUNT(*) AS answers, AVG(e.v) AS correct_rate", "quiz", "GROUP BY e.n ORDER BY e.n"),
+    ev("e.n AS fact, COUNT(*) AS shown", "hit", "GROUP BY e.n ORDER BY shown DESC, e.n ASC LIMIT 5"),
+    ev("e.level, COUNT(*) AS c", "level_start", "GROUP BY e.level"),
+    ev("COUNT(*) AS picked, COALESCE(SUM(e.v), 0) AS real_n", "orb")
   ]);
   const byLevel = res => { const m = {}; for (const r of res.results) m[Number(r.level)] = r; return m; };
   const S = byLevel(started), C = byLevel(cleared), O = byLevel(overs), H = byLevel(hits), L = byLevel(lessons), R = byLevel(retries);
   const t = totals.results[0];
   const runs = Number(t.runs);
-  const levels = [1, 2, 3, 4].map(lv => {
+  const levels = LEVEL_NAMES.map((name, i) => {
+    const lv = i + 1;
     const startedN = S[lv] ? Number(S[lv].c) : 0;
     return {
-      level: lv, name: LEVEL_NAMES[lv - 1], lesson: LESSON_NAMES[lv - 1],
+      level: lv, name, lesson: LESSON_NAMES[i],
       started: startedN,
       cleared: C[lv] ? Number(C[lv].c) : 0,
       game_overs: O[lv] ? Number(O[lv].c) : 0,
@@ -312,15 +337,109 @@ async function getStats(req, env){
       reach_rate: runs ? +(startedN / runs).toFixed(3) : 0
     };
   });
-  return json({
-    ok: true,
-    generated_at: Date.now(),
+  const o = orbs.results[0] || { picked: 0, real_n: 0 };
+  const picked = Number(o.picked);
+  return {
     runs, players: Number(t.players), wins: Number(t.wins),
     win_rate: runs ? +(Number(t.wins) / runs).toFixed(3) : 0,
     levels,
-    quiz: quiz.results.map(r => ({ q: Number(r.q), lesson: LESSON_NAMES[Math.floor(Number(r.q) / 2)] || null, answers: Number(r.answers), correct_rate: +Number(r.correct_rate).toFixed(3) })),
-    hit_facts: facts.results.map(r => ({ fact: Number(r.fact), shown: Number(r.shown) }))
-  }, 200, { "cache-control": "public, max-age=60" });
+    quiz: quiz.results.map(r => {
+      const qi = Number(r.q);
+      return { q: qi, lesson: QUIZ_LESSON[qi] != null ? LESSON_NAMES[QUIZ_LESSON[qi]] : null, answers: Number(r.answers), correct_rate: +Number(r.correct_rate).toFixed(3) };
+    }),
+    hit_facts: facts.results.map(r => ({ fact: Number(r.fact), shown: Number(r.shown) })),
+    orbs: { picked, real: Number(o.real_n), fake: picked - Number(o.real_n), real_rate: picked ? +(Number(o.real_n) / picked).toFixed(3) : null }
+  };
+}
+
+async function getStats(req, env){
+  await checkRate(env, req, "read");
+  const data = await buildAnalytics(env, "s.build IS NOT NULL", []);
+  return json({ ok: true, generated_at: Date.now(), ...data }, 200, { "cache-control": "public, max-age=60" });
+}
+
+/* ---------- classrooms ---------- */
+function randomCode(){
+  const out = [];
+  while (out.length < 6){
+    // rejection sampling keeps every symbol equally likely
+    for (const b of crypto.getRandomValues(new Uint8Array(12))){
+      if (b < 248 && out.length < 6) out.push(CLASS_CODE_ALPHABET[b % CLASS_CODE_ALPHABET.length]);
+    }
+  }
+  return out.join("");
+}
+function cleanLabel(raw){
+  if (raw == null) return null;
+  if (typeof raw !== "string") throw new HttpError(400, "label must be text");
+  const label = raw.replace(/[\x00-\x1f\x7f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+  return label || null;
+}
+async function createClass(req, env){
+  await checkRate(env, req, "classes");
+  const body = await readJson(req);
+  const label = cleanLabel(body.label);
+  const key = b64url(crypto.getRandomValues(new Uint8Array(24)));
+  const keyHash = await sha256hex(key);
+  const now = Date.now();
+  for (let attempt = 0; attempt < 6; attempt++){
+    const code = randomCode();
+    try {
+      await env.DB.prepare("INSERT INTO classes (code, key_hash, label, created_at) VALUES (?, ?, ?, ?)").bind(code, keyHash, label, now).run();
+      return json({ ok: true, code, teacher_key: key, label });
+    } catch (e) {
+      if (!/UNIQUE/i.test(String(e && e.message))) throw e;   // collision: try another code
+    }
+  }
+  throw new HttpError(503, "could not allocate a class code, try again");
+}
+async function findClass(env, rawCode){
+  const code = String(rawCode || "").toUpperCase();
+  if (!CLASS_CODE_RE.test(code)) throw new HttpError(404, "no such class");
+  const row = await env.DB.prepare("SELECT id, code, key_hash, label, created_at FROM classes WHERE code = ?").bind(code).first();
+  if (!row) throw new HttpError(404, "no such class");
+  return row;
+}
+async function getClass(req, env, code){
+  await checkRate(env, req, "read");
+  const c = await findClass(env, code);
+  return json({ ok: true, code: c.code, label: c.label });
+}
+async function getClassReport(req, env, code){
+  await checkRate(env, req, "read");
+  const c = await findClass(env, code);
+  const auth = req.headers.get("authorization") || "";
+  const key = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!key || !timingSafeEqual(await sha256hex(key), c.key_hash)) throw new HttpError(401, "teacher key required");
+  const data = await buildAnalytics(env, "s.class_id = ?", [c.id]);
+  const runs = (await env.DB.prepare(`SELECT s.created_at, s.last_seen, s.difficulty, s.start_level, s.max_level, s.won, s.input,
+      sc.initials, sc.score,
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'hit') AS hits,
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'quiz') AS quiz_answers,
+      (SELECT COALESCE(SUM(e.v), 0) FROM events e WHERE e.session_id = s.id AND e.type = 'quiz') AS quiz_correct,
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'orb' AND e.v = 1) AS orbs_real,
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'orb' AND e.v = 0) AS orbs_fake
+    FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
+    WHERE s.class_id = ? ORDER BY s.created_at DESC LIMIT ?`).bind(c.id, MAX_REPORT_RUNS).all()).results;
+  return json({
+    ok: true, generated_at: Date.now(),
+    class: { code: c.code, label: c.label, created_at: Number(c.created_at) },
+    ...data,
+    students: runs.map(r => ({
+      initials: r.initials || null,
+      started_at: Number(r.created_at),
+      minutes: +((Number(r.last_seen) - Number(r.created_at)) / 60000).toFixed(1),
+      difficulty: r.difficulty || null,
+      start_level: Number(r.start_level),
+      reached: Number(r.max_level),
+      won: !!r.won,
+      score: r.score == null ? null : Number(r.score),
+      hits: Number(r.hits),
+      quiz_correct: Number(r.quiz_correct), quiz_answers: Number(r.quiz_answers),
+      orbs_real: Number(r.orbs_real), orbs_fake: Number(r.orbs_fake)
+    })),
+    truncated: runs.length >= MAX_REPORT_RUNS
+  }, 200, { "cache-control": "no-store" });
 }
 
 /* ---------- admin export (raw events for research) ---------- */
@@ -330,10 +449,10 @@ async function getExport(req, env, url){
   const after = intIn(url.searchParams.get("after") ?? 0, 0, Number.MAX_SAFE_INTEGER) ?? 0;
   const limit = intIn(url.searchParams.get("limit") ?? 5000, 1, 5000) ?? 5000;
   const format = url.searchParams.get("format") === "csv" ? "csv" : "json";
-  const rows = (await env.DB.prepare(`SELECT e.id, e.session_id, s.client_id, s.start_level, s.input, s.won AS session_won, e.type, e.level, e.n, e.v, e.w, e.client_t, e.server_at
-      FROM events e JOIN sessions s ON s.id = e.session_id WHERE e.id > ? ORDER BY e.id LIMIT ?`).bind(after, limit).all()).results;
+  const rows = (await env.DB.prepare(`SELECT e.id, e.session_id, s.client_id, s.start_level, s.input, s.won AS session_won, s.build, s.difficulty, c.code AS class_code, e.type, e.level, e.n, e.v, e.w, e.client_t, e.server_at
+      FROM events e JOIN sessions s ON s.id = e.session_id LEFT JOIN classes c ON c.id = s.class_id WHERE e.id > ? ORDER BY e.id LIMIT ?`).bind(after, limit).all()).results;
   if (format === "json") return json({ ok: true, count: rows.length, next_after: rows.length ? rows[rows.length - 1].id : after, rows });
-  const cols = ["id", "session_id", "client_id", "start_level", "input", "session_won", "type", "level", "n", "v", "w", "client_t", "server_at"];
+  const cols = ["id", "session_id", "client_id", "start_level", "input", "session_won", "build", "difficulty", "class_code", "type", "level", "n", "v", "w", "client_t", "server_at"];
   const esc = v => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
   const csv = [cols.join(",")].concat(rows.map(r => cols.map(c => esc(r[c])).join(","))).join("\n") + "\n";
   return new Response(csv, { status: 200, headers: { "content-type": "text/csv; charset=utf-8", "cache-control": "no-store", "content-disposition": "attachment; filename=mindwing-events.csv" } });
@@ -350,7 +469,7 @@ async function route(req, env, ctx){
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const m = req.method;
-  if (path === "/" || path === "/v1") return json({ ok: true, service: "mindwing-api", version: VERSION, endpoints: ["GET /v1/health", "POST /v1/session", "POST /v1/events", "POST /v1/score", "GET /v1/leaderboard", "GET /v1/stats"] });
+  if (path === "/" || path === "/v1") return json({ ok: true, service: "mindwing-api", version: VERSION, endpoints: ["GET /v1/health", "POST /v1/session", "POST /v1/events", "POST /v1/score", "GET /v1/leaderboard", "GET /v1/stats", "POST /v1/classes", "GET /v1/classes/:code", "GET /v1/classes/:code/report"] });
   if (path === "/v1/health")      return m === "GET"  ? health(env)                    : methodNotAllowed(["GET"]);
   if (path === "/v1/session")     return m === "POST" ? createSession(req, env)        : methodNotAllowed(["POST"]);
   if (path === "/v1/events")      return m === "POST" ? postEvents(req, env)           : methodNotAllowed(["POST"]);
@@ -358,6 +477,11 @@ async function route(req, env, ctx){
   if (path === "/v1/leaderboard") return m === "GET"  ? getLeaderboard(req, env, url)  : methodNotAllowed(["GET"]);
   if (path === "/v1/stats")       return m === "GET"  ? getStats(req, env)             : methodNotAllowed(["GET"]);
   if (path === "/v1/export")      return m === "GET"  ? getExport(req, env, url)       : methodNotAllowed(["GET"]);
+  if (path === "/v1/classes")     return m === "POST" ? createClass(req, env)          : methodNotAllowed(["POST"]);
+  let cm = path.match(/^\/v1\/classes\/([A-Za-z0-9]{1,12})$/);
+  if (cm) return m === "GET" ? getClass(req, env, cm[1]) : methodNotAllowed(["GET"]);
+  cm = path.match(/^\/v1\/classes\/([A-Za-z0-9]{1,12})\/report$/);
+  if (cm) return m === "GET" ? getClassReport(req, env, cm[1]) : methodNotAllowed(["GET"]);
   throw new HttpError(404, "not found");
 }
 

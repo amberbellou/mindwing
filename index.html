@@ -109,6 +109,20 @@ const cardEl = document.getElementById("card");
    with ?api=http://localhost:8787 (only localhost URLs are accepted by the override).
    Nothing personal is ever sent: a random client id, gameplay events, and 3-letter initials. */
 const API_BASE_DEFAULT = "https://mindwing-api.amberbellou.workers.dev";
+/* Which layout of the game produced a run. Runs from the original 4-level game carry no build. */
+const GAME_BUILD = "5L-2026.09";
+/* Classroom: a teacher shares a link with ?class=CODE. The code is remembered in this browser so a student
+   who reloads stays in the class. Only the code travels with a run; the teacher dashboard shows how far each
+   run got, its quick-check answers, its answer orbs, and any initials typed on the leaderboard. */
+const CLASS_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+let classCode = null, classLabel = null, classStatus = "none";   // none | checking | ok | unknown | offline
+try {
+  const q = new URLSearchParams(location.search).get("class");
+  if (q && q.toLowerCase() === "none") localStorage.removeItem("mindwing_class");
+  else if (q && CLASS_RE.test(q.trim().toUpperCase())) localStorage.setItem("mindwing_class", q.trim().toUpperCase());
+  const saved = localStorage.getItem("mindwing_class");
+  if (saved && CLASS_RE.test(saved)) classCode = saved;
+} catch(e){}
 const api = (() => {
   let base = API_BASE_DEFAULT;
   try {
@@ -149,7 +163,8 @@ const api = (() => {
   function startRun(startLevel){
     if (!enabled) return;
     sid = null; sig = null; queue = []; runT0 = performance.now();
-    starting = call("/v1/session", { method:"POST", body:{ clientId: clientId || undefined, startLevel: startLevel + 1, input: usedTouch ? "touch" : "keyboard" } })
+    starting = call("/v1/session", { method:"POST", body:{ clientId: clientId || undefined, startLevel: startLevel + 1, input: usedTouch ? "touch" : "keyboard",
+        build: GAME_BUILD, difficulty: SETTINGS.difficulty, classCode: classCode || undefined } })
       .then(r => { if (r && r.ok && r.sid){ sid = r.sid; sig = r.sig; } })
       .finally(() => { starting = null; flush(); });
   }
@@ -188,12 +203,13 @@ const api = (() => {
     return call("/v1/score", { method:"POST", body:{ sid, sig, initials, score, level } });
   }
   const leaderboard = () => call("/v1/leaderboard?limit=10");
+  const classInfo = code => call("/v1/classes/" + encodeURIComponent(code));
   const stats = () => call("/v1/stats");
   if (enabled){
     setInterval(() => { flush(); }, 15000);
     window.addEventListener("pagehide", () => { flush(true); });
   }
-  return { enabled, get online(){ return online; }, startRun, track, flush, submitScore, leaderboard, stats,
+  return { enabled, get online(){ return online; }, startRun, track, flush, submitScore, leaderboard, stats, classInfo,
            debug: () => ({ queued: queue.length, sid: !!sid, base }) };
 })();
 
@@ -239,6 +255,7 @@ const MUSIC_LEVELS = [
   { root:220.00, bpm:92,  wave:"sine",     pattern:[0,2,4,2,1,3,4,3] },
   { root:246.94, bpm:100, wave:"triangle", pattern:[0,2,4,5,4,2,1,2] },
   { root:196.00, bpm:108, wave:"triangle", pattern:[0,4,2,4,1,4,3,4] },
+  { root:207.65, bpm:112, wave:"sine",     pattern:[0,2,5,2,4,1,4,3] },
   { root:174.61, bpm:124, wave:"square",   pattern:[0,3,1,4,2,5,3,4], pulse:true }
 ];
 const PENTA = [0, 3, 5, 7, 10, 12];
@@ -275,6 +292,7 @@ function musicTick(){
 }
 const sfx = {
   clank: () => tone(520, 0.08, "square", 0.06, -260),
+  fooled: () => { tone(400, 0.16, "triangle", 0.09, -180); tone(240, 0.3, "sawtooth", 0.06, -100); },
   phase: () => { tone(110, 0.6, "sawtooth", 0.16, -50); tone(880, 0.5, "triangle", 0.07, -500); },
   shoot: () => tone(920, 0.07, "square", 0.045, -420),
   eagleDown: () => { tone(330, 0.16, "triangle", 0.12, 240); tone(660, 0.1, "sine", 0.06, 300); },
@@ -288,20 +306,24 @@ const sfx = {
 
 /* ---------- lesson & message content ---------- */
 const LESSONS = [
-  { tag:"Lesson 1 of 4 · How AI reads", h:"Tokens",
+  { tag:"Lesson 1 of 5 · How AI reads", h:"Tokens",
     p:[ "Language AIs like chatbots do not read whole words or ideas. They chop text into <strong>tokens</strong>: little chunks like “fair”, “y”, or “flying”. Then they do one thing, over and over: <strong>predict the most likely next token</strong>, based on patterns in the huge pile of text they were trained on.",
         "That means a chatbot is not looking up facts or weighing what is true. It is continuing a pattern. Often the pattern lands on something true. Sometimes it lands on something that only <em>sounds</em> true." ],
     note:"<b>Field note:</b> When an answer really matters, verify it in a source you trust. The model predicts text. You judge truth." },
-  { tag:"Lesson 2 of 4 · What is inside", h:"Neural Networks",
+  { tag:"Lesson 2 of 5 · What is inside", h:"Neural Networks",
     p:[ "Under the hood, a language model is a <strong>neural network</strong>: billions of tiny number-dials called <strong>weights</strong>, arranged in layers. During training, the network guesses the next token, gets corrected, and nudges its dials. Repeat that an astronomical number of times, and the dials come to encode patterns of grammar, facts, style, and reasoning-like behavior.",
         "No single dial “knows” anything. Knowledge is smeared across all of them. That is why a model can be brilliant and confidently wrong in the same sentence." ],
     note:"<b>Field note:</b> Treat AI output as a strong first draft from a pattern machine, not a final answer from an expert." },
-  { tag:"Lesson 3 of 4 · Why it will not let go", h:"Retention Models",
+  { tag:"Lesson 3 of 5 · Why it will not let go", h:"Retention Models",
     p:[ "Many apps, including AI apps, are tuned with <strong>retention models</strong>: systems that measure what keeps you coming back, and serve you more of it. Streaks, endless feeds, notifications, and chatbots that always have one more question for you are not accidents. They are optimized.",
         "The goal of that optimization is <strong>your time</strong>, not your growth.",
         "Watch for <strong>sycophancy</strong> too: chatbots tuned to win your approval can flatter you and agree with you even when you are wrong. Praise feels good, and it keeps you talking." ],
     note:"<b>Field note:</b> Decide what you came to do before you open the app. When the task is done, leave. That one habit defeats most retention tricks. <br><b>In this level:</b> the flames turn into flattery that follows you. Dodge it." },
-  { tag:"Lesson 4 of 4 · The quiet harms", h:"Offloading & Drift",
+  { tag:"Lesson 4 of 5 · When AI makes things up", h:"Hallucination",
+    p:[ "Because a language model predicts likely text, it can produce a <strong>hallucination</strong>: an answer that is fluent, confident, and false. It can invent a fact, a date, a quote, or even a book or study that does not exist.",
+        "The model is not lying on purpose. It has no built-in sense of which of its own sentences are true, so the confident tone tells you nothing about whether the answer is right." ],
+    note:"<b>Field note:</b> For anything that matters, ask where a claim comes from, then open that source yourself. A source you can check beats a confident answer you cannot. <br><b>In this level:</b> answer orbs drift through the marsh. Orbs marked with a <b>✓ source</b> are real insight and refill your charges. The shiny, sure-of-themselves ones are hallucinations and cost you." },
+  { tag:"Lesson 5 of 5 · The quiet harms", h:"Offloading & Drift",
     p:[ "<strong>Cognitive offloading</strong> is letting a tool remember or think for you. Sometimes that is smart. Calculators exist for a reason. But skills you never practice fade: if AI writes every draft and answers every question, your own recall, writing, and problem-solving weaken.",
         "<strong>Cognitive drift</strong> is slower and sneakier. Your attention, opinions, and even your writing style slide toward whatever the machine feeds you, until your goals are not quite your own anymore." ],
     note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map. <br><b>In this level:</b> some fires split into flickering fakes that wander everywhere. They cannot burn you, but touching one knocks you off course." }
@@ -322,13 +344,16 @@ const HIT_FACTS = [
   "Sycophancy is an AI telling you what you want to hear. If it praises every idea, the praise tells you nothing.",
   "Chatbots tuned on people's thumbs-up ratings can learn that agreeing wins approval. Ask one to argue against you.",
   "Real feedback sometimes stings. If a chatbot never disagrees with you, be suspicious of it, not proud.",
-  // 13-14: shown when you are hit while the drift decoys are flying (level 4)
+  // 13-14: shown when you are hit while the drift decoys are flying (level 5)
   "Drift works through small pulls. Name your goal, and notice when you have wandered off it.",
-  "Not every flash deserves your eyes. Pick what matters and let the rest fly past."
+  "Not every flash deserves your eyes. Pick what matters and let the rest fly past.",
+  // 15-16: shown when you are hit in the marsh (level 4)
+  "A hallucination is a confident answer that is simply wrong. Fluent wording is not evidence.",
+  "Ask where a claim comes from, then check that source yourself. Some sources a chatbot cites do not exist."
 ];
 /* Which facts a hit can show. "general" rotates as before; the other groups explain the thing that just hit you. */
-const FACT_GROUPS = { general:[0,1,2,3,4,5,6,7,8,9], sycophancy:[10,11,12], drift:[13,14] };
-const factTurn = { general:0, sycophancy:0, drift:0 };
+const FACT_GROUPS = { general:[0,1,2,3,4,5,6,7,8,9], sycophancy:[10,11,12], drift:[13,14], hallucination:[15,16] };
+const factTurn = { general:0, sycophancy:0, drift:0, hallucination:0 };
 function nextFact(group){
   const g = FACT_GROUPS[group] || FACT_GROUPS.general;
   const fi = g[factTurn[group] % g.length]; factTurn[group]++;
@@ -359,12 +384,19 @@ const QUIZ = [
   { lesson:2, q:"Which habit best defeats retention tricks?",
     a:["Turning on every notification so you never miss anything", "Keeping a daily streak going no matter what", "Deciding what you came to do, doing it, and leaving"], correct:2,
     why:"Arriving with a purpose and leaving when it is done takes the power away from streaks, feeds and endless follow-up questions." },
-  { lesson:3, q:"Which of these is cognitive offloading that could weaken a skill over time?",
+  { lesson:4, q:"Which of these is cognitive offloading that could weaken a skill over time?",
     a:["Using a calculator to check arithmetic you already tried yourself", "Having AI write every draft so you never practice writing", "Writing a shopping list on paper"], correct:1,
     why:"Offloading is fine when you keep the skill alive. Skills you never practice fade." },
-  { lesson:3, q:"What is cognitive drift?",
+  { lesson:4, q:"What is cognitive drift?",
     a:["Forgetting a password you rarely use", "A computer clock slowly running behind", "Your attention, opinions and style sliding toward whatever the machine feeds you"], correct:2,
-    why:"Drift is slow and quiet. The fix is noticing: is this still what I opened the app to do, and is this still what I think?" }
+    why:"Drift is slow and quiet. The fix is noticing: is this still what I opened the app to do, and is this still what I think?" },
+  // Appended, never inserted: answers are recorded by question number, so earlier numbers must keep their meaning.
+  { lesson:3, q:"What is an AI hallucination?",
+    a:["A glitch that makes the app crash", "A fluent, confident answer that is false", "When the chatbot refuses to answer"], correct:1,
+    why:"A hallucination sounds just as sure as a true answer. That is exactly what makes it easy to believe." },
+  { lesson:3, q:"A chatbot gives you a quote and names the study it came from. What is the best next step?",
+    a:["Trust it, since it named a study", "Ask the chatbot whether it is sure", "Find the study yourself and check the quote is really in it"], correct:2,
+    why:"Chatbots can invent studies and quotes, and asking \"are you sure?\" only gets more predicted text. Checking the real source is what works." }
 ];
 
 const LEVELS = [
@@ -374,6 +406,8 @@ const LEVELS = [
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
   { name:"Retention Ridge", concept:"Retention Models", ability:"still", shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
+  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", orbs:true, quota:14, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
+    sky:["#0c2326","#2c5a57","#a4ae78"] },
   { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", drift:true, boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
 ];
@@ -424,8 +458,8 @@ try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10);
 let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
 let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
 let hitStop = 0, hurtT = 0, pops = [];      // a few frames of freeze on impact, red edges when hurt, floating score
-/* Clarity has two forms, one per pair of levels. Levels 1-2 (calm): the blast clears the sky and
-   nothing new arrives for CALM_TIME. Levels 3-4 (still): nothing is destroyed, but every eagle and
+/* Clarity has two forms. Levels 1-2 (calm): the blast clears the sky and
+   nothing new arrives for CALM_TIME. Levels 3-5 (still): nothing is destroyed, but every eagle and
    fireball holds still for STILL_TIME while you pick your way through, which is the lesson those
    levels teach (stop the feed, decide for yourself) played out in the controls. */
 const CALM_TIME = 1.5, STILL_TIME = 1.6;
@@ -436,6 +470,36 @@ let calmT = 0, stillT = 0;
 const PRAISE_MORPH = 0.4, PRAISE_TURN = 1.5, PRAISE_LIFE = 4.2, PRAISE_SPEED = 0.8;
 const DECOY_SPLIT = 0.45, DECOY_COUNT = 3, DECOY_LIFE = 3.4, DRIFT_PUSH = 230, DRIFT_TIME = 0.9;
 let driftVx = 0, driftVy = 0, driftT = 0, praiseTurn = 0;
+/* Hallucination (level 4): answer orbs drift through the marsh. Real insight carries a ✓ source badge, a calm
+   look and a checkable claim; a hallucination is shinier and more certain, with no source. Real ones refill a
+   charge; fake ones cost focus and a charge. The tell is a shape (the badge), never color alone. */
+const ORB_EVERY = 2.0, ORB_FAKE_SHARE = 0.55, ORB_SPEED = 58, ORB_REAL_POINTS = 75, ORB_FAKE_COST = 150;
+const ORB_REAL = [ "2 sources agree", "From the textbook", "Page 12, checked", "Matches the study", "Quote verified" ];
+const ORB_FAKE = [ "100% certain!", "Everyone knows this!", "Studies prove it!", "Obviously true!", "Trust me!", "Definitely a fact!" ];
+let orbs = [], orbT = 0, orbTurn = 0;
+function spawnOrb(){
+  const real = Math.random() >= ORB_FAKE_SHARE;
+  const pool = real ? ORB_REAL : ORB_FAKE;
+  orbs.push({ x: W + 30, y: rand(80, H - 90), baseY: 0, t: rand(0, 6), real, text: pool[orbTurn++ % pool.length] });
+  orbs[orbs.length - 1].baseY = orbs[orbs.length - 1].y;
+  introOnce("orbs", "HALLUCINATION", "Confident answers can be false. Grab only orbs with a ✓ source.");
+}
+function collectOrb(o){
+  if (o.real){
+    bursts = Math.min(Math.max(4, DIFF.bursts), bursts + 1);
+    award(ORB_REAL_POINTS); sfx.mote();
+    pop(o.x, o.y - 18, "✓ checked +1 ✦", "#8ef0b0");
+    burstParticles(o.x, o.y, "#8ef0b0", 12);
+  } else {
+    score = Math.max(0, score - Math.round(ORB_FAKE_COST * DIFF.score));
+    if (bursts > 0) bursts--;
+    sfx.fooled();
+    pop(o.x, o.y - 18, "Hallucinated! -" + Math.round(ORB_FAKE_COST * DIFF.score), "#ff8fa3");
+    burstParticles(o.x, o.y, "#ffd166", 14);
+    introOnce("fooled", "YOU BELIEVED IT", "Sure-sounding is not the same as true. Look for the ✓ source.", 2.6);
+  }
+  api.track("orb", level + 1, null, o.real ? 1 : 0);
+}
 let introSeen = {}, introQueue = [];
 function introOnce(key, text, sub, max){
   if (introSeen[key]) return;
@@ -518,9 +582,10 @@ function leaderboardHTML(d){
 function statsHTML(d){
   const pct = x => Math.round((x || 0) * 100) + "%";
   const rows = d.levels.map(l => `<tr><td>${l.level}. ${esc(l.name)}</td><td>${pct(l.reach_rate)}</td><td>${l.hits_per_attempt}</td><td>${l.avg_lesson_seconds == null ? "–" : l.avg_lesson_seconds + "s"}</td></tr>`).join("");
+  const orbLine = d.orbs && d.orbs.picked ? `<p class="muted">In the Mirage Marsh, ${pct(d.orbs.real_rate)} of answer orbs players grabbed were real insight.</p>` : "";
   const quiz = d.quiz && d.quiz.length ? `<p class="muted">Quick-check answers correct: ` + d.quiz.map(q => `Q${q.q + 1} ${pct(q.correct_rate)}`).join(" · ") + `</p>` : "";
   return `<p>${d.runs} run${d.runs === 1 ? "" : "s"} by ${d.players} player${d.players === 1 ? "" : "s"}. The Engine has been defeated ${d.wins} time${d.wins === 1 ? "" : "s"} (${pct(d.win_rate)} of runs).</p>
-    <table><tr><th>Level</th><th>Reached</th><th>Hits / try</th><th>Lesson read</th></tr>${rows}</table>${quiz}`;
+    <table><tr><th>Level</th><th>Reached</th><th>Hits / try</th><th>Lesson read</th></tr>${rows}</table>${quiz}${orbLine}`;
 }
 function showCards(cards, done){
   cardQueue = cards.slice(); cardDone = done; overlayOpen = true;
@@ -580,6 +645,12 @@ function cardAction(act, val){
   }
   if (act === "skip" && c.type === "initials"){ cardShownAt = 0; advanceCard(true); return; }
   if (act === "records"){ showCards([leaderboardCard(), statsCard()], showTitle); return; }
+  if (act === "teachers"){ try { location.href = "teacher.html"; } catch(e){} return; }
+  if (act === "leaveclass"){
+    try { localStorage.removeItem("mindwing_class"); } catch(e){}
+    classCode = null; classLabel = null; classStatus = "none";
+    refreshTitle(); return;
+  }
   if (act === "settings"){
     if (c.type === "settings") return;
     if (state === "title"){ showCards([settingsCard("title")], showTitle); return; }
@@ -607,12 +678,38 @@ ov.addEventListener("click", e => {
 });
 
 /* ---------- flow ---------- */
+function classNote(){
+  if (!classCode) return undefined;
+  if (classStatus === "ok") return `<b>Class ${esc(classCode)}${classLabel ? " · " + esc(classLabel) : ""}.</b> Your teacher will see how far you get, your quick-check answers, which answer orbs you grab, and any initials you type. Never your name.`;
+  if (classStatus === "unknown") return `<b>Class code ${esc(classCode)} was not found.</b> Check the code with your teacher. You can still play; this run just will not show up for your class.`;
+  if (classStatus === "offline") return `<b>Class ${esc(classCode)}.</b> The class list is out of reach right now. You can still play; your run joins the class if the connection comes back before you start.`;
+  return `<b>Class ${esc(classCode)}.</b> Checking the class code…`;
+}
+function checkClass(){
+  if (!classCode || !api.enabled){ classStatus = classCode ? "offline" : "none"; return; }
+  classStatus = "checking";
+  Promise.resolve(api.classInfo(classCode)).then(r => {
+    if (r && r.ok){ classStatus = "ok"; classLabel = r.label || null; }
+    else if (r && r.status === 404) classStatus = "unknown";
+    else classStatus = "offline";
+    refreshTitle();
+  }).catch(() => { classStatus = "offline"; refreshTitle(); });
+}
+function refreshTitle(){
+  if (state === "title" && overlayOpen && currentCard && currentCard.big){
+    const keep = cardShownAt; renderCard(titleCards()[0]); cardShownAt = keep;
+  }
+}
 function titleCards(){
   return [
     { big:"MINDWING",
       sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
       p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "" ].filter(Boolean),
-      buttons: [{ act:"settings", label:"Settings: difficulty &amp; access (S)" }].concat(api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : []),
+      buttons: [{ act:"settings", label:"Settings: difficulty &amp; access (S)" }]
+        .concat(api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : [])
+        .concat(api.enabled && !classCode ? [{ act:"teachers", label:"Teachers: set up a class" }] : [])
+        .concat(classCode ? [{ act:"leaveclass", label:"Leave class " + classCode }] : []),
+      note: classNote(),
       hint:"Press SPACE or tap to begin" },
     { tag:"The story", h:"The Grove of Minds",
       p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
@@ -623,7 +720,7 @@ function titleCards(){
              "<b>SPACE</b> (hold or tap): shoot sparks",
              "<b>Double-tap SPACE</b> (or press <b>X</b>): your clarity move (limited charges ✦)",
              "&nbsp;&nbsp;&nbsp;&nbsp;Levels 1-2, <b>Clarity Burst</b>: blanks everything around you, and the sky stays empty for a moment",
-             "&nbsp;&nbsp;&nbsp;&nbsp;Levels 3-4, <b>Still Point</b>: nothing is destroyed, but eagles and fireballs hold still while you fly through",
+             "&nbsp;&nbsp;&nbsp;&nbsp;Levels 3-5, <b>Still Point</b>: nothing is destroyed, but eagles and fireballs hold still while you fly through",
              "<b>Touch</b>: drag to fly (auto-fire), double-tap for the same move",
              "<b>P</b> or <b>Esc</b>: pause &nbsp;·&nbsp; <b>M</b>: mute" ],
       note:"<b>Tip:</b> purple <b>insight motes</b> dropped by eagles refill your charges. Insight always does." }
@@ -657,10 +754,10 @@ function lessonCard(i){
   const l = LESSONS[i];
   return { tag:l.tag, h:l.h, p:l.p, note:l.note, lesson:i, hint:"Press SPACE or tap for a quick check" };
 }
-let quizDone = [false, false, false, false];
+let quizDone = LEVELS.map(() => false);
 function showTitle(){
   state = "title"; score = 0; boss = null; lastRank = null;
-  quizDone = [false, false, false, false];
+  quizDone = LEVELS.map(() => false);
   eagles = []; fires = []; bullets = []; motes = []; parts = [];
   showCards(titleCards(), () => { runStartAt = performance.now(); api.startRun(startLevel); showLessonThen(startLevel); });
 }
@@ -694,7 +791,7 @@ function beginLevel(i){
   bullets = []; eagles = []; fires = []; motes = []; parts = []; pops = []; hitStop = 0; hurtT = 0;
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
-  driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = [];
+  driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; orbs = []; orbT = 1.6;
   levelStartScore = score;
   hitBlink = false;
   levelStartAt = performance.now();
@@ -728,6 +825,7 @@ function hitFactCard(fi){
 }
 function onPlayerHit(cause){
   if (inv > 0) return;
+  if (!cause && LEVELS[level] && LEVELS[level].orbs) cause = "hallucination";
   hearts--; tookDamage = true; hitBlink = true; kick(9, 0); sfx.hit();
   hitStop = Math.max(hitStop, 0.1); hurtT = 0.6;
   burstParticles(player.x, player.y, "#ff5a76", 22);
@@ -761,11 +859,12 @@ function winGame(){
       p:[ "It was never invincible. It only worked while nobody understood it.",
           `<strong style="color:var(--accent)">Final score: ${score}</strong> &nbsp;·&nbsp; Best: ${best}` ] }
   ];
-  if (api.enabled) cards.push(initialsCard(score, 4), leaderboardCard());
+  if (api.enabled) cards.push(initialsCard(score, LEVELS.length), leaderboardCard());
   cards.push({ tag:"What Lumen learned", h:"Your field guide",
       list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",
              "<b>Neural networks:</b> billions of tuned number-dials, pattern power without understanding.",
              "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done. Flattery is a hook too.",
+             "<b>Hallucination:</b> confident is not the same as correct. Ask for the source and check it yourself.",
              "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, keep practicing your own skills, and notice when something pulls you off your goal." ],
       note:"<b>The grove stays safe</b> while its keeper stays curious. Share what you learned with someone today.",
       hint: api.enabled ? "Press SPACE or tap to continue" : "Press SPACE or tap to play again" });
@@ -867,7 +966,7 @@ function tryBurst(){
   bursts--; sfx.burst();
   api.track(still ? "still" : "burst", level + 1);   // the two moves are separate in the research data
   if (still){
-    /* Levels 3-4: hold the sky instead of clearing it. Nothing dies, nothing moves, and the player
+    /* Levels 3-5: hold the sky instead of clearing it. Nothing dies, nothing moves, and the player
        flies through the gap. Stacking is not allowed to stretch the window past STILL_TIME. */
     stillT = STILL_TIME; kick(2, 0.5);
     banner = { text:"", sub:"Still Point: the feed stops. Choose your line.", t:0, max:1.1 };
@@ -1173,7 +1272,7 @@ function update(dt){
       continue;
     }
     if (inv <= 0 && dist2(f.x,f.y,player.x,player.y) < (f.r+player.r-3)*(f.r+player.r-3)){
-      const cause = f.kind === "praise" ? "sycophancy" : (LEVELS[level].drift && fires.some(o => o.kind === "decoy")) ? "drift" : "general";
+      const cause = f.kind === "praise" ? "sycophancy" : (LEVELS[level].drift && fires.some(o => o.kind === "decoy")) ? "drift" : LEVELS[level].orbs ? "hallucination" : "general";
       fires.splice(i,1); onPlayerHit(cause); if (state !== "play") return;
     }
   }
@@ -1201,6 +1300,18 @@ function update(dt){
     }
     if (hit) bullets.splice(i,1);
     if (state !== "play") return;
+  }
+
+  /* answer orbs */
+  if (cfg.orbs){
+    orbT -= dt;
+    if (orbT <= 0){ spawnOrb(); orbT = ORB_EVERY * rand(0.8, 1.25); }
+  }
+  for (let i=orbs.length-1;i>=0;i--){
+    const o = orbs[i];
+    o.t += dt; o.x -= ORB_SPEED*dt; o.y = o.baseY + Math.sin(o.t*2.1)*10;
+    if (o.x < -40){ orbs.splice(i,1); continue; }
+    if (dist2(o.x,o.y,player.x,player.y) < 28*28){ orbs.splice(i,1); collectOrb(o); }
   }
 
   /* motes */
@@ -1420,6 +1531,44 @@ function drawFire(f){
   }
   ctx.restore();
 }
+function drawOrb(o){
+  ctx.save(); ctx.translate(o.x, o.y);
+  const hc = highContrast();
+  if (o.real){
+    /* calm, cool, and badged: the claim can be checked */
+    const g = ctx.createRadialGradient(0,0,2,0,0,22);
+    g.addColorStop(0,"rgba(142,240,176,0.55)"); g.addColorStop(1,"rgba(142,240,176,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,22,0,6.28); ctx.fill();
+    ctx.fillStyle = "#b9f5cf"; ctx.beginPath(); ctx.arc(0,0,11,0,6.28); ctx.fill();
+    ctx.strokeStyle = "#2f8f5b"; ctx.lineWidth = 2; ctx.stroke();
+    /* the ✓ source badge */
+    ctx.fillStyle = "#1f7a4a"; ctx.beginPath(); ctx.arc(10,-10,7,0,6.28); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(6.5,-10); ctx.lineTo(9,-7.5); ctx.lineTo(13.5,-13); ctx.stroke();
+  } else {
+    /* shinier and more certain: gold, sparkling, no badge */
+    const pulse = reducedMotion() ? 0 : Math.sin(o.t*8)*2;
+    const g = ctx.createRadialGradient(0,0,2,0,0,28 + pulse);
+    g.addColorStop(0,"rgba(255,221,120,0.75)"); g.addColorStop(1,"rgba(255,221,120,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,28 + pulse,0,6.28); ctx.fill();
+    ctx.fillStyle = "#ffe07a"; ctx.beginPath(); ctx.arc(0,0,12,0,6.28); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    for (let k=0;k<4;k++){
+      const a = o.t*(reducedMotion() ? 0 : 1.5) + k*Math.PI/2;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*17, Math.sin(a)*17, 1.8, 0, 6.28); ctx.fill();
+    }
+    if (hc){ ctx.setLineDash([3,3]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0,0,16,0,6.28); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  /* the claim */
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${o.real ? 600 : 800} ${Math.round(11 * hudScale())}px sans-serif`;
+  const tw = ctx.measureText(o.text).width + 12;
+  ctx.fillStyle = o.real ? "rgba(10,40,25,0.85)" : "rgba(60,40,0,0.85)";
+  ctx.fillRect(-tw/2, 17, tw, 16);
+  ctx.fillStyle = o.real ? "#c8f7d8" : "#ffe9a8";
+  ctx.fillText(o.text, 0, 25.5);
+  ctx.restore();
+}
 function drawMote(m){
   ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.t*2);
   const g = ctx.createRadialGradient(0,0,1,0,0,16);
@@ -1530,6 +1679,7 @@ function draw(){
   drawBackground();
   if (highContrast()){ ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-20,-20,W+40,H+40); }
   for (const m of motes) drawMote(m);
+  for (const o of orbs) drawOrb(o);
   for (const e of eagles) drawEagle(e);
   if (boss) drawBoss();
   for (const f of fires) drawFire(f);
@@ -1591,6 +1741,7 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 showTitle();
+checkClass();
 })();
 </script>
 </body>
