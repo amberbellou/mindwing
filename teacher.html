@@ -126,6 +126,10 @@
       <p class="muted">Two questions after each lesson. A low score on one question is a good place to start a class discussion.</p>
       <div class="scroll"><table id="quiz"></table></div>
 
+      <h2>Before and after</h2>
+      <p class="muted">The same five questions are asked before playing and again after the Engine falls, and they are never scored in the game. Only students who finished have an "after" score, so compare the two columns with that in mind.</p>
+      <div class="scroll"><table id="check"></table></div>
+
       <h2>Runs</h2>
       <p class="muted">One row per game started, newest first. Initials appear only when a student signed the leaderboard. Quick checks below half right are highlighted.</p>
       <div class="scroll"><table id="runs"></table></div>
@@ -267,7 +271,11 @@ function render(d){
     { k: "Runs", v: d.runs, s: d.players + " device" + (d.players === 1 ? "" : "s") },
     { k: "Beat the Engine", v: d.wins, s: pct(d.win_rate) + " of runs" },
     { k: "Quick checks right", v: answers ? pct(right / answers) : "n/a", s: answers + " answers" },
-    { k: "Real answers picked", v: d.orbs && d.orbs.picked ? pct(d.orbs.real_rate) : "n/a", s: d.orbs && d.orbs.picked ? d.orbs.real + " real, " + d.orbs.fake + " hallucinated" : "Mirage Marsh not reached yet" }
+    { k: "Real answers picked", v: d.orbs && d.orbs.picked ? pct(d.orbs.real_rate) : "n/a", s: d.orbs && d.orbs.picked ? d.orbs.real + " real, " + d.orbs.fake + " hallucinated" : "Mirage Marsh not reached yet" },
+    { k: "Before and after", v: (d.check && d.check.gain != null) ? (d.check.gain >= 0 ? "+" : "") + Math.round(d.check.gain * 100) + " pts" : "n/a",
+      s: (d.check && d.check.before.answers)
+        ? pct(d.check.before.rate) + " before, " + (d.check.after.answers ? pct(d.check.after.rate) + " after" : "no finished runs yet")
+        : "Nobody has taken the check yet" }
   ];
   $("tiles").innerHTML = tiles.map(t => `<div class="tile"><div class="k">${esc(t.k)}</div><div class="v">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 
@@ -281,8 +289,25 @@ function render(d){
       <td class="num ${q.correct_rate < 0.5 ? "low" : q.correct_rate >= 0.8 ? "ok" : ""}">${pct(q.correct_rate)}</td></tr>`).join("")
       : `<tr><td colspan="5" class="muted">No quick-check answers yet.</td></tr>`);
 
+  const CHECK_TEXT = [
+    "How does a chatbot decide what to write next?",
+    "Where does a language model keep what it knows?",
+    "An app keeps showing you 'one more thing'. What is most likely going on?",
+    "A chatbot answers confidently and names a source. What should you do?",
+    "You used AI for every step of a task for weeks. What is the risk?"
+  ];
+  const ck = d.check || { questions: { before: [], after: [] } };
+  const findQ = (arr, q) => (arr || []).find(x => x.q === q);
+  $("check").innerHTML = `<tr><th>#</th><th>Question</th><th class="num">Before</th><th class="num">After</th><th class="num">Change</th></tr>` +
+    (ck.before && ck.before.answers ? CHECK_TEXT.map((text, i) => {
+      const b = findQ(ck.questions.before, i), a = findQ(ck.questions.after, i);
+      const change = (b && b.rate != null && a && a.rate != null) ? Math.round((a.rate - b.rate) * 100) : null;
+      return `<tr><td>${i + 1}</td><td>${esc(text)}</td><td class="num">${b ? pct(b.rate) : "n/a"}</td><td class="num">${a ? pct(a.rate) : "n/a"}</td>
+        <td class="num ${change > 0 ? "ok" : change < 0 ? "low" : ""}">${change == null ? "n/a" : (change >= 0 ? "+" : "") + change + " pts"}</td></tr>`;
+    }).join("") : `<tr><td colspan="5" class="muted">Nobody has taken the check yet.</td></tr>`);
+
   const levelName = n => (d.levels[n - 1] ? n + ". " + d.levels[n - 1].name : "Level " + n);
-  $("runs").innerHTML = `<tr><th>Initials</th><th>Started</th><th>Difficulty</th><th>Furthest level</th><th>Result</th><th class="num">Score</th><th class="num">Hits</th><th class="num">Quick checks</th><th class="num">Answer orbs</th><th class="num">Minutes</th></tr>` +
+  $("runs").innerHTML = `<tr><th>Initials</th><th>Started</th><th>Difficulty</th><th>Furthest level</th><th>Result</th><th class="num">Score</th><th class="num">Hits</th><th class="num">Quick checks</th><th class="num">Before / after</th><th class="num">Answer orbs</th><th class="num">Minutes</th></tr>` +
     d.students.map(r => {
       const low = r.quiz_answers >= 2 && r.quiz_correct / r.quiz_answers < 0.5;
       const orbs = r.orbs_real + r.orbs_fake ? `${r.orbs_real} real / ${r.orbs_fake} fake` : "none";
@@ -291,14 +316,16 @@ function render(d){
         <td>${esc(r.difficulty || "normal")}</td><td>${esc(levelName(r.reached))}</td>
         <td>${r.won ? '<span class="ok">Won</span>' : "In progress or ended"}</td>
         <td class="num">${r.score == null ? '<span class="muted">n/a</span>' : r.score}</td><td class="num">${r.hits}</td>
-        <td class="num ${low ? "low" : ""}">${r.quiz_correct} / ${r.quiz_answers}</td><td class="num">${esc(orbs)}</td><td class="num">${r.minutes}</td></tr>`;
+        <td class="num ${low ? "low" : ""}">${r.quiz_correct} / ${r.quiz_answers}</td>
+        <td class="num">${r.pre_answers ? r.pre_correct + "/" + r.pre_answers : "skipped"} ${r.post_answers ? "→ " + r.post_correct + "/" + r.post_answers : ""}</td>
+        <td class="num">${esc(orbs)}</td><td class="num">${r.minutes}</td></tr>`;
     }).join("");
   $("truncated").textContent = d.truncated ? "Showing the newest " + d.students.length + " runs." : "";
 }
 
 $("csv").addEventListener("click", () => {
   const d = lastReport; if (!d) return;
-  const cols = ["initials", "started_at", "difficulty", "start_level", "reached", "won", "score", "hits", "quiz_correct", "quiz_answers", "orbs_real", "orbs_fake", "minutes"];
+  const cols = ["initials", "started_at", "difficulty", "start_level", "reached", "won", "score", "hits", "quiz_correct", "quiz_answers", "pre_correct", "pre_answers", "post_correct", "post_answers", "orbs_real", "orbs_fake", "minutes"];
   const cell = v => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
   const rows = d.students.map(r => cols.map(c => c === "started_at" ? new Date(r[c]).toISOString() : cell(r[c])).join(","));
   const blob = new Blob([[cols.join(",")].concat(rows).join("\n") + "\n"], { type: "text/csv" });

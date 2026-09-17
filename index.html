@@ -367,6 +367,28 @@ function nextFact(group){
 const PRAISE = [ "You're absolutely right!", "What a brilliant idea!", "Great question!", "You're amazing!",
   "Genius, truly!", "I totally agree!", "Perfect, as always!", "You never make mistakes!" ];
 
+/* The same five questions before playing and after the Engine falls, one per concept. They are deliberately
+   separate from the in-level quick checks, so the quick checks do not simply hand over the answers, and they
+   are never scored: this is a measure of learning, not another thing to win. */
+const CHECKS = [
+  { q:"How does a chatbot decide what to write next?",
+    a:["It looks the answer up in a list of true facts", "It predicts the most likely next chunk of text", "It asks a person behind the scenes"], correct:1,
+    why:"It continues patterns from its training text. Checking whether something is true is not part of that step." },
+  { q:"Where does a language model keep what it knows?",
+    a:["Spread across billions of number-dials called weights", "In one big file of facts", "On the internet, searched each time"], correct:0,
+    why:"Training nudges billions of weights. No single one holds a fact, which is why a model can be brilliant and wrong at once." },
+  { q:"An app keeps showing you 'one more thing'. What is most likely going on?",
+    a:["The app ran out of other content", "It is designed to keep your attention as long as possible", "It is a bug"], correct:1,
+    why:"Retention systems measure what keeps you coming back and serve more of it. Your time is the target." },
+  { q:"A chatbot answers confidently and names a source. What should you do?",
+    a:["Trust it, since it named a source", "Ask it if it is sure", "Open the source and check the claim is really there"], correct:2,
+    why:"Models can invent sources and quotes, and asking 'are you sure?' only produces more predicted text." },
+  { q:"You used AI for every step of a task for weeks. What is the risk?",
+    a:["Nothing, tools are meant to be used", "The skill you stopped practising gets weaker, and your goals drift toward the tool", "The AI gets tired"], correct:1,
+    why:"That is offloading and drift together: skills you never practise fade, and attention slides toward whatever the machine feeds you." }
+];
+let preAnswers = null;       // how many of the five were right before playing, null when the check was skipped
+
 /* Two quick understanding checks after each lesson. Right answers earn +100 focus; wrong ones cost nothing.
    Answers are recorded anonymously when the backend is enabled. */
 const QUIZ = [
@@ -457,6 +479,35 @@ let state = "title";           // title | play | hit | pause | clear | over | wi
 let level = 0, score = 0, hearts = 3, bursts = 3;
 let best = 0;
 try { best = parseInt(localStorage.getItem("mindwing_best") || "0", 10) || 0; } catch(e){}
+/* Saved progress: the furthest level reached and the best score on each level, so a class period that runs out
+   does not mean starting from the beginning. Kept in this browser only; nothing here is sent anywhere. */
+const progress = { furthest: 0, bests: {} };
+try {
+  const raw = JSON.parse(localStorage.getItem("mindwing_progress") || "{}");
+  if (raw && typeof raw === "object"){
+    const f = parseInt(raw.furthest, 10);
+    if (f >= 0) progress.furthest = f;
+    if (raw.bests && typeof raw.bests === "object"){
+      for (const k of Object.keys(raw.bests)){
+        const v = parseInt(raw.bests[k], 10);
+        if (v > 0) progress.bests[k] = v;
+      }
+    }
+  }
+} catch(e){}
+function saveProgress(){
+  progress.furthest = Math.min(Math.max(0, progress.furthest), 20);
+  try { localStorage.setItem("mindwing_progress", JSON.stringify(progress)); } catch(e){}
+}
+/** levelIndex is the level just cleared (0-based); levelScore is what was earned inside it. Clearing a level
+ *  also unlocks the next one, which is where "Continue" picks up. */
+function noteProgress(levelIndex, levelScore){
+  const key = String(levelIndex + 1);
+  if (levelScore > (progress.bests[key] || 0)) progress.bests[key] = levelScore;
+  const unlocked = Math.min(levelIndex + 1, LEVELS.length - 1);
+  if (unlocked > progress.furthest) progress.furthest = unlocked;
+  saveProgress();
+}
 let startLevel = 0;   // ?level=1..4 lets reviewers jump straight to a level
 try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10); if (q >= 1 && q <= LEVELS.length) startLevel = q - 1; } catch(e){}
 let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
@@ -548,6 +599,7 @@ function buildCard(c){
   }
   if (c.type === "leaderboard" || c.type === "stats") html += `<div data-slot="async"><p class="muted">Loading…</p></div>`;
   if (c.type === "settings") html += settingsHTML(c);
+  if (c.type === "checkresult") html += `<p>${checkResultText()}</p>`;
   if (c.buttons) html += `<div class="row">` + c.buttons.map(b => `<button type="button" class="ghost" data-act="${b.act}">${b.label}</button>`).join("") + `</div>`;
   if (c.note) html += `<div class="note">${c.note}</div>`;
   if (c.hint !== "") html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
@@ -623,6 +675,20 @@ function cardAction(act, val){
     const choice = parseInt(val, 10);
     if (!(choice >= 0 && choice < c.options.length)) return;
     const correct = choice === c.correct;
+    if (c.phase){
+      /* the before/after check: never scored, and the "before" round keeps the answers to itself */
+      if (c.phase === "pre") preAnswers = (preAnswers || 0) + (correct ? 1 : 0);
+      else postAnswers += correct ? 1 : 0;
+      api.track(c.phase, null, c.qIndex, correct ? 1 : 0, choice);
+      if (c.phase === "post"){
+        cardQueue.unshift({ tag: c.tag, h: correct ? "Correct" : "Not quite",
+          p: [ (correct ? `<span class="ok">✓</span> ` : `<span class="bad">✗</span> The answer: <strong>${esc(c.options[c.correct])}</strong>. `) + esc(c.why) ],
+          hint: "Press SPACE or tap to continue" });
+      }
+      cardShownAt = 0; currentCard = null;
+      advanceCard(true);
+      return;
+    }
     if (correct) score += 100;
     api.track("quiz", c.lessonIdx + 1, c.qIndex, correct ? 1 : 0, choice);
     cardQueue.unshift({ tag: c.tag, h: correct ? "Correct! +100 focus" : "Not quite",
@@ -668,6 +734,14 @@ function cardAction(act, val){
     const keep = cardShownAt; renderCard(c); cardShownAt = keep;          // redraw in place, keep the double-tap guard
     return;
   }
+  if (act === "skipcheck"){
+    /* drop the five "before" questions still queued and get on with the game */
+    preAnswers = null;
+    cardQueue = cardQueue.filter(x => x.phase !== "pre");
+    cardShownAt = 0; advanceCard(true); return;
+  }
+  if (act === "continue"){ startLevel = Math.min(progress.furthest, LEVELS.length - 1); cardShownAt = 0; advanceCard(true); return; }
+  if (act === "restart"){ startLevel = 0; cardShownAt = 0; advanceCard(true); return; }
   if (act === "next"){ advanceCard(true); }
 }
 // "click" rather than "pointerdown": a finger scrolling a long card on a small screen must not advance it.
@@ -682,6 +756,12 @@ ov.addEventListener("click", e => {
 });
 
 /* ---------- flow ---------- */
+function bestsLine(){
+  const keys = Object.keys(progress.bests).sort();
+  if (!keys.length) return "";
+  const parts = keys.map(k => `${k}. ${esc((LEVELS[Number(k) - 1] || {}).name || "")} ${progress.bests[k]}`);
+  return `<span class="muted" style="display:block;text-align:center">Best per level: ${parts.join(" · ")}</span>`;
+}
 function classNote(){
   if (!classCode) return undefined;
   if (classStatus === "ok") return `<b>Class ${esc(classCode)}${classLabel ? " · " + esc(classLabel) : ""}.</b> Your teacher will see how far you get, your quick-check answers, which answer orbs you grab, and any initials you type. Never your name.`;
@@ -708,13 +788,18 @@ function titleCards(){
   return [
     { big:"MINDWING",
       sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
-      p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "" ].filter(Boolean),
+      p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "",
+          bestsLine() ].filter(Boolean),
       buttons: [{ act:"settings", label:"Settings: difficulty &amp; access (S)" }]
         .concat(api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : [])
         .concat(api.enabled && !classCode ? [{ act:"teachers", label:"Teachers: set up a class" }] : [])
-        .concat(classCode ? [{ act:"leaveclass", label:"Leave class " + classCode }] : []),
+        .concat(classCode ? [{ act:"leaveclass", label:"Leave class " + classCode }] : [])
+        .concat(progress.furthest > 0 ? [
+          { act:"continue", label:"Continue from level " + (Math.min(progress.furthest, LEVELS.length - 1) + 1) + ": " + LEVELS[Math.min(progress.furthest, LEVELS.length - 1)].name },
+          { act:"restart", label:"Start again from level 1" }
+        ] : []),
       note: classNote(),
-      hint:"Press SPACE or tap to begin" },
+      hint: progress.furthest > 0 ? "Press SPACE or tap to continue" : "Press SPACE or tap to begin" },
     { tag:"The story", h:"The Grove of Minds",
       p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
           "But the <strong>Engagement Engine</strong>, a machine that feeds on attention, has sent its fire-eagles to scorch the grove and keep every mind staring at the flames.",
@@ -730,6 +815,34 @@ function titleCards(){
       note:"<b>Tip:</b> purple <b>insight motes</b> dropped by eagles refill your charges. Insight always does." }
   ];
 }
+function checkCards(phase){
+  const intro = phase === "pre"
+    ? { tag:"Before you fly", h:"Five questions, no pressure",
+        p:[ "These five questions are not scored and they do not affect your game. You will see them again at the end, so you can watch how much you picked up along the way.",
+            "If you do not know, guess. That is useful too." ],
+        buttons:[{ act:"skipcheck", label:"Skip this, just let me play" }], hint:"Press SPACE or tap to start" }
+    : { tag:"After the flight", h:"The same five questions",
+        p:[ "Same questions as before you started. This time you will see the answers." ], hint:"Press SPACE or tap to start" };
+  const qs = CHECKS.map((c, i) => ({
+    type:"quiz", phase, tag:`${phase === "pre" ? "Before" : "After"} · question ${i + 1} of ${CHECKS.length}`,
+    h: esc(c.q), options: c.a, correct: c.correct, why: c.why, qIndex: i, hint:""
+  }));
+  return [intro, ...qs];
+}
+function checkResultCard(){
+  /* Built when the card is rendered, not when the queue is made: the after-questions are answered in between. */
+  return { type:"checkresult", tag:"Before and after", h:"What changed" };
+}
+function checkResultText(){
+  const after = postAnswers, before = preAnswers;
+  const line = before == null
+    ? `You answered <strong>${after} of ${CHECKS.length}</strong> correctly. You skipped the check at the start, so there is nothing to compare against this time.`
+    : after > before ? `You went from <strong>${before} of ${CHECKS.length}</strong> before the flight to <strong>${after} of ${CHECKS.length}</strong> now. That difference is the point of the whole game.`
+    : after === before ? `You had <strong>${before} of ${CHECKS.length}</strong> before and <strong>${after}</strong> now. Steady. Have a look at the field guide on the next card.`
+    : `You had <strong>${before} of ${CHECKS.length}</strong> before and <strong>${after}</strong> now. That happens: the questions get easier to overthink once you know more. The field guide is on the next card.`;
+  return line;
+}
+let postAnswers = 0;
 function settingsCard(from){
   return { type:"settings", tag:"Settings", h:"Play your way", from, hint:"Press SPACE or tap outside the buttons to go back" };
 }
@@ -764,7 +877,14 @@ function showTitle(){
   state = "title"; score = 0; boss = null; lastRank = null;
   quizDone = LEVELS.map(() => false);
   eagles = []; fires = []; bullets = []; motes = []; parts = [];
-  showCards(titleCards(), () => { runStartAt = performance.now(); api.startRun(startLevel); showLessonThen(startLevel); });
+  preAnswers = null; postAnswers = 0;
+  /* The run is registered once the player leaves the title cards, so the "before" answers belong to it and are
+     sent straight away rather than waiting in a queue for a session that does not exist yet. */
+  showCards(titleCards(), () => {
+    runStartAt = performance.now();
+    api.startRun(startLevel);
+    showCards(checkCards("pre"), () => { api.flush(); showLessonThen(startLevel); });
+  });
 }
 function showLessonThen(i){
   showCards([lessonCard(i), ...quizCards(i)], () => beginLevel(i));
@@ -801,6 +921,7 @@ function beginLevel(i){
   hitBlink = false;
   levelStartAt = performance.now();
   api.track("level_start", i + 1); api.flush();
+  if (i > progress.furthest){ progress.furthest = i; saveProgress(); }
   const bossHp = Math.round(55 * DIFF.bossHp);
   boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false, phase:1, spin:0 } : null;
   const abIntro = abilityOf(i) === "still"
@@ -816,6 +937,7 @@ function levelCleared(){
   const untouched = !tookDamage;
   if (untouched) award(500);
   api.track("level_clear", level + 1, Math.round(performance.now() - levelStartAt), score);
+  noteProgress(level, score - levelStartScore);
   banner = { text:"GROVE SECTION CLEARED", sub: untouched ? "Untouched! +500 focus bonus" : "Onward!", t:0, max:1.6 };
 }
 function afterClear(){
@@ -864,6 +986,8 @@ function winGame(){
       p:[ "It was never invincible. It only worked while nobody understood it.",
           `<strong style="color:var(--accent)">Final score: ${score}</strong> &nbsp;·&nbsp; Best: ${best}` ] }
   ];
+  postAnswers = 0;
+  cards.push(...checkCards("post"), checkResultCard());
   if (api.enabled) cards.push(initialsCard(score, LEVELS.length), leaderboardCard());
   cards.push({ tag:"What Lumen learned", h:"Your field guide",
       list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",

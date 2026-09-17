@@ -31,7 +31,7 @@ const API_LINE = /const API_BASE_DEFAULT = "[^"]*";/;
 if (!API_LINE.test(src)) throw new Error("API_BASE_DEFAULT line not found in index.html");
 src = src.replace(API_LINE, 'const API_BASE_DEFAULT = "";');
 // Expose internals for assertions (test build only; the shipped file has no such hook).
-const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF, orbs, classStatus, classCode });\nwindow.__setInv = v => { inv = v; };\n`;
+const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF, orbs, classStatus, classCode, preAnswers, postAnswers, progress, startLevel });\nwindow.__setInv = v => { inv = v; };\n`;
 const tail = src.lastIndexOf("})();");
 src = src.slice(0, tail) + hook + src.slice(tail);
 
@@ -130,6 +130,8 @@ function makeWorld(seed, { search = "", net = "off" } = {}){
     setInv: v => sandbox.__setInv(v)
   };
 }
+
+const cardText = (w, c) => (c && c.p ? c.p.join(" ") : "") + " " + (w.card.innerHTML || "");
 
 const STATES = new Set(["title", "play", "hit", "pause", "clear", "postclear", "over", "win"]);
 function check(w){
@@ -263,6 +265,7 @@ async function aimbot(seed, { search = "", net = "off", maxFrames = 120000 } = {
   for (let i = 0; i < 400 && w.state().overlayOpen && w.state().state === "win"; i++){
     const c = w.state().card;
     if (c && c.type === "initials"){ if (submitted.has(c)) w.click("skip"); else { submitted.add(c); w.setInput("AMB"); w.click("submit"); } }
+    else if (c && c.type === "quiz") w.click("choose", String(c.correct));   // the "after" check sits between the win and the ledger
     else w.click();
     w.step(500); await settle(3);
   }
@@ -723,6 +726,20 @@ console.log("classroom: a class link joins runs to the class, bad codes never bl
 }
 
 
+console.log("teacher page: before/after question text matches the game's check");
+{
+  const teacher = fs.readFileSync(path.join(here, "..", "teacher.html"), "utf8");
+  const gameBlock = src.slice(src.indexOf("const CHECKS = ["), src.indexOf("let preAnswers"));
+  const gameQs = [...gameBlock.matchAll(/q:"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  const tIdx = teacher.indexOf("const CHECK_TEXT = [");
+  const tBlock = teacher.slice(tIdx, teacher.indexOf("];", tIdx));
+  const teacherQs = [...tBlock.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1].replace(/\\'/g, "'"));
+  if (gameQs.length !== 5 || JSON.stringify(gameQs) !== JSON.stringify(teacherQs)){
+    failed = true;
+    console.log("  FAIL: teacher.html CHECK_TEXT is out of step with index.html CHECKS\n    game:    " + JSON.stringify(gameQs) + "\n    teacher: " + JSON.stringify(teacherQs));
+  } else console.log("  5 before/after questions match");
+}
+
 console.log("teacher page: dashboard question text matches the game's quiz");
 {
   const teacher = fs.readFileSync(path.join(here, "..", "teacher.html"), "utf8");
@@ -734,6 +751,132 @@ console.log("teacher page: dashboard question text matches the game's quiz");
     failed = true;
     console.log("  FAIL: teacher.html QUIZ_TEXT is out of step with index.html QUIZ\n    game:    " + JSON.stringify(gameQs) + "\n    teacher: " + JSON.stringify(teacherQs));
   } else console.log(`  ${gameQs.length} questions match`);
+}
+
+
+console.log("before/after check: five questions each side, recorded separately, skippable");
+{
+  const errs = [];
+  const w = makeWorld(71, { search: "?api=http://localhost:8787", net: "real" });
+  // walk the title cards, then answer the five "before" questions correctly
+  let asked = 0;
+  for (let i = 0; i < 60; i++){
+    const s = w.state();
+    if (!s.overlayOpen) break;
+    const c = s.card;
+    if (c && c.type === "quiz" && c.phase === "pre"){ asked++; w.click("choose", String(c.correct)); }
+    else w.click();
+    w.step(500); await settle(2);
+  }
+  if (asked !== 5) errs.push(`expected 5 "before" questions, saw ${asked}`);
+  const afterPre = w.state();
+  if (afterPre.preAnswers !== 5) errs.push("before-check score not tracked: " + afterPre.preAnswers);
+  await settle(6);
+  const rows = w.backend.env.DB._raw.prepare("SELECT type, COUNT(*) AS c, SUM(v) AS ok FROM events WHERE type IN ('pre','post','quiz') GROUP BY type").all();
+  const pre = rows.find(r => r.type === "pre");
+  if (!pre || pre.c !== 5 || pre.ok !== 5) errs.push("the backend did not record five correct 'pre' answers: " + JSON.stringify(rows));
+  if (rows.find(r => r.type === "quiz")) errs.push("check answers must not be logged as quick checks");
+  if (afterPre.score !== 0) errs.push("the before-check must not award points, score=" + afterPre.score);
+
+  // skipping: a second run drops the queued questions
+  const w2 = makeWorld(72, { search: "", net: "off" });
+  let skipped = false;
+  for (let i = 0; i < 40; i++){
+    const s = w2.state();
+    if (!s.overlayOpen) break;
+    const c = s.card;
+    if (!skipped && c && c.buttons && c.buttons.some(b => b.act === "skipcheck")){ w2.click("skipcheck"); skipped = true; }
+    else if (c && c.type === "quiz" && c.phase === "pre"){ errs.push("a before-question survived the skip"); w2.click("choose", "0"); }
+    else w2.click();
+    w2.step(500); await settle(2);
+  }
+  if (!skipped) errs.push("no skip button offered on the before-check");
+  if (w2.state().preAnswers !== null) errs.push("skipping should leave the before score unknown");
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  five before-questions asked, logged as their own event type, never scored, and skippable");
+}
+
+console.log("after-check: the win screen asks the same five and reports the difference");
+{
+  const errs = [];
+  const a = await aimbot(73, { search: "?api=http://localhost:8787", net: "real" });
+  if (!a.ok) errs.push("aimbot failed: " + (a.errs || []).join("; "));
+  else {
+    const raw = a.db ? null : null;
+    if (!a.wins) errs.push("aimbot did not win");
+  }
+  // a direct check of the backend rows from that run
+  const w = makeWorld(74, { search: "?api=http://localhost:8787&level=5", net: "real" });
+  for (let i = 0; i < 80; i++){
+    const s = w.state();
+    if (!s.overlayOpen) break;
+    const c = s.card;
+    if (c && c.type === "quiz") w.click("choose", String(c.correct)); else w.click();
+    w.step(500); await settle(2);
+  }
+  const st = w.state();
+  if (st.preAnswers !== 5) errs.push("before-check not answered on the boss shortcut");
+  // the result card must report what the player actually scored, not what was known when the card was queued
+  {
+    const w2 = makeWorld(76, { search: "?level=5", net: "off" });
+    let preRight = 0, sawResult = null;
+    for (let i = 0; i < 1500 && !sawResult; i++){
+      const s2 = w2.state();
+      if (s2.overlayOpen){
+        const c = s2.card;
+        if (c && c.type === "checkresult") sawResult = { card: c, pre: s2.preAnswers, post: s2.postAnswers };
+        else if (c && c.type === "quiz" && c.phase === "pre"){ w2.click("choose", "0"); if (c.correct === 0) preRight++; }
+        else if (c && c.type === "quiz") w2.click("choose", String(c.correct));
+        else if (c && c.type === "initials") w2.click("skip");
+        else w2.click();
+        w2.step(500); await settle(2);
+        continue;
+      }
+      if (s2.state === "play"){
+        const st = w2.state();
+        if (st.boss && st.boss.entered){ st.boss.hp = 1; st.bullets.push({ x: st.boss.x, y: st.boss.y, r: 5 }); }
+        for (const e of st.eagles) st.bullets.push({ x: e.x, y: e.y, r: 5 });
+        w2.step(16.7); await settle(1);
+        continue;
+      }
+      w2.step(100); await settle(1);
+    }
+    if (!sawResult) errs.push("never reached the before/after result card; last state " + JSON.stringify({ state: w2.state().state, overlay: w2.state().overlayOpen, card: w2.state().card && (w2.state().card.type || w2.state().card.tag || w2.state().card.h) }));
+    else {
+      const text = cardText(w2, sawResult.card);
+      if (sawResult.post !== 5) errs.push("the after-check should have been answered correctly five times, got " + sawResult.post);
+      if (!text.includes(String(sawResult.post))) errs.push(`result card does not report the after score (${sawResult.post}): ${text}`);
+      if (sawResult.pre != null && !text.includes(String(sawResult.pre))) errs.push(`result card does not report the before score (${sawResult.pre}): ${text}`);
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  the flow reaches the win screen, and the result card reports the real before and after scores");
+}
+
+console.log("saved progress: furthest level and best per level survive, and the title offers to continue");
+{
+  const errs = [];
+  const w = makeWorld(75, { search: "?level=3", net: "off" });
+  if (!await toPlay(w)) errs.push("could not start level 3");
+  else {
+    const p = w.state().progress;
+    if (!p || p.furthest < 2) errs.push("starting level 3 should record it as reached: " + JSON.stringify(p));
+    // clear the level and check the best score for it is kept
+    const s = w.state();
+    for (let i = 0; i < 4000 && w.state().state === "play"; i++){
+      const st = w.state();
+      if (st.eagles.length) st.eagles.forEach(e => w.state().bullets.push({ x: e.x, y: e.y, r: 5 }));
+      w.step(16.7); await settle(1);
+      if (w.state().killCount >= w.state().quota) break;
+    }
+    for (let i = 0; i < 200 && w.state().state === "play"; i++){ w.step(16.7); await settle(1); }
+    const after = w.state().progress;
+    if (!after || !Object.keys(after.bests || {}).length) errs.push("no best score recorded for the level: " + JSON.stringify(after));
+    else if (!after.bests["3"]) errs.push("clearing level 3 must record a best under level 3, not its neighbour: " + JSON.stringify(after.bests));
+    if (after && after.furthest !== 3) errs.push("clearing level 3 should unlock level 4 (index 3), got " + after.furthest);
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  progress records the furthest level and a best score per level");
 }
 
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");

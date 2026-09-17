@@ -16,6 +16,16 @@ You are Lumen, a fairy guarding the Grove of Minds. The Engagement Engine, a mac
 | 4 | Mirage Marsh | **Hallucination**: a language model can produce fluent, confident answers that are false, including invented facts, quotes and sources. In play, answer orbs drift through the marsh: orbs with a ✓ source badge are real insight and refill a charge; the shinier, surer ones ("100% certain!", "Studies prove it!") are hallucinations that cost focus and a charge. |
 | 5 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. In play, some of the Engine's fireballs split into faded fakes with no bright center that wander the whole sky. A fake cannot burn you, but touching one shoves you off course. |
 
+## Measuring what changed
+
+The same five questions, one per concept, are asked **before playing** and again **after the Engine falls**. They are deliberately separate from the in-level quick checks, so the quick checks do not hand over the answers, and they are never scored: nothing in the game depends on them, and the "before" round is skippable in one click.
+
+The player sees the difference on a card at the end ("You went from 1 of 5 before the flight to 5 of 5 now"). The teacher dashboard shows the class before and after, the gain in percentage points, a per-question breakdown, and each run's own pair. Answers are recorded as their own event types (`pre` and `post`), so the measure stays separate from the quick checks in the research export.
+
+## Coming back later
+
+The game remembers, in that browser only, the furthest level reached and the best score on each level. The title screen then offers **Continue from level N** alongside **Start again from level 1**, and lists the best score per level. A class period that runs out no longer means starting over.
+
 ## How the learning is delivered
 
 The game is built around the idea that a message lands best when it arrives at a moment the player is already paying attention.

@@ -16,13 +16,13 @@ Backend for the [Mindwing](../README.md) game: a Cloudflare Worker with a D1 (SQ
 | POST | `/v1/events` | Record gameplay events for a run. Body `{ sid, sig, events: [...] }` (max 50 per request, 500 per run) |
 | POST | `/v1/score` | Submit a score. Body `{ sid, sig, initials, score, level }`. Returns `{ rank }` |
 | GET | `/v1/leaderboard?limit=10` | Top scores (limit 1 to 50) |
-| GET | `/v1/stats` | Aggregated learning analytics: level funnel, hits per attempt, average lesson reading time, quiz correct rates, most-shown facts |
+| GET | `/v1/stats` | Aggregated learning analytics: level funnel, hits per attempt, average lesson reading time, quiz correct rates, most-shown facts, answer-orb accuracy, and the before/after check with its gain and per-question breakdown |
 | GET | `/v1/export?key=ADMIN_KEY&after=0&limit=5000&format=json\|csv` | Raw event export for research (admin only). Each row carries the run's `build`, `difficulty` and `class_code` |
 | POST | `/v1/classes` | Create a class. Body `{ label? }` (up to 40 characters, markup and control characters stripped). Returns `{ code, teacher_key, label }`. The key is returned once; only its SHA-256 hash is stored. 10 per minute per IP |
 | GET | `/v1/classes/:code` | Public lookup used by the game: `{ code, label }`, or 404 |
 | GET | `/v1/classes/:code/report` | Teacher dashboard data. Header `Authorization: Bearer <teacher_key>`. Class aggregates (same shape as `/v1/stats`) plus `students`: one row per run (newest 300) with initials if signed, difficulty, furthest level, result, score, hits, quick checks and answer orbs. Never returns session or client ids |
 
-Event types: `lesson_view` (n = ms reading), `level_start`, `level_clear` (n = ms, v = score), `hit` (n = fact index), `game_over` (v = score), `win` (n = ms, v = score), `quiz` (n = question, v = correct 0/1, w = choice), `burst` (Clarity Burst, levels 1-2), `still` (Still Point, levels 3-5), `orb` (answer orb grabbed in the Mirage Marsh: v = 1 real insight, 0 hallucination). Everything is validated and clamped server-side. Bodies may be `text/plain` so the browser's `sendBeacon` can flush the last events when a tab closes.
+Event types: `lesson_view` (n = ms reading), `level_start`, `level_clear` (n = ms, v = score), `hit` (n = fact index), `game_over` (v = score), `win` (n = ms, v = score), `quiz` (n = question, v = correct 0/1, w = choice), `burst` (Clarity Burst, levels 1-2), `still` (Still Point, levels 3-5), `orb` (answer orb grabbed in the Mirage Marsh: v = 1 real insight, 0 hallucination), `pre` and `post` (the same five-question check before playing and after winning: n = question 0-4, v = correct, w = choice; never scored in the game). Everything is validated and clamped server-side. Bodies may be `text/plain` so the browser's `sendBeacon` can flush the last events when a tab closes.
 
 Rate limits per IP per minute: 40 new sessions, 240 event batches, 20 score submissions, 300 reads. That is enough for a whole classroom sharing one network address; change `LIMITS` at the top of `src/index.js` if you need more.
 

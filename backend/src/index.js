@@ -21,7 +21,7 @@
  * makes up; IPs are only hashed with a daily salt to rate-limit abuse.
  */
 
-const VERSION = "1.1.0";   // not exported: the Workers runtime only allows handler exports
+const VERSION = "1.2.0";   // not exported: the Workers runtime only allows handler exports
 
 /* The 5-level game. Runs from the original 4-level game (build NULL) keep their data in the export but are
    left out of the aggregate stats, because their level 4 was the boss. */
@@ -46,8 +46,10 @@ const EVENT_TYPES = {
   win:         { level: false, n: [0, 36000000], v: [0, 10000000] },   // n = total ms, v = final score
   quiz:        { level: true,  n: [0, 99], v: [0, 1], w: [0, 9] },     // n = question, v = correct, w = choice
   orb:         { level: true,  v: [0, 1] },                            // answer orb collected: v = 1 real insight, 0 hallucination
+  pre:         { level: false, n: [0, 9], v: [0, 1], w: [0, 9] },       // before-you-fly check: n = question, v = correct, w = choice
+  post:        { level: false, n: [0, 9], v: [0, 1], w: [0, 9] },       // the same check after the Engine falls
   burst:       { level: true },                                        // Clarity Burst, levels 1-2
-  still:       { level: true }                                         // Still Point, levels 3-4
+  still:       { level: true }                                         // Still Point, levels 3-5
 };
 
 const LIMITS = {                 // requests per minute per (hashed) IP; sized so a whole classroom behind one address is fine
@@ -305,7 +307,7 @@ async function getLeaderboard(req, env, url){
 async function buildAnalytics(env, where, args){
   const q = sql => env.DB.prepare(sql).bind(...args);
   const ev = (select, type, tail = "") => q(`SELECT ${select} FROM events e JOIN sessions s ON s.id = e.session_id WHERE ${where} AND e.type = '${type}' ${tail}`);
-  const [totals, started, cleared, overs, hits, lessons, quiz, facts, retries, orbs] = await env.DB.batch([
+  const [totals, started, cleared, overs, hits, lessons, quiz, facts, retries, orbs, pre, post, preQ, postQ] = await env.DB.batch([
     q(`SELECT COUNT(*) AS runs, COUNT(DISTINCT s.client_id) AS players, COALESCE(SUM(s.won), 0) AS wins FROM sessions s WHERE ${where}`),
     ev("e.level, COUNT(DISTINCT e.session_id) AS c", "level_start", "GROUP BY e.level"),
     ev("e.level, COUNT(DISTINCT e.session_id) AS c", "level_clear", "GROUP BY e.level"),
@@ -315,7 +317,11 @@ async function buildAnalytics(env, where, args){
     ev("e.n AS q, COUNT(*) AS answers, AVG(e.v) AS correct_rate", "quiz", "GROUP BY e.n ORDER BY e.n"),
     ev("e.n AS fact, COUNT(*) AS shown", "hit", "GROUP BY e.n ORDER BY shown DESC, e.n ASC LIMIT 5"),
     ev("e.level, COUNT(*) AS c", "level_start", "GROUP BY e.level"),
-    ev("COUNT(*) AS picked, COALESCE(SUM(e.v), 0) AS real_n", "orb")
+    ev("COUNT(*) AS picked, COALESCE(SUM(e.v), 0) AS real_n", "orb"),
+    ev("COUNT(*) AS answers, COALESCE(SUM(e.v), 0) AS correct, COUNT(DISTINCT e.session_id) AS takers", "pre"),
+    ev("COUNT(*) AS answers, COALESCE(SUM(e.v), 0) AS correct, COUNT(DISTINCT e.session_id) AS takers", "post"),
+    ev("e.n AS q, COUNT(*) AS answers, COALESCE(SUM(e.v), 0) AS correct", "pre", "GROUP BY e.n ORDER BY e.n"),
+    ev("e.n AS q, COUNT(*) AS answers, COALESCE(SUM(e.v), 0) AS correct", "post", "GROUP BY e.n ORDER BY e.n")
   ]);
   const byLevel = res => { const m = {}; for (const r of res.results) m[Number(r.level)] = r; return m; };
   const S = byLevel(started), C = byLevel(cleared), O = byLevel(overs), H = byLevel(hits), L = byLevel(lessons), R = byLevel(retries);
@@ -339,6 +345,15 @@ async function buildAnalytics(env, where, args){
   });
   const o = orbs.results[0] || { picked: 0, real_n: 0 };
   const picked = Number(o.picked);
+  /* The same five questions before playing and after winning. Only runs that answered both sides can show a
+     gain, so the pair is reported alongside the raw rates rather than instead of them. */
+  const side = res => {
+    const r = res.results[0] || {};
+    const answers = Number(r.answers || 0);
+    return { answers, correct: Number(r.correct || 0), takers: Number(r.takers || 0), rate: answers ? +(Number(r.correct) / answers).toFixed(3) : null };
+  };
+  const byQ = res => res.results.map(r => ({ q: Number(r.q), answers: Number(r.answers), correct: Number(r.correct), rate: Number(r.answers) ? +(Number(r.correct) / Number(r.answers)).toFixed(3) : null }));
+  const before = side(pre), after = side(post);
   return {
     runs, players: Number(t.players), wins: Number(t.wins),
     win_rate: runs ? +(Number(t.wins) / runs).toFixed(3) : 0,
@@ -348,7 +363,12 @@ async function buildAnalytics(env, where, args){
       return { q: qi, lesson: QUIZ_LESSON[qi] != null ? LESSON_NAMES[QUIZ_LESSON[qi]] : null, answers: Number(r.answers), correct_rate: +Number(r.correct_rate).toFixed(3) };
     }),
     hit_facts: facts.results.map(r => ({ fact: Number(r.fact), shown: Number(r.shown) })),
-    orbs: { picked, real: Number(o.real_n), fake: picked - Number(o.real_n), real_rate: picked ? +(Number(o.real_n) / picked).toFixed(3) : null }
+    orbs: { picked, real: Number(o.real_n), fake: picked - Number(o.real_n), real_rate: picked ? +(Number(o.real_n) / picked).toFixed(3) : null },
+    check: {
+      before, after,
+      gain: (before.rate != null && after.rate != null) ? +(after.rate - before.rate).toFixed(3) : null,
+      questions: { before: byQ(preQ), after: byQ(postQ) }
+    }
   };
 }
 
@@ -418,7 +438,11 @@ async function getClassReport(req, env, code){
       (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'quiz') AS quiz_answers,
       (SELECT COALESCE(SUM(e.v), 0) FROM events e WHERE e.session_id = s.id AND e.type = 'quiz') AS quiz_correct,
       (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'orb' AND e.v = 1) AS orbs_real,
-      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'orb' AND e.v = 0) AS orbs_fake
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'orb' AND e.v = 0) AS orbs_fake,
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'pre') AS pre_answers,
+      (SELECT COALESCE(SUM(e.v), 0) FROM events e WHERE e.session_id = s.id AND e.type = 'pre') AS pre_correct,
+      (SELECT COUNT(*) FROM events e WHERE e.session_id = s.id AND e.type = 'post') AS post_answers,
+      (SELECT COALESCE(SUM(e.v), 0) FROM events e WHERE e.session_id = s.id AND e.type = 'post') AS post_correct
     FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
     WHERE s.class_id = ? ORDER BY s.created_at DESC LIMIT ?`).bind(c.id, MAX_REPORT_RUNS).all()).results;
   return json({
@@ -436,7 +460,9 @@ async function getClassReport(req, env, code){
       score: r.score == null ? null : Number(r.score),
       hits: Number(r.hits),
       quiz_correct: Number(r.quiz_correct), quiz_answers: Number(r.quiz_answers),
-      orbs_real: Number(r.orbs_real), orbs_fake: Number(r.orbs_fake)
+      orbs_real: Number(r.orbs_real), orbs_fake: Number(r.orbs_fake),
+      pre_correct: Number(r.pre_correct), pre_answers: Number(r.pre_answers),
+      post_correct: Number(r.post_correct), post_answers: Number(r.post_answers)
     })),
     truncated: runs.length >= MAX_REPORT_RUNS
   }, 200, { "cache-control": "no-store" });

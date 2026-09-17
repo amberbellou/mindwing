@@ -347,6 +347,38 @@ test("classes: create, look up, join from a session, and report with a teacher k
   assert.match(pre.headers.get("access-control-allow-headers"), /authorization/);
 });
 
+test("before/after check: aggregated per side and per question, and shown per run in class reports", async () => {
+  const env = makeEnv();
+  const cls = (await call(env, "POST", "/v1/classes", { label: "Check class" })).data;
+  const s1 = await newSession(env, { clientId: "checker-one-11", classCode: cls.code });
+  const s2 = await newSession(env, { clientId: "checker-two-22", classCode: cls.code });
+  // one run learns a lot, one run does not take the check at all
+  const answers = (type, right) => [0, 1, 2, 3, 4].map(n => ({ type, n, v: n < right ? 1 : 0, w: 1 }));
+  let r = await call(env, "POST", "/v1/events", { sid: s1.sid, sig: s1.sig, events: [
+    ...answers("pre", 2), { type: "level_start", level: 1 }, ...answers("post", 5), { type: "win", n: 300000, v: 5000 }
+  ]});
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.data.accepted, 12);
+  r = await call(env, "POST", "/v1/events", { sid: s2.sid, sig: s2.sig, events: [{ type: "level_start", level: 1 }, { type: "pre", n: 9, v: 1, w: 0 }, { type: "pre", n: 10, v: 1, w: 0 }] });
+  assert.deepEqual([r.data.accepted, r.data.rejected], [3, 0], "out-of-range question numbers are clamped, like every other numeric field");
+
+  const st = (await call(env, "GET", "/v1/stats")).data;
+  assert.deepEqual([st.check.before.answers, st.check.before.correct, st.check.before.takers], [7, 4, 2]);
+  assert.deepEqual([st.check.after.answers, st.check.after.correct, st.check.after.takers], [5, 5, 1]);
+  assert.equal(st.check.after.rate, 1);
+  assert.equal(st.check.gain, +(1 - 4 / 7).toFixed(3));
+  assert.equal(st.check.questions.before.length, 6, "five real questions plus the clamped one");
+  assert.equal(st.check.questions.after.find(q => q.q === 0).rate, 1);
+
+  const rep = (await call(env, "GET", `/v1/classes/${cls.code}/report`, undefined, { authorization: "Bearer " + cls.teacher_key })).data;
+  const learner = rep.students.find(x => x.post_answers === 5);
+  assert.ok(learner, "the run that took both sides appears");
+  assert.deepEqual([learner.pre_correct, learner.pre_answers, learner.post_correct, learner.post_answers], [2, 5, 5, 5]);
+  const skipper = rep.students.find(x => x.post_answers === 0);
+  assert.deepEqual([skipper.pre_answers, skipper.post_answers], [2, 0], "a run that skipped the check shows zeros, not nulls");
+  assert.equal(rep.check.gain, st.check.gain, "the class report uses the same measure as the global stats");
+});
+
 test("classes: creation is rate limited per IP", async () => {
   const env = makeEnv();
   for (let i = 0; i < 10; i++) assert.equal((await call(env, "POST", "/v1/classes", {}, {}, "198.51.100.9")).status, 200);
