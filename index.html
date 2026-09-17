@@ -217,6 +217,7 @@ function ensureAudio(){
     try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ actx = null; }
   }
   if (actx && actx.state === "suspended") actx.resume();
+  if (actx && !musicTimer) musicTimer = setInterval(musicTick, 90);
 }
 function tone(freq, dur, type, vol, slide){
   if (muted || !actx) return;
@@ -231,7 +232,50 @@ function tone(freq, dur, type, vol, slide){
     o.start(); o.stop(actx.currentTime + dur + 0.02);
   }catch(e){}
 }
+/* A small generative score: a pentatonic arpeggio over a slow bass, one mood per level, scheduled a
+   quarter-second ahead on the audio clock so it stays in time even when frames stutter. It ducks under
+   cards, falls quiet on pause, and never plays when muted or switched off in Settings. */
+const MUSIC_LEVELS = [
+  { root:220.00, bpm:92,  wave:"sine",     pattern:[0,2,4,2,1,3,4,3] },
+  { root:246.94, bpm:100, wave:"triangle", pattern:[0,2,4,5,4,2,1,2] },
+  { root:196.00, bpm:108, wave:"triangle", pattern:[0,4,2,4,1,4,3,4] },
+  { root:174.61, bpm:124, wave:"square",   pattern:[0,3,1,4,2,5,3,4], pulse:true }
+];
+const PENTA = [0, 3, 5, 7, 10, 12];
+let musicGain = null, musicNext = 0, musicStep = 0, musicTimer = null;
+function musicNote(freq, when, dur, wave, vol){
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = wave; o.frequency.setValueAtTime(freq, when);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(musicGain);
+    o.start(when); o.stop(when + dur + 0.05);
+  } catch(e){}
+}
+function musicTick(){
+  if (!actx) return;
+  if (!musicGain){ try { musicGain = actx.createGain(); musicGain.gain.value = 0; musicGain.connect(actx.destination); } catch(e){ return; } }
+  const off = muted || SETTINGS.music !== "on" || document.hidden;
+  const live = state === "play" || state === "hit" || state === "clear" || state === "postclear";
+  const target = off ? 0 : state === "pause" ? 0.0001 : live ? 0.55 : 0.25;
+  try { musicGain.gain.setTargetAtTime(target, actx.currentTime, 0.15); } catch(e){}
+  if (off) { musicNext = 0; return; }
+  const L = MUSIC_LEVELS[Math.min(level, MUSIC_LEVELS.length - 1)] || MUSIC_LEVELS[0];
+  const step = 60 / L.bpm / 2;
+  if (musicNext < actx.currentTime) musicNext = actx.currentTime + 0.06;
+  while (musicNext < actx.currentTime + 0.25){
+    const deg = PENTA[L.pattern[musicStep % L.pattern.length] % PENTA.length];
+    musicNote(L.root * Math.pow(2, deg / 12), musicNext, step * 1.6, L.wave, L.wave === "square" ? 0.018 : 0.045);
+    if (musicStep % 8 === 0) musicNote(L.root / 2, musicNext, step * 7, "triangle", 0.06);
+    if (L.pulse && musicStep % 2 === 1) musicNote(L.root / 4, musicNext, step * 0.5, "sine", 0.05);
+    musicNext += step; musicStep++;
+  }
+}
 const sfx = {
+  clank: () => tone(520, 0.08, "square", 0.06, -260),
+  phase: () => { tone(110, 0.6, "sawtooth", 0.16, -50); tone(880, 0.5, "triangle", 0.07, -500); },
   shoot: () => tone(920, 0.07, "square", 0.045, -420),
   eagleDown: () => { tone(330, 0.16, "triangle", 0.12, 240); tone(660, 0.1, "sine", 0.06, 300); },
   hit: () => tone(150, 0.35, "sawtooth", 0.18, -80),
@@ -326,9 +370,9 @@ const QUIZ = [
 const LEVELS = [
   { name:"Token Thicket", concept:"Tokens", ability:"calm", quota:8,  spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
     sky:["#141034","#3b2a6d","#8a4f8f"] },
-  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", quota:12, spawnEvery:1.4, types:["glider","zigzag"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
+  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", quota:12, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
-  { name:"Retention Ridge", concept:"Retention Models", ability:"still", shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+  { name:"Retention Ridge", concept:"Retention Models", ability:"still", shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
   { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", drift:true, boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
@@ -344,8 +388,8 @@ const DIFFS = {
   normal: { label:"Normal", hearts:3, bursts:3, shotSpeed:1,    fireGap:1,   spawnGap:1,    quota:1,    bossHp:1,    turn:1,   inv:1,   score:1 },
   hard:   { label:"Hard",   hearts:3, bursts:2, shotSpeed:1.2,  fireGap:0.8, spawnGap:0.85, quota:1.2,  bossHp:1.25, turn:1.3, inv:0.85, score:1.3 }
 };
-const SETTINGS = { difficulty:"normal", motion:"full", contrast:"standard", text:"normal" };
-const SETTING_CHOICES = { difficulty:["easy","normal","hard"], motion:["full","reduced"], contrast:["standard","high"], text:["normal","large"] };
+const SETTINGS = { difficulty:"normal", motion:"full", contrast:"standard", text:"normal", music:"on" };
+const SETTING_CHOICES = { difficulty:["easy","normal","hard"], motion:["full","reduced"], contrast:["standard","high"], text:["normal","large"], music:["on","off"] };
 try {
   if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) SETTINGS.motion = "reduced";
   const saved = JSON.parse(localStorage.getItem("mindwing_settings") || "{}");
@@ -379,6 +423,7 @@ let startLevel = 0;   // ?level=1..4 lets reviewers jump straight to a level
 try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10); if (q >= 1 && q <= LEVELS.length) startLevel = q - 1; } catch(e){}
 let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
 let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
+let hitStop = 0, hurtT = 0, pops = [];      // a few frames of freeze on impact, red edges when hurt, floating score
 /* Clarity has two forms, one per pair of levels. Levels 1-2 (calm): the blast clears the sky and
    nothing new arrives for CALM_TIME. Levels 3-4 (still): nothing is destroyed, but every eagle and
    fireball holds still for STILL_TIME while you pick your way through, which is the lesson those
@@ -592,7 +637,8 @@ const SETTING_TEXT = {
     why:{ easy:"5 hearts, slower shots, gentler boss. Scores count 0.6x.", normal:"The game as designed.", hard:"Faster shots, fewer charges, tougher boss. Scores count 1.3x." } },
   motion:{ label:"Motion", opts:{ full:"Full", reduced:"Reduced" }, why:{ full:"Screen shake and flashes on.", reduced:"No screen shake, soft flashes, fewer sparks." } },
   contrast:{ label:"Contrast", opts:{ standard:"Standard", high:"High" }, why:{ standard:"The painted look.", high:"Brighter text, outlined hazards, and shape tells that never rely on color alone." } },
-  text:{ label:"Text size", opts:{ normal:"Normal", large:"Large" }, why:{ normal:"", large:"Bigger text on cards and on the game screen." } }
+  text:{ label:"Text size", opts:{ normal:"Normal", large:"Large" }, why:{ normal:"", large:"Bigger text on cards and on the game screen." } },
+  music:{ label:"Music", opts:{ on:"On", off:"Off" }, why:{ on:"A quiet score under the game. M mutes everything.", off:"Sound effects only." } }
 };
 function settingsHTML(c){
   let html = `<div class="set">`;
@@ -645,7 +691,7 @@ function beginLevel(i){
   DIFF = DIFFS[SETTINGS.difficulty] || DIFFS.normal;
   hearts = DIFF.hearts; bursts = DIFF.bursts; killCount = 0; quota = cfg.quota ? Math.max(4, Math.round(cfg.quota * DIFF.quota)) : 0;
   tookDamage = false;
-  bullets = []; eagles = []; fires = []; motes = []; parts = [];
+  bullets = []; eagles = []; fires = []; motes = []; parts = []; pops = []; hitStop = 0; hurtT = 0;
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
   driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = [];
@@ -654,7 +700,7 @@ function beginLevel(i){
   levelStartAt = performance.now();
   api.track("level_start", i + 1); api.flush();
   const bossHp = Math.round(55 * DIFF.bossHp);
-  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false } : null;
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false, phase:1, spin:0 } : null;
   const abIntro = abilityOf(i) === "still"
     ? "Still Point (X): the sky freezes, nothing dies"
     : "Clarity Burst (X): clears the sky, then a breath of calm";
@@ -683,6 +729,7 @@ function hitFactCard(fi){
 function onPlayerHit(cause){
   if (inv > 0) return;
   hearts--; tookDamage = true; hitBlink = true; kick(9, 0); sfx.hit();
+  hitStop = Math.max(hitStop, 0.1); hurtT = 0.6;
   burstParticles(player.x, player.y, "#ff5a76", 22);
   fires = fires.filter(f => dist2(f.x,f.y,player.x,player.y) > 160*160);
   if (hearts <= 0){ gameOver(); return; }
@@ -851,8 +898,12 @@ function spawnEagle(){
     vx: -(cfg.speed * rand(0.85, 1.2)),
     fireT: rand(cfg.fireMin, cfg.fireMax) * DIFF.fireGap,
     glow: 0, flap: rand(0, 6.28),
-    pts: type === "diver" ? 150 : (type === "zigzag" ? 120 : 100)
+    pts: type === "armored" ? 200 : type === "swooper" ? 160 : type === "diver" ? 150 : (type === "zigzag" ? 120 : 100),
+    hp: type === "armored" ? 2 : 1, hurt: 0
   };
+  /* armored: slow and takes two sparks. swooper: cruises, then dives at where you are and climbs away. */
+  if (type === "armored"){ e.r = 23; e.vx *= 0.72; }
+  if (type === "swooper"){ e.vx *= 1.1; e.swoopCd = rand(1.0, 2.0); e.swooping = 0; e.targetY = e.y; }
   e.baseY = e.y;
   eagles.push(e);
 }
@@ -866,9 +917,20 @@ function eagleFire(e){
   fires.push(shot);
   e.glow = 0.35;
 }
+function pop(x, y, text, color){ pops.push({ x, y, text, color: color || "#ffd166", t:0 }); }
+function feathers(x, y, n){
+  if (reducedMotion()) n = Math.ceil(n / 3);
+  for (let i=0;i<n;i++){
+    const a = Math.random()*6.28, sp = rand(40, 150);
+    parts.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 40, life:rand(0.6,1.1), max:1.1, color: i % 2 ? "#6b4a2f" : "#e8e2d5", r:rand(2.5,4.5), shape:"feather", rot:rand(0,6.28), vr:rand(-8,8) });
+  }
+}
 function killEagle(i){
   const e = eagles[i];
   award(e.pts); killCount++;
+  pop(e.x, e.y - 18, "+" + Math.round(e.pts * DIFF.score));
+  feathers(e.x, e.y, 8);
+  hitStop = Math.max(hitStop, 0.035);
   burstParticles(e.x, e.y, "#ff9f45", 16);
   sfx.eagleDown();
   if (Math.random() < 0.18) motes.push({ x:e.x, y:e.y, t:0 });
@@ -878,7 +940,7 @@ function killEagle(i){
 function killBoss(){
   burstParticles(boss.x, boss.y, "#ffd166", 60);
   burstParticles(boss.x, boss.y, "#ff5a3c", 60);
-  award(1500); kick(14, 0.8);
+  award(1500); kick(14, 0.8); hitStop = Math.max(hitStop, 0.3);
   boss = null; eagles = []; fires = [];
   sfx.eagleDown();
   state = "clear"; clearT = 1.8;
@@ -897,6 +959,8 @@ function update(dt){
   tGlobal += dt;
   if (shake > 0) shake = Math.max(0, shake - dt*26);
   if (flash > 0) flash = Math.max(0, flash - dt*2.0);
+  if (hurtT > 0) hurtT = Math.max(0, hurtT - dt);
+  for (let i=pops.length-1;i>=0;i--){ const q = pops[i]; q.t += dt; if (!reducedMotion()) q.y -= 36*dt; if (q.t > 0.9) pops.splice(i,1); }
   if (banner){ banner.t += dt; if (banner.t > banner.max) banner = null; }
   if (!banner && introQueue.length && state === "play") banner = introQueue.shift();
   for (const c of bgClouds){ c.x -= c.s*dt; if (c.x < -c.w) { c.x = W + c.w; c.y = rand(30, H*0.6); } }
@@ -904,7 +968,8 @@ function update(dt){
   // particles always animate
   for (let i=parts.length-1;i>=0;i--){
     const p = parts[i];
-    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 60*dt; p.life -= dt;
+    p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt;
+    if (p.shape === "feather"){ p.vx *= Math.max(0, 1 - dt*2.5); p.vy += 30*dt; p.rot += p.vr*dt; } else p.vy += 60*dt;
     if (p.life <= 0) parts.splice(i,1);
   }
   if (state === "clear"){
@@ -954,7 +1019,7 @@ function update(dt){
   }
 
   /* spawning */
-  const wantMore = boss ? eagles.length < 3 && boss.entered : (killCount + eagles.length < quota + 3);
+  const wantMore = boss ? eagles.length < (boss.phase === 3 ? 4 : 3) && boss.entered : (killCount + eagles.length < quota + 3);
   if (!stilled) spawnT -= dt;
   if (spawnT <= 0 && !stilled && calmT <= 0 && wantMore && (!boss || boss.entered)){
     spawnEagle();
@@ -970,6 +1035,20 @@ function update(dt){
       if (e.type === "glider") e.y = e.baseY + Math.sin(e.t*1.6)*22;
       else if (e.type === "zigzag") e.y = e.baseY + Math.sin(e.t*3.4)*70;
       else if (e.type === "diver") e.y += clamp(player.y - e.y, -95, 95)*dt;
+      else if (e.type === "armored") e.y = e.baseY + Math.sin(e.t*1.1)*16;
+      else if (e.type === "swooper"){
+        if (e.swooping > 0){
+          e.swooping -= dt;
+          e.y += clamp(e.targetY - e.y, -280*dt, 280*dt);
+          e.x -= e.vx*0.4*dt;                     // it lunges forward while diving
+          if (e.swooping <= 0){ e.swoopCd = rand(1.6, 2.6); e.baseY = e.y; }
+        } else {
+          e.y = e.baseY + Math.sin(e.t*2.2)*14;
+          e.swoopCd -= dt;
+          if (e.swoopCd <= 0 && e.x < W - 120){ e.swooping = 0.85; e.targetY = player.y; }
+        }
+      }
+      if (e.hurt > 0) e.hurt -= dt;
       e.y = clamp(e.y, 40, H-50);
       if (e.glow > 0) e.glow -= dt;
       e.fireT -= dt;
@@ -991,12 +1070,28 @@ function update(dt){
       if (boss.x <= 780){ boss.x = 780; boss.entered = true; banner = { text:"THE ENGAGEMENT ENGINE", sub:"It wants your attention. Take it back.", t:0, max:2.6 }; }
     } else {
       boss.y = H/2 + Math.sin(boss.t*0.85) * 155;
+      if (boss.phase < 3 && boss.hp <= boss.maxhp/4){
+        /* phase 3: the feed goes endless, spiral volleys, more eagles */
+        boss.phase = 3; boss.enraged = true;
+        hitStop = Math.max(hitStop, 0.2); kick(8, 0.4); sfx.phase();
+        banner = { text:"THE FEED NEVER ENDS", sub:"It is almost empty. Stay on purpose.", t:0, max:2.2 };
+      }
       if (!boss.enraged && boss.hp <= boss.maxhp/2){
-        boss.enraged = true;
+        boss.enraged = true; boss.phase = 2;
+        hitStop = Math.max(hitStop, 0.15); kick(6, 0.3); sfx.phase();
         banner = { text:"THE ENGINE OVERCLOCKS", sub:"Endless feed! Stay on target.", t:0, max:2 };
       }
       boss.fireT -= dt;
-      if (boss.fireT <= 0){
+      if (boss.fireT <= 0 && boss.phase === 3 && boss.volley % 2 === 1){
+        /* spiral: a turning ring with a gap the player can fly through */
+        boss.volley++; boss.spin += 0.45;
+        for (let k=0;k<14;k++){
+          if (k === 0 || k === 1) continue;
+          const a = boss.spin + k/14*Math.PI*2;
+          fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150*DIFF.shotSpeed, vy:Math.sin(a)*150*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
+        }
+        boss.fireT = rand(0.9, 1.2) * DIFF.fireGap;
+      } else if (boss.fireT <= 0){
         boss.volley++;
         const base = Math.atan2(player.y - boss.y, player.x - boss.x);
         if (boss.volley % 4 === 0){
@@ -1041,6 +1136,7 @@ function update(dt){
         const turn = clamp(diff, -PRAISE_TURN*DIFF.turn*dt, PRAISE_TURN*DIFF.turn*dt);
         const sp = Math.hypot(f.vx, f.vy);
         f.vx = Math.cos(have + turn)*sp; f.vy = Math.sin(have + turn)*sp;
+        if (f.x < player.x - 40 && f.t < PRAISE_LIFE - 0.5) f.t = PRAISE_LIFE - 0.5;   // missed you: fade out, do not clutter the sky
         if (f.t > PRAISE_LIFE){ burstParticles(f.x, f.y, "#ffe08a", 6); fires.splice(i,1); continue; }
       }
       if (f.split && f.t >= f.split){
@@ -1088,7 +1184,14 @@ function update(dt){
     let hit = false;
     for (let j=eagles.length-1;j>=0;j--){
       const e = eagles[j];
-      if (dist2(b.x,b.y,e.x,e.y) < (b.r+e.r)*(b.r+e.r)){ killEagle(j); hit = true; break; }
+      if (dist2(b.x,b.y,e.x,e.y) < (b.r+e.r)*(b.r+e.r)){
+        if ((e.hp || 1) > 1){
+          e.hp--; e.hurt = 0.2; sfx.clank();
+          burstParticles(b.x, b.y, "#dcdcf0", 8);
+          hitStop = Math.max(hitStop, 0.02);
+        } else killEagle(j);
+        hit = true; break;
+      }
     }
     if (!hit && boss && boss.entered && dist2(b.x,b.y,boss.x,boss.y) < (b.r+boss.r)*(b.r+boss.r)){
       boss.hp--; boss.hurt = 0.15; sfx.bossHit();
@@ -1108,7 +1211,7 @@ function update(dt){
     if (dist2(m.x,m.y,player.x,player.y) < 30*30){
       motes.splice(i,1);
       bursts = Math.min(Math.max(4, DIFF.bursts), bursts + 1);
-      award(50); sfx.mote();
+      award(50); sfx.mote(); pop(m.x, m.y - 14, "+1 ✦", "#c9a7ff");
       burstParticles(player.x, player.y, "#c9a7ff", 10);
     }
   }
@@ -1206,6 +1309,24 @@ function drawEagle(e){
   /* eye */
   ctx.fillStyle = "#d92525";
   ctx.beginPath(); ctx.arc(-9,-6, 1.7, 0, 6.28); ctx.fill();
+  if (e.type === "armored"){
+    /* steel plating over head and back; a crack shows once the armor has taken a spark */
+    ctx.fillStyle = e.hurt > 0 ? "#ffffff" : "#9aa0b4";
+    ctx.beginPath(); ctx.arc(-9, -6, 8.5, Math.PI*1.05, Math.PI*1.95); ctx.lineTo(-2, -4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, -4, 15, 6, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = "#5b6078"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(8, -4, 15, 6, 0, Math.PI, 0); ctx.stroke();
+    if (e.hp < 2){
+      ctx.strokeStyle = "#2a2d3a"; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(2,-9); ctx.lineTo(7,-4); ctx.lineTo(4,-1); ctx.lineTo(10,2); ctx.stroke();
+    }
+  }
+  if (e.type === "swooper"){
+    /* a swept crest; it glows while diving so the player can read the attack */
+    ctx.fillStyle = e.swooping > 0 ? "#ffb36b" : "#c98a4a";
+    ctx.beginPath(); ctx.moveTo(-6,-10); ctx.lineTo(4,-22); ctx.lineTo(2,-9); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-2,-10); ctx.lineTo(10,-19); ctx.lineTo(6,-8); ctx.closePath(); ctx.fill();
+  }
   ctx.restore();
 }
 function drawBoss(){
@@ -1214,8 +1335,9 @@ function drawBoss(){
   const f = Math.sin(b.t*10);
   const hurt = b.hurt > 0;
   /* aura */
-  const aura = ctx.createRadialGradient(0,0,10,0,0,95);
-  aura.addColorStop(0,"rgba(255,80,30,0.35)"); aura.addColorStop(1,"rgba(255,80,30,0)");
+  const aura = ctx.createRadialGradient(0,0,10,0,0,95 + (b.phase === 3 ? 20 : 0));
+  const auraCol = b.phase === 3 ? "255,40,120" : b.phase === 2 ? "255,60,30" : "255,80,30";
+  aura.addColorStop(0,`rgba(${auraCol},${b.phase === 3 ? 0.5 : 0.35})`); aura.addColorStop(1,`rgba(${auraCol},0)`);
   ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(0,0,95,0,6.28); ctx.fill();
   /* wings (metal) */
   ctx.fillStyle = hurt ? "#c8c8d8" : "#5a5a6e";
@@ -1254,7 +1376,11 @@ function drawPraise(f){
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.font = "20px sans-serif";
   ctx.fillText("👍", 0, 1);
-  if (f.phrase){
+  /* the words matter at the moment of attack; after that only the thumb stays, and never over the HUD */
+  const wordAlpha = Math.max(0, Math.min(1, (2.0 - f.t) / 0.4));
+  const inHud = f.y < 90 && f.x < 220;
+  if (f.phrase && wordAlpha > 0 && !inHud){
+    ctx.globalAlpha = Math.max(0, fade) * wordAlpha;
     ctx.font = "700 12px sans-serif";
     if (!f.tw) f.tw = ctx.measureText(f.phrase).width;
     const bw = f.tw + 14, bh = 20, by = -32;
@@ -1418,13 +1544,31 @@ function draw(){
   for (const p of parts){
     ctx.globalAlpha = Math.max(0, p.life / p.max);
     ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
+    ctx.beginPath();
+    if (p.shape === "feather") ctx.ellipse(p.x, p.y, p.r * 1.9, p.r * 0.6, p.rot, 0, 6.28);
+    else ctx.arc(p.x, p.y, p.r, 0, 6.28);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if (pops.length){
+    ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `800 ${Math.round(15 * hudScale())}px sans-serif`;
+    for (const q of pops){
+      ctx.globalAlpha = Math.max(0, 1 - q.t / 0.9);
+      ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillText(q.text, q.x + 1, q.y + 1);
+      ctx.fillStyle = q.color; ctx.fillText(q.text, q.x, q.y);
+    }
+    ctx.restore();
+  }
   drawFairy();
   if (stillT > 0) drawStillness();
   if (state === "play" || state === "hit" || state === "pause" || state === "clear") drawHUD();
   drawBanner();
+  if (hurtT > 0){
+    const g = ctx.createRadialGradient(W/2, H/2, H*0.35, W/2, H/2, H*0.9);
+    g.addColorStop(0, "rgba(255,40,70,0)"); g.addColorStop(1, `rgba(255,40,70,${0.45 * hurtT / 0.6})`);
+    ctx.fillStyle = g; ctx.fillRect(-20,-20,W+40,H+40);
+  }
   if (flash > 0){
     ctx.fillStyle = `rgba(255,255,255,${flash*0.85})`;
     ctx.fillRect(-20,-20,W+40,H+40);
@@ -1438,7 +1582,10 @@ function frame(now){
   last = now;
   if (!(dt > 0)) dt = 0;
   if (dt > 0.033) dt = 0.033;
-  try { update(dt); draw(); }
+  try {
+    if (hitStop > 0){ hitStop = Math.max(0, hitStop - dt); draw(); }
+    else { update(dt); draw(); }
+  }
   catch(err){ console.error("Mindwing frame error:", err); }   // one bad frame must not freeze the game
   requestAnimationFrame(frame);
 }

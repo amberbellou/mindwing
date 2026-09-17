@@ -570,5 +570,63 @@ console.log("settings: easy, hard and reduced motion change the game as promised
   else console.log("  easy: 5 hearts, 4 charges, smaller quota; hard: 2 charges, bigger quota; reduced motion: no shake; bad values ignored");
 }
 
+
+console.log("polish: armored eagles take two sparks, swoopers dive, the boss has a third phase");
+{
+  const errs = [];
+  // armored: first spark cracks the armor, second one lands the kill
+  {
+    const w = makeWorld(41, { search: "?level=2", net: "off" });
+    if (!await toPlay(w)) errs.push("never reached level 2");
+    else {
+      const armored = await watchUntil(w, s => s.eagles.find(e => e.type === "armored" && e.x < 900), 6000);
+      if (!armored) errs.push("no armored eagle appeared on level 2");
+      else {
+        const before = w.state().killCount;
+        w.state().bullets.push({ x: armored.x, y: armored.y, r: 5 });
+        w.step(16.7); await settle(1);
+        let s1 = w.state();
+        if (!s1.eagles.includes(armored)) errs.push("armored eagle died to a single spark");
+        else if (armored.hp !== 1) errs.push("armor did not absorb the first spark (hp " + armored.hp + ")");
+        for (let i = 0; i < 4; i++){ w.step(16.7); await settle(1); }   // ride out the brief hit-stop
+        w.state().bullets.push({ x: armored.x, y: armored.y, r: 5 });
+        for (let i = 0; i < 4; i++){ w.step(16.7); await settle(1); }
+        const s2 = w.state();
+        if (s2.eagles.includes(armored)) errs.push("armored eagle survived its second spark");
+        if (s2.killCount !== before + 1) errs.push(`kill count should rise by 1, went ${before} -> ${s2.killCount}`);
+      }
+    }
+  }
+  // swooper: at some point it dives toward the player's height
+  {
+    const w = makeWorld(43, { search: "?level=3", net: "off" });
+    if (!await toPlay(w)) errs.push("never reached level 3");
+    else {
+      const sw = await watchUntil(w, s => s.eagles.find(e => e.type === "swooper" && e.swooping > 0), 9000);
+      if (!sw) errs.push("no swooper ever dived on level 3");
+    }
+  }
+  // boss: knocking it below a quarter health starts phase 3 and a spiral volley
+  {
+    const w = makeWorld(47, { search: "?level=4", net: "off" });
+    const banners = new Set();
+    if (!await toPlay(w)) errs.push("never reached level 4");
+    else {
+      const b = await watchUntil(w, s => s.boss && s.boss.entered && s.boss, 6000, banners);
+      if (!b) errs.push("boss never entered");
+      else {
+        b.hp = Math.floor(b.maxhp / 4) - 1;
+        const p3 = await watchUntil(w, s => s.boss && s.boss.phase === 3, 60, banners);
+        if (!p3) errs.push("boss did not enter phase 3 below a quarter health");
+        const spiral = await watchUntil(w, s => s.fires.filter(f => f.kind === "fire").length >= 12, 1500, banners);
+        if (!spiral) errs.push("phase 3 never fired a spiral volley");
+        if (!banners.has("THE FEED NEVER ENDS")) errs.push("phase 3 banner not shown: " + [...banners].join(" | "));
+      }
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  armor absorbs one spark then breaks, swoopers dive, phase 3 announces itself and spirals");
+}
+
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
 process.exit(failed ? 1 : 0);

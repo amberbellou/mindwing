@@ -51,6 +51,13 @@ The split is deliberate: the early levels reward clearing the noise, and the lat
 
 Purple **insight motes** dropped by defeated eagles refill your charges. Finishing a level without taking damage earns a focus bonus.
 
+## Feel
+
+- **Music**: a small generative score made in the browser (no audio files): a pentatonic arpeggio over a slow bass, a different mood and tempo for each level, and a pulsing low line for the boss. It ducks under cards, goes quiet on pause, and can be switched off in Settings (M still mutes everything).
+- **Impact**: a few frames of hit-stop when an eagle falls, when you are hurt, and when the boss changes phase or falls; floating score pop-ups; tumbling feathers; red edges when you lose a heart.
+- **Eagles**: gliders, zigzaggers and divers are joined by **armored eagles** (levels 2 and 3: slower, plated, take two sparks, 200 points) and **swoopers** (level 3: cruise, then dive at where you are and climb away; the crest glows during the dive).
+- **Boss phases**: at half health the Engine overclocks and fires faster; below a quarter it announces "THE FEED NEVER ENDS" and alternates spiral volleys (a turning ring with a gap to fly through) with its aimed shots, and calls in an extra eagle.
+
 ## Settings: difficulty and accessibility
 
 Press **S** on the title screen or the pause card. Settings are saved in the browser.
@@ -61,6 +68,7 @@ Press **S** on the title screen or the pause card. Settings are saved in the bro
 | Motion | Full, Reduced | Reduced removes screen shake, softens flashes, cuts sparks to a third, stops pulsing text, and makes the drift decoys steady with a dashed outline instead of flickering. Follows the device's reduce-motion preference by default. |
 | Contrast | Standard, High | Brighter text and borders, a darker sky, a solid ring on every real fireball and a dashed ring on every decoy, and outlined empty hearts and charges, so no information depends on color alone. |
 | Text size | Normal, Large | Larger text on every card and on the game screen. |
+| Music | On, Off | The background score. Sound effects stay on either way; M mutes everything. |
 
 ## Running it
 
