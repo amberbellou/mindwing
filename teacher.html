@@ -149,7 +149,8 @@
 "use strict";
 /* Same backend as the game. For local testing, ?api=http://localhost:8787 overrides it (localhost only). */
 const API_BASE_DEFAULT = "https://mindwing-api.amberbellou.workers.dev";
-let API = API_BASE_DEFAULT;
+/* Same rule as the game: a page opened from localhost talks only to a local backend, never to the live one. */
+let API = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? "" : API_BASE_DEFAULT;
 try {
   const q = new URLSearchParams(location.search).get("api");
   if (q && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(q)) API = q.replace(/\/+$/, "");

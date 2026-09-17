@@ -124,7 +124,11 @@ try {
   if (saved && CLASS_RE.test(saved)) classCode = saved;
 } catch(e){}
 const api = (() => {
-  let base = API_BASE_DEFAULT;
+  /* A copy of this file opened from localhost must never write to the live backend: test runs would land in
+     the real leaderboard and skew the research data. Local pages are offline unless ?api= names a local backend. */
+  let local = false;
+  try { local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname); } catch(e){}
+  let base = local ? "" : API_BASE_DEFAULT;
   try {
     const q = new URLSearchParams(location.search).get("api");
     if (q && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(q)) base = q;
