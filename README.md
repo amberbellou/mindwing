@@ -14,7 +14,7 @@ You are Lumen, a fairy guarding the Grove of Minds. The Engagement Engine, a mac
 | 2 | Pattern Canopy | **Neural networks**: billions of tuned weights arranged in layers. Knowledge is spread across all of them, which is why a model can be brilliant and confidently wrong at once. |
 | 3 | Retention Ridge | **Retention models**: apps, including AI apps, are optimized to measure and maximize the time you spend. Streaks, feeds, and "one more question" are design, not accident. Also **sycophancy**: chatbots tuned to win approval can flatter you even when you are wrong. In play, the eagles' flames turn into thumbs-up praise bubbles ("You're absolutely right!") that follow you. |
 | 4 | Mirage Marsh | **Hallucination**: a language model can produce fluent, confident answers that are false, including invented facts, quotes and sources. In play, answer orbs drift through the marsh: orbs with a ✓ source badge are real insight and refill a charge; the shinier, surer ones ("100% certain!", "Studies prove it!") are hallucinations that cost focus and a charge. |
-| 5 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. In play, some of the Engine's fireballs split into flickering fakes that wander the whole sky. A fake cannot burn you, but touching one shoves you off course. |
+| 5 | The Engine's Roost (boss) | **Cognitive offloading and cognitive drift**: letting a tool think for you until your own skills fade, and letting it slowly steer your attention and opinions away from your own goals. In play, some of the Engine's fireballs split into faded fakes with no bright center that wander the whole sky. A fake cannot burn you, but touching one shoves you off course. |
 
 ## How the learning is delivered
 
@@ -66,10 +66,11 @@ Press **S** on the title screen or the pause card. Settings are saved in the bro
 | Setting | Options | What changes |
 |---|---|---|
 | Difficulty | Easy, Normal, Hard | Easy: 5 hearts, 4 charges, slower and rarer shots, smaller quotas, gentler boss; scores count 0.6x. Hard: 2 charges, faster and more frequent shots, bigger quotas, tougher boss; scores count 1.3x. Quick-check points are never scaled. A change made mid-run starts at the next level. |
-| Motion | Full, Reduced | Reduced removes screen shake, softens flashes, cuts sparks to a third, stops pulsing text, and makes the drift decoys steady with a dashed outline instead of flickering. Follows the device's reduce-motion preference by default. |
+| Motion | Full, Reduced | Reduced removes screen shake, softens flashes, cuts sparks to a third, stops pulsing text, and makes the drift decoys steady with a dashed outline. (Decoys never flash quickly in any mode: they shimmer about once a second, since fast flashing can be a photosensitivity trigger.) Follows the device's reduce-motion preference by default. |
 | Contrast | Standard, High | Brighter text and borders, a darker sky, a solid ring on every real fireball and a dashed ring on every decoy, and outlined empty hearts and charges, so no information depends on color alone. |
 | Text size | Normal, Large | Larger text on every card and on the game screen. |
-| Music | On, Off | The background score. Sound effects stay on either way; M mutes everything. |
+| Music | On, Off | The background score. M mutes everything. |
+| Sound effects | On, Off | Shots, hits and pickups. Nothing in the game depends on hearing them, and music has its own setting, as the Game Accessibility Guidelines ask. |
 
 ## Running it
 

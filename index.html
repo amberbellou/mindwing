@@ -236,7 +236,7 @@ function ensureAudio(){
   if (actx && !musicTimer) musicTimer = setInterval(musicTick, 90);
 }
 function tone(freq, dur, type, vol, slide){
-  if (muted || !actx) return;
+  if (muted || !actx || SETTINGS.sfx === "off") return;
   try{
     const o = actx.createOscillator(), g = actx.createGain();
     o.type = type || "sine";
@@ -326,7 +326,7 @@ const LESSONS = [
   { tag:"Lesson 5 of 5 · The quiet harms", h:"Offloading & Drift",
     p:[ "<strong>Cognitive offloading</strong> is letting a tool remember or think for you. Sometimes that is smart. Calculators exist for a reason. But skills you never practice fade: if AI writes every draft and answers every question, your own recall, writing, and problem-solving weaken.",
         "<strong>Cognitive drift</strong> is slower and sneakier. Your attention, opinions, and even your writing style slide toward whatever the machine feeds you, until your goals are not quite your own anymore." ],
-    note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map. <br><b>In this level:</b> some fires split into flickering fakes that wander everywhere. They cannot burn you, but touching one knocks you off course." }
+    note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map. <br><b>In this level:</b> some fires split into faded fakes with no bright center that wander everywhere. They cannot burn you, but touching one knocks you off course." }
 ];
 
 const HIT_FACTS = [
@@ -422,8 +422,8 @@ const DIFFS = {
   normal: { label:"Normal", hearts:3, bursts:3, shotSpeed:1,    fireGap:1,   spawnGap:1,    quota:1,    bossHp:1,    turn:1,   inv:1,   score:1 },
   hard:   { label:"Hard",   hearts:3, bursts:2, shotSpeed:1.2,  fireGap:0.8, spawnGap:0.85, quota:1.2,  bossHp:1.25, turn:1.3, inv:0.85, score:1.3 }
 };
-const SETTINGS = { difficulty:"normal", motion:"full", contrast:"standard", text:"normal", music:"on" };
-const SETTING_CHOICES = { difficulty:["easy","normal","hard"], motion:["full","reduced"], contrast:["standard","high"], text:["normal","large"], music:["on","off"] };
+const SETTINGS = { difficulty:"normal", motion:"full", contrast:"standard", text:"normal", music:"on", sfx:"on" };
+const SETTING_CHOICES = { difficulty:["easy","normal","hard"], motion:["full","reduced"], contrast:["standard","high"], text:["normal","large"], music:["on","off"], sfx:["on","off"] };
 try {
   if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) SETTINGS.motion = "reduced";
   const saved = JSON.parse(localStorage.getItem("mindwing_settings") || "{}");
@@ -735,7 +735,8 @@ const SETTING_TEXT = {
   motion:{ label:"Motion", opts:{ full:"Full", reduced:"Reduced" }, why:{ full:"Screen shake and flashes on.", reduced:"No screen shake, soft flashes, fewer sparks." } },
   contrast:{ label:"Contrast", opts:{ standard:"Standard", high:"High" }, why:{ standard:"The painted look.", high:"Brighter text, outlined hazards, and shape tells that never rely on color alone." } },
   text:{ label:"Text size", opts:{ normal:"Normal", large:"Large" }, why:{ normal:"", large:"Bigger text on cards and on the game screen." } },
-  music:{ label:"Music", opts:{ on:"On", off:"Off" }, why:{ on:"A quiet score under the game. M mutes everything.", off:"Sound effects only." } }
+  music:{ label:"Music", opts:{ on:"On", off:"Off" }, why:{ on:"A quiet score under the game. M mutes everything.", off:"No music. Sound effects follow their own setting." } },
+  sfx:{ label:"Sound effects", opts:{ on:"On", off:"Off" }, why:{ on:"Shots, hits and pickups make sounds. Nothing in the game depends on hearing them.", off:"No effect sounds. Music follows its own setting." } }
 };
 function settingsHTML(c){
   let html = `<div class="set">`;
@@ -1245,7 +1246,7 @@ function update(dt){
           fires.push({ kind:"decoy", x:f.x, y:f.y, a:rand(0, 6.28), sp:rand(120, 175), spin:rand(-2.2, 2.2), life:DECOY_LIFE, r:8, t:0, vx:0, vy:0 });
         }
         burstParticles(f.x, f.y, "#ffb36b", 10);
-        introOnce("drift", "COGNITIVE DRIFT", "Fake fires flicker. They pull your eyes off what is real.");
+        introOnce("drift", "COGNITIVE DRIFT", "Fake fires have no bright center. They pull your eyes off what is real.");
       }
       if (f.kind === "decoy"){
         f.a += f.spin*dt;
@@ -1509,8 +1510,10 @@ function drawFire(f){
   if (f.kind === "praise"){ drawPraise(f); return; }
   ctx.save(); ctx.translate(f.x, f.y);
   if (f.kind === "decoy"){
-    /* the tell: decoys flicker and have no hot core, so a careful eye can learn to ignore them */
-    const flicker = reducedMotion() ? 0.6 : (0.55 + 0.3*Math.sin(f.t*40 + f.a));
+    /* the tell: decoys have no hot core and fade softly, so a careful eye can learn to ignore them */
+    // A slow, shallow shimmer (about one cycle per second), never a fast flicker: fast flashing can be a
+    // photosensitivity trigger. The tell that matters is the missing hot core, not the shimmer.
+    const flicker = reducedMotion() ? 0.6 : (0.58 + 0.12*Math.sin(f.t*6 + f.a));
     ctx.globalAlpha = Math.max(0, Math.min(1, f.life / 0.6)) * flicker;
     if (reducedMotion() || highContrast()){
       ctx.setLineDash([4, 4]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
