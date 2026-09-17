@@ -59,6 +59,21 @@
   #card .ok{color:#7ee2a8;font-weight:700;}
   #card .bad{color:#ff8fa3;font-weight:700;}
   #card .muted{color:var(--dim);font-size:13px;text-align:center;margin-top:6px;}
+  #card .set{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:8px 12px;align-items:center;margin:8px 0 4px 0;}
+  #card .set .lbl{color:var(--ink);font-weight:700;font-size:15px;}
+  #card .set .seg{display:flex;flex-wrap:wrap;gap:6px;}
+  #card .set .seg button{text-align:center;padding:7px 12px;}
+  #card .set .seg button[aria-pressed="true"]{background:var(--accent2);color:#12092b;font-weight:700;border-color:var(--accent2);}
+  #card .set .why{grid-column:2;color:var(--dim);font-size:13px;margin-top:-4px;}
+  body.big-text #card p, body.big-text #card ul, body.big-text #card button{font-size:19px;}
+  body.big-text #card .note{font-size:18px;}
+  body.big-text #card .set .lbl{font-size:18px;}
+  body.big-text #card h2{font-size:30px;}
+  body.big-text #card .tag, body.big-text #card .muted, body.big-text #card .hint, body.big-text #card .set .why{font-size:15px;}
+  body.calm-motion #card .hint{animation:none;opacity:.9;}
+  body.high-contrast{--ink:#ffffff;--dim:#e6e0ff;--accent:#ffe14d;--card-bg:#07051a;}
+  body.high-contrast #card{border:2px solid #ffffff;}
+  body.high-contrast #card button{border-width:2px;border-color:#cfc4ff;}
   @media (max-width:520px){
     #card{padding:20px 18px;border-radius:14px;}
     #card h2{font-size:22px;}
@@ -319,6 +334,42 @@ const LEVELS = [
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
 ];
 
+/* ---------- settings: difficulty and accessibility ----------
+   Saved per browser. Difficulty applies from the next level start (so a mid-level change cannot be used
+   to refill hearts); motion, contrast and text size apply immediately. Scores are scaled by difficulty
+   so an easy run cannot top a hard one on the shared leaderboard. Quick-check points are never scaled:
+   learning is worth the same on every setting. */
+const DIFFS = {
+  easy:   { label:"Easy",   hearts:5, bursts:4, shotSpeed:0.75, fireGap:1.4, spawnGap:1.3,  quota:0.75, bossHp:0.7,  turn:0.6, inv:1.3, score:0.6 },
+  normal: { label:"Normal", hearts:3, bursts:3, shotSpeed:1,    fireGap:1,   spawnGap:1,    quota:1,    bossHp:1,    turn:1,   inv:1,   score:1 },
+  hard:   { label:"Hard",   hearts:3, bursts:2, shotSpeed:1.2,  fireGap:0.8, spawnGap:0.85, quota:1.2,  bossHp:1.25, turn:1.3, inv:0.85, score:1.3 }
+};
+const SETTINGS = { difficulty:"normal", motion:"full", contrast:"standard", text:"normal" };
+const SETTING_CHOICES = { difficulty:["easy","normal","hard"], motion:["full","reduced"], contrast:["standard","high"], text:["normal","large"] };
+try {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) SETTINGS.motion = "reduced";
+  const saved = JSON.parse(localStorage.getItem("mindwing_settings") || "{}");
+  for (const k in SETTING_CHOICES) if (saved && SETTING_CHOICES[k].includes(saved[k])) SETTINGS[k] = saved[k];
+} catch(e){}
+let DIFF = DIFFS[SETTINGS.difficulty];          // locked in at each level start
+function saveSettings(){ try { localStorage.setItem("mindwing_settings", JSON.stringify(SETTINGS)); } catch(e){} }
+function applyPresentation(){
+  try {
+    document.body.classList.toggle("big-text", SETTINGS.text === "large");
+    document.body.classList.toggle("calm-motion", SETTINGS.motion === "reduced");
+    document.body.classList.toggle("high-contrast", SETTINGS.contrast === "high");
+  } catch(e){}
+}
+applyPresentation();
+const reducedMotion = () => SETTINGS.motion === "reduced";
+const highContrast = () => SETTINGS.contrast === "high";
+const hudScale = () => SETTINGS.text === "large" ? 1.25 : 1;
+const award = n => { score += Math.round(n * DIFF.score); };
+function kick(sh, fl){                     // screen shake and flash, softened when motion is reduced
+  if (reducedMotion()){ flash = Math.max(flash, Math.min(fl || 0, 0.25)); return; }
+  shake = Math.max(shake, sh || 0); flash = Math.max(flash, fl || 0);
+}
+
 /* ---------- game state ---------- */
 let state = "title";           // title | play | hit | pause | clear | over | win
 let level = 0, score = 0, hearts = 3, bursts = 3;
@@ -383,6 +434,7 @@ function buildCard(c){
     html += `<p class="muted" data-slot="msg">Enter to record, Esc to skip.</p>`;
   }
   if (c.type === "leaderboard" || c.type === "stats") html += `<div data-slot="async"><p class="muted">Loading…</p></div>`;
+  if (c.type === "settings") html += settingsHTML(c);
   if (c.buttons) html += `<div class="row">` + c.buttons.map(b => `<button type="button" class="ghost" data-act="${b.act}">${b.label}</button>`).join("") + `</div>`;
   if (c.note) html += `<div class="note">${c.note}</div>`;
   if (c.hint !== "") html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
@@ -483,6 +535,19 @@ function cardAction(act, val){
   }
   if (act === "skip" && c.type === "initials"){ cardShownAt = 0; advanceCard(true); return; }
   if (act === "records"){ showCards([leaderboardCard(), statsCard()], showTitle); return; }
+  if (act === "settings"){
+    if (c.type === "settings") return;
+    if (state === "title"){ showCards([settingsCard("title")], showTitle); return; }
+    cardQueue.unshift(c); renderCard(settingsCard("pause")); return;     // from the pause card: come back to it
+  }
+  if (act === "set" && c.type === "settings"){
+    const [k, v] = String(val || "").split(":");
+    if (!SETTING_CHOICES[k] || !SETTING_CHOICES[k].includes(v)) return;
+    SETTINGS[k] = v; saveSettings(); applyPresentation();
+    if (k === "difficulty" && state === "title") DIFF = DIFFS[v];
+    const keep = cardShownAt; renderCard(c); cardShownAt = keep;          // redraw in place, keep the double-tap guard
+    return;
+  }
   if (act === "next"){ advanceCard(true); }
 }
 // "click" rather than "pointerdown": a finger scrolling a long card on a small screen must not advance it.
@@ -502,7 +567,7 @@ function titleCards(){
     { big:"MINDWING",
       sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
       p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "" ].filter(Boolean),
-      buttons: api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : undefined,
+      buttons: [{ act:"settings", label:"Settings: difficulty &amp; access (S)" }].concat(api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : []),
       hint:"Press SPACE or tap to begin" },
     { tag:"The story", h:"The Grove of Minds",
       p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
@@ -518,6 +583,29 @@ function titleCards(){
              "<b>P</b> or <b>Esc</b>: pause &nbsp;·&nbsp; <b>M</b>: mute" ],
       note:"<b>Tip:</b> purple <b>insight motes</b> dropped by eagles refill your charges. Insight always does." }
   ];
+}
+function settingsCard(from){
+  return { type:"settings", tag:"Settings", h:"Play your way", from, hint:"Press SPACE or tap outside the buttons to go back" };
+}
+const SETTING_TEXT = {
+  difficulty:{ label:"Difficulty", opts:{ easy:"Easy", normal:"Normal", hard:"Hard" },
+    why:{ easy:"5 hearts, slower shots, gentler boss. Scores count 0.6x.", normal:"The game as designed.", hard:"Faster shots, fewer charges, tougher boss. Scores count 1.3x." } },
+  motion:{ label:"Motion", opts:{ full:"Full", reduced:"Reduced" }, why:{ full:"Screen shake and flashes on.", reduced:"No screen shake, soft flashes, fewer sparks." } },
+  contrast:{ label:"Contrast", opts:{ standard:"Standard", high:"High" }, why:{ standard:"The painted look.", high:"Brighter text, outlined hazards, and shape tells that never rely on color alone." } },
+  text:{ label:"Text size", opts:{ normal:"Normal", large:"Large" }, why:{ normal:"", large:"Bigger text on cards and on the game screen." } }
+};
+function settingsHTML(c){
+  let html = `<div class="set">`;
+  for (const k of Object.keys(SETTING_TEXT)){
+    const t = SETTING_TEXT[k];
+    html += `<div class="lbl">${t.label}</div><div class="seg" role="group" aria-label="${t.label}">` +
+      SETTING_CHOICES[k].map(v => `<button type="button" data-act="set" data-val="${k}:${v}" aria-pressed="${SETTINGS[k] === v}">${t.opts[v]}</button>`).join("") + `</div>`;
+    const why = t.why[SETTINGS[k]];
+    if (why) html += `<div class="why">${why}</div>`;
+  }
+  html += `</div>`;
+  if (c.from === "pause") html += `<p class="muted">Difficulty changes start at the next level. Everything else changes now.</p>`;
+  return html;
 }
 function lessonCard(i){
   const l = LESSONS[i];
@@ -554,7 +642,8 @@ function statsCard(){
 function beginLevel(i){
   level = i;
   const cfg = LEVELS[i];
-  hearts = 3; bursts = 3; killCount = 0; quota = cfg.quota || 0;
+  DIFF = DIFFS[SETTINGS.difficulty] || DIFFS.normal;
+  hearts = DIFF.hearts; bursts = DIFF.bursts; killCount = 0; quota = cfg.quota ? Math.max(4, Math.round(cfg.quota * DIFF.quota)) : 0;
   tookDamage = false;
   bullets = []; eagles = []; fires = []; motes = []; parts = [];
   player.x = 140; player.y = H/2; player.cool = 0;
@@ -564,7 +653,8 @@ function beginLevel(i){
   hitBlink = false;
   levelStartAt = performance.now();
   api.track("level_start", i + 1); api.flush();
-  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:55, maxhp:55, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false } : null;
+  const bossHp = Math.round(55 * DIFF.bossHp);
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false } : null;
   const abIntro = abilityOf(i) === "still"
     ? "Still Point (X): the sky freezes, nothing dies"
     : "Clarity Burst (X): clears the sky, then a breath of calm";
@@ -576,7 +666,7 @@ function levelCleared(){
   for (const e of eagles) burstParticles(e.x, e.y, "#ffd166", 12);
   eagles = []; fires = [];
   const untouched = !tookDamage;
-  if (untouched) score += 500;
+  if (untouched) award(500);
   api.track("level_clear", level + 1, Math.round(performance.now() - levelStartAt), score);
   banner = { text:"GROVE SECTION CLEARED", sub: untouched ? "Untouched! +500 focus bonus" : "Onward!", t:0, max:1.6 };
 }
@@ -592,11 +682,11 @@ function hitFactCard(fi){
 }
 function onPlayerHit(cause){
   if (inv > 0) return;
-  hearts--; tookDamage = true; hitBlink = true; shake = 9; sfx.hit();
+  hearts--; tookDamage = true; hitBlink = true; kick(9, 0); sfx.hit();
   burstParticles(player.x, player.y, "#ff5a76", 22);
   fires = fires.filter(f => dist2(f.x,f.y,player.x,player.y) > 160*160);
   if (hearts <= 0){ gameOver(); return; }
-  inv = 2.4;
+  inv = 2.4 * DIFF.inv;
   state = "hit";
   const fi = nextFact(cause || "general");
   api.track("hit", level + 1, fi);
@@ -640,6 +730,7 @@ function pauseGame(){
   state = "pause";
   showCards([{ tag:"Paused", h:"Take a breath",
     p:["The grove will wait. Notice: did you choose this break, or did something choose it for you? Choosing on purpose is the whole game."],
+    buttons:[{ act:"settings", label:"Settings (S)" }],
     hint:"Press SPACE or tap to resume" }], () => { state = "play"; });
 }
 
@@ -667,6 +758,7 @@ window.addEventListener("keydown", e => {
     if (c && c.type === "quiz"){ const n = parseInt(key, 10); if (n >= 1 && n <= c.options.length) cardAction("choose", String(n - 1)); return; }
     if (c && c.type === "initials"){ if (key === "Enter") cardAction("submit"); else if (key === "Escape") cardAction("skip"); return; }
     if (k === "l" && state === "title" && api.enabled && c && c.big){ cardAction("records"); return; }
+    if (k === "s" && c && (c.big || (state === "pause" && c.buttons))){ cardAction("settings"); return; }
     if (key === " " || key === "Enter") advanceCard();
     return;
   }
@@ -730,16 +822,16 @@ function tryBurst(){
   if (still){
     /* Levels 3-4: hold the sky instead of clearing it. Nothing dies, nothing moves, and the player
        flies through the gap. Stacking is not allowed to stretch the window past STILL_TIME. */
-    stillT = STILL_TIME; flash = 0.5; shake = 2;
+    stillT = STILL_TIME; kick(2, 0.5);
     banner = { text:"", sub:"Still Point: the feed stops. Choose your line.", t:0, max:1.1 };
     burstParticles(player.x, player.y, "#9fe7ff", 30);
     for (const e of eagles) burstParticles(e.x, e.y, "#9fe7ff", 5);
     return;
   }
-  flash = 1; shake = 6;
+  kick(6, 1);
   fires = [];
   for (const e of eagles){
-    score += e.pts;
+    award(e.pts);
     burstParticles(e.x, e.y, "#ffd166", 14);
     killCount++;
   }
@@ -757,7 +849,7 @@ function spawnEagle(){
     type, x: W + 50, y: rand(60, H - 90), r: 20,
     baseY: 0, t: rand(0, 6.28),
     vx: -(cfg.speed * rand(0.85, 1.2)),
-    fireT: rand(cfg.fireMin, cfg.fireMax),
+    fireT: rand(cfg.fireMin, cfg.fireMax) * DIFF.fireGap,
     glow: 0, flap: rand(0, 6.28),
     pts: type === "diver" ? 150 : (type === "zigzag" ? 120 : 100)
   };
@@ -768,7 +860,7 @@ function eagleFire(e){
   const cfg = LEVELS[level];
   const dx = player.x - e.x, dy = player.y - e.y;
   const d = Math.hypot(dx, dy) || 1;
-  const sp = cfg.fireSpeed;
+  const sp = cfg.fireSpeed * DIFF.shotSpeed;
   const shot = { x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0, kind:"fire" };
   if (cfg.shots === "praise") shot.morph = PRAISE_MORPH;
   fires.push(shot);
@@ -776,7 +868,7 @@ function eagleFire(e){
 }
 function killEagle(i){
   const e = eagles[i];
-  score += e.pts; killCount++;
+  award(e.pts); killCount++;
   burstParticles(e.x, e.y, "#ff9f45", 16);
   sfx.eagleDown();
   if (Math.random() < 0.18) motes.push({ x:e.x, y:e.y, t:0 });
@@ -786,13 +878,14 @@ function killEagle(i){
 function killBoss(){
   burstParticles(boss.x, boss.y, "#ffd166", 60);
   burstParticles(boss.x, boss.y, "#ff5a3c", 60);
-  score += 1500; shake = 14; flash = 0.8;
+  award(1500); kick(14, 0.8);
   boss = null; eagles = []; fires = [];
   sfx.eagleDown();
   state = "clear"; clearT = 1.8;
   banner = { text:"THE ENGINE FALLS SILENT", sub:"+1500", t:0, max:1.8 };
 }
 function burstParticles(x, y, color, n){
+  if (reducedMotion()) n = Math.ceil(n / 3);
   for (let i=0;i<n;i++){
     const a = Math.random()*6.28, s = rand(30, 190);
     parts.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:rand(0.3,0.8), max:0.8, color, r:rand(1.5,4) });
@@ -865,7 +958,7 @@ function update(dt){
   if (!stilled) spawnT -= dt;
   if (spawnT <= 0 && !stilled && calmT <= 0 && wantMore && (!boss || boss.entered)){
     spawnEagle();
-    spawnT = cfg.spawnEvery * rand(0.7, 1.25);
+    spawnT = cfg.spawnEvery * DIFF.spawnGap * rand(0.7, 1.25);
   }
 
   /* eagles */
@@ -880,7 +973,7 @@ function update(dt){
       e.y = clamp(e.y, 40, H-50);
       if (e.glow > 0) e.glow -= dt;
       e.fireT -= dt;
-      if (e.fireT <= 0 && e.x < W - 40 && e.x > player.x + 60){ eagleFire(e); e.fireT = rand(cfg.fireMin, cfg.fireMax); }
+      if (e.fireT <= 0 && e.x < W - 40 && e.x > player.x + 60){ eagleFire(e); e.fireT = rand(cfg.fireMin, cfg.fireMax) * DIFF.fireGap; }
       if (e.x < -60){ e.x = W + 50; e.baseY = rand(60, H-90); e.y = e.baseY; }
     }
     /* collide with player */
@@ -909,16 +1002,16 @@ function update(dt){
         if (boss.volley % 4 === 0){
           for (let k=0;k<10;k++){
             const a = k/10*Math.PI*2;
-            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*135, vy:Math.sin(a)*135, r:8, t:0 });
+            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*135*DIFF.shotSpeed, vy:Math.sin(a)*135*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
           }
         } else {
           for (const off of [-0.24, 0, 0.24]){
-            const shot = { x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205, vy:Math.sin(base+off)*205, r:8, t:0, kind:"fire" };
+            const shot = { x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205*DIFF.shotSpeed, vy:Math.sin(base+off)*205*DIFF.shotSpeed, r:8, t:0, kind:"fire" };
             if (cfg.drift && off === 0) shot.split = DECOY_SPLIT;
             fires.push(shot);
           }
         }
-        boss.fireT = boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0);
+        boss.fireT = (boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0)) * DIFF.fireGap;
       }
     }
   }
@@ -945,7 +1038,7 @@ function update(dt){
         let diff = want - have;
         while (diff > Math.PI) diff -= 2*Math.PI;
         while (diff < -Math.PI) diff += 2*Math.PI;
-        const turn = clamp(diff, -PRAISE_TURN*dt, PRAISE_TURN*dt);
+        const turn = clamp(diff, -PRAISE_TURN*DIFF.turn*dt, PRAISE_TURN*DIFF.turn*dt);
         const sp = Math.hypot(f.vx, f.vy);
         f.vx = Math.cos(have + turn)*sp; f.vy = Math.sin(have + turn)*sp;
         if (f.t > PRAISE_LIFE){ burstParticles(f.x, f.y, "#ffe08a", 6); fires.splice(i,1); continue; }
@@ -1014,8 +1107,8 @@ function update(dt){
     if (m.x < -20){ motes.splice(i,1); continue; }
     if (dist2(m.x,m.y,player.x,player.y) < 30*30){
       motes.splice(i,1);
-      bursts = Math.min(4, bursts + 1);
-      score += 50; sfx.mote();
+      bursts = Math.min(Math.max(4, DIFF.bursts), bursts + 1);
+      award(50); sfx.mote();
       burstParticles(player.x, player.y, "#c9a7ff", 10);
     }
   }
@@ -1180,7 +1273,12 @@ function drawFire(f){
   ctx.save(); ctx.translate(f.x, f.y);
   if (f.kind === "decoy"){
     /* the tell: decoys flicker and have no hot core, so a careful eye can learn to ignore them */
-    ctx.globalAlpha = Math.max(0, Math.min(1, f.life / 0.6)) * (0.55 + 0.3*Math.sin(f.t*40 + f.a));
+    const flicker = reducedMotion() ? 0.6 : (0.55 + 0.3*Math.sin(f.t*40 + f.a));
+    ctx.globalAlpha = Math.max(0, Math.min(1, f.life / 0.6)) * flicker;
+    if (reducedMotion() || highContrast()){
+      ctx.setLineDash([4, 4]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, 6.28); ctx.stroke(); ctx.setLineDash([]);
+    }
   }
   const r = f.r + Math.sin(f.t*22)*1.5;
   const g = ctx.createRadialGradient(0,0,1,0,0,r*2.1);
@@ -1192,6 +1290,7 @@ function drawFire(f){
   if (f.kind !== "decoy"){
     ctx.fillStyle = "#fff3c4";
     ctx.beginPath(); ctx.arc(0,0,r*0.45,0,6.28); ctx.fill();
+    if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0,0,r+4,0,6.28); ctx.stroke(); }
   }
   ctx.restore();
 }
@@ -1208,47 +1307,61 @@ function drawMote(m){
 }
 function drawHUD(){
   const cfg = LEVELS[level];
+  const k = hudScale(), hc = highContrast();
+  const font = (px, w) => `${w ? w + " " : ""}${Math.round(px * k)}px sans-serif`;
+  const dimWhite = a => hc ? "#ffffff" : `rgba(255,255,255,${a})`;
   ctx.textBaseline = "top";
-  /* hearts */
-  ctx.font = "22px sans-serif";
-  for (let i=0;i<3;i++){
-    ctx.fillStyle = i < hearts ? "#ff5a76" : "rgba(255,255,255,0.18)";
-    ctx.fillText("♥", 16 + i*26, 12);
+  /* hearts: empty hearts are outlined, so full versus empty never depends on color alone */
+  ctx.font = font(22);
+  for (let i=0;i<DIFF.hearts;i++){
+    const x = 16 + i*26*k;
+    if (i < hearts){ ctx.fillStyle = "#ff5a76"; ctx.fillText("♥", x, 12); }
+    else if (hc){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.strokeText("♥", x, 12); }
+    else { ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.fillText("♥", x, 12); }
   }
-  /* bursts */
-  ctx.font = "20px sans-serif";
-  const slots = Math.max(3, bursts);
+  /* charges */
+  ctx.font = font(20);
+  const slots = Math.max(DIFF.bursts, bursts);
+  const row2 = 12 + 28*k;
   for (let i=0;i<slots;i++){
-    ctx.fillStyle = i < bursts ? "#c9a7ff" : "rgba(255,255,255,0.18)";
-    ctx.fillText("✦", 16 + i*22, 40);
+    const x = 16 + i*22*k;
+    if (i < bursts){ ctx.fillStyle = "#c9a7ff"; ctx.fillText("✦", x, row2); }
+    else if (hc){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.2; ctx.strokeText("✦", x, row2); }
+    else { ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.fillText("✦", x, row2); }
   }
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.font = "10px sans-serif";
+  ctx.fillStyle = dimWhite(0.45);
+  ctx.font = font(10);
   const abLabel = abilityName(Math.min(level, LEVELS.length-1)).toUpperCase();
-  ctx.fillText((usedTouch ? "DOUBLE-TAP = " : "2x SPACE or X = ") + abLabel, 16, 64);
+  ctx.fillText((usedTouch ? "DOUBLE-TAP = " : "2x SPACE or X = ") + abLabel, 16, row2 + 24*k);
   /* level + progress */
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "600 15px sans-serif";
+  ctx.fillStyle = dimWhite(0.85);
+  ctx.font = font(15, 600);
   ctx.fillText(`${cfg.name} · ${cfg.concept}`, W/2, 12);
+  const row = 12 + 20*k;
   if (!boss){
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.font = "12px sans-serif";
-    ctx.fillText(`eagles turned back: ${killCount} / ${quota}`, W/2, 32);
+    ctx.fillStyle = dimWhite(0.55);
+    ctx.font = font(12);
+    ctx.fillText(`eagles turned back: ${killCount} / ${quota}`, W/2, row);
   } else if (boss.entered){
     const bw = 300;
     ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.fillRect(W/2-bw/2, 32, bw, 10);
+    ctx.fillRect(W/2-bw/2, row, bw, 10);
     ctx.fillStyle = boss.enraged ? "#ff5a3c" : "#ff8c1a";
-    ctx.fillRect(W/2-bw/2, 32, bw * Math.max(0, boss.hp/boss.maxhp), 10);
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.strokeRect(W/2-bw/2, 32, bw, 10);
+    ctx.fillRect(W/2-bw/2, row, bw * Math.max(0, boss.hp/boss.maxhp), 10);
+    ctx.strokeStyle = hc ? "#ffffff" : "rgba(255,255,255,0.5)";
+    ctx.strokeRect(W/2-bw/2, row, bw, 10);
   }
   /* score */
   ctx.textAlign = "right";
   ctx.fillStyle = "#ffd166";
-  ctx.font = "700 18px sans-serif";
+  ctx.font = font(18, 700);
   ctx.fillText(String(score), W-16, 12);
+  if (DIFF !== DIFFS.normal){
+    ctx.font = font(10, 600);
+    ctx.fillStyle = dimWhite(0.55);
+    ctx.fillText(DIFF.label.toUpperCase(), W-16, 12 + 22*k);
+  }
   ctx.textAlign = "left";
 }
 function drawBanner(){
@@ -1258,11 +1371,11 @@ function drawBanner(){
   ctx.globalAlpha = Math.max(0, a);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillStyle = "#ffffff";
-  ctx.font = "800 34px sans-serif";
+  ctx.font = `800 ${Math.round(34 * hudScale())}px sans-serif`;
   ctx.shadowColor = "#9d7bff"; ctx.shadowBlur = 24;
   if (banner.text) ctx.fillText(banner.text, W/2, H/2 - 40);
   if (banner.sub){
-    ctx.font = "600 17px sans-serif";
+    ctx.font = `600 ${Math.round(17 * hudScale())}px sans-serif`;
     ctx.fillStyle = "#ffd166";
     ctx.fillText(banner.sub, W/2, H/2 - 4);
   }
@@ -1289,6 +1402,7 @@ function draw(){
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
   if (shake > 0) ctx.translate(rand(-shake,shake), rand(-shake,shake));
   drawBackground();
+  if (highContrast()){ ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-20,-20,W+40,H+40); }
   for (const m of motes) drawMote(m);
   for (const e of eagles) drawEagle(e);
   if (boss) drawBoss();

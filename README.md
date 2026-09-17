@@ -43,12 +43,24 @@ Language is pitched for roughly ages 11 and up. It avoids jargon where possible 
 | M | Mute |
 | 1, 2, 3 | Answer a quick-check question |
 | L (title screen) | Grove records: leaderboard and statistics |
+| S (title or pause) | Settings: difficulty and accessibility |
 
 The double-tap has to be a deliberate one (a short pause, then two quick taps), so players who mash the fire key do not burn their charges by accident. A burst is never spent on an empty sky.
 
 The split is deliberate: the early levels reward clearing the noise, and the later levels, which teach retention design and cognitive drift, reward stopping the feed and choosing your own line rather than destroying anything. A charge is never spent on an empty sky.
 
 Purple **insight motes** dropped by defeated eagles refill your charges. Finishing a level without taking damage earns a focus bonus.
+
+## Settings: difficulty and accessibility
+
+Press **S** on the title screen or the pause card. Settings are saved in the browser.
+
+| Setting | Options | What changes |
+|---|---|---|
+| Difficulty | Easy, Normal, Hard | Easy: 5 hearts, 4 charges, slower and rarer shots, smaller quotas, gentler boss; scores count 0.6x. Hard: 2 charges, faster and more frequent shots, bigger quotas, tougher boss; scores count 1.3x. Quick-check points are never scaled. A change made mid-run starts at the next level. |
+| Motion | Full, Reduced | Reduced removes screen shake, softens flashes, cuts sparks to a third, stops pulsing text, and makes the drift decoys steady with a dashed outline instead of flickering. Follows the device's reduce-motion preference by default. |
+| Contrast | Standard, High | Brighter text and borders, a darker sky, a solid ring on every real fireball and a dashed ring on every decoy, and outlined empty hearts and charges, so no information depends on color alone. |
+| Text size | Normal, Large | Larger text on every card and on the game screen. |
 
 ## Running it
 

@@ -30,7 +30,7 @@ const API_LINE = /const API_BASE_DEFAULT = "[^"]*";/;
 if (!API_LINE.test(src)) throw new Error("API_BASE_DEFAULT line not found in index.html");
 src = src.replace(API_LINE, 'const API_BASE_DEFAULT = "";');
 // Expose internals for assertions (test build only; the shipped file has no such hook).
-const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug() });\nwindow.__setInv = v => { inv = v; };\n`;
+const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF });\nwindow.__setInv = v => { inv = v; };\n`;
 const tail = src.lastIndexOf("})();");
 src = src.slice(0, tail) + hook + src.slice(tail);
 
@@ -505,6 +505,69 @@ console.log("drift: level 4 fires split into decoys that push you but never burn
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
   else console.log("  decoys split off, explainer shown, touching one pushes without damage, real hit explains drift");
+}
+
+
+/* Settings: difficulty is chosen on the title screen and locks in at level start; reduced motion
+   removes screen shake; settings are offered from the title card and the pause card. */
+async function openSettingsAndSet(w, pairs){
+  // title card is the first card; its settings button opens the settings card
+  for (let i = 0; i < 30 && !(w.state().card && w.state().card.big); i++){ w.step(16.7); await settle(1); }
+  w.click("settings"); w.step(16.7); await settle(1);
+  if (!w.state().card || w.state().card.type !== "settings") return false;
+  for (const pv of pairs){ w.click("set", pv); w.step(16.7); await settle(1); }
+  return true;
+}
+console.log("settings: easy, hard and reduced motion change the game as promised");
+{
+  const errs = [];
+  // easy
+  {
+    const w = makeWorld(31, { search: "", net: "off" });
+    if (!await openSettingsAndSet(w, ["difficulty:easy"])) errs.push("settings card did not open from the title");
+    else {
+      const set = w.state().settings;
+      if (set.difficulty !== "easy") errs.push("difficulty did not switch to easy");
+      for (let i = 0; i < 40 && w.state().card && w.state().card.type === "settings"; i++){ w.step(500); await settle(1); w.click(); w.step(16.7); await settle(1); }
+      if (!await toPlay(w)) errs.push("could not start an easy run");
+      else {
+        const s = w.state();
+        if (s.hearts !== 5 || s.bursts !== 4) errs.push(`easy should start with 5 hearts and 4 charges, got ${s.hearts} and ${s.bursts}`);
+        if (s.quota !== 6) errs.push(`easy level 1 quota should be 6, got ${s.quota}`);
+      }
+    }
+  }
+  // hard + reduced motion
+  {
+    const w = makeWorld(32, { search: "", net: "off" });
+    if (!await openSettingsAndSet(w, ["difficulty:hard", "motion:reduced", "contrast:high", "text:large", "difficulty:bogus", "nope:1"])) errs.push("settings card did not open (hard run)");
+    else {
+      const set = w.state().settings;
+      if (set.difficulty !== "hard" || set.motion !== "reduced" || set.contrast !== "high" || set.text !== "large") errs.push("settings did not all apply: " + JSON.stringify(set));
+      for (let i = 0; i < 40 && w.state().card && w.state().card.type === "settings"; i++){ w.step(500); await settle(1); w.click(); w.step(16.7); await settle(1); }
+      if (!await toPlay(w)) errs.push("could not start a hard run");
+      else {
+        const s = w.state();
+        if (s.hearts !== 3 || s.bursts !== 2) errs.push(`hard should start with 3 hearts and 2 charges, got ${s.hearts} and ${s.bursts}`);
+        if (s.quota !== 10) errs.push(`hard level 1 quota should be 10, got ${s.quota}`);
+        // take a hit: reduced motion means no screen shake
+        const e = await untilEagles(w, 1);
+        if (e){
+          w.setInv(0);
+          const pl = w.state().player;
+          w.state().fires.push({ kind:"fire", x:pl.x, y:pl.y, vx:0, vy:0, r:8, t:0 });
+          w.step(16.7); await settle(2);
+          const h = w.state();
+          if (h.state !== "hit") errs.push("could not force a hit to test motion (state " + h.state + ")");
+          else if (h.shake !== 0) errs.push("reduced motion still shook the screen: shake=" + h.shake);
+          // pause card offers settings, and difficulty changes there wait for the next level
+          w.click(); w.step(500); await settle(2); w.click(); w.step(16.7); await settle(2);
+        }
+      }
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  easy: 5 hearts, 4 charges, smaller quota; hard: 2 charges, bigger quota; reduced motion: no shake; bad values ignored");
 }
 
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
