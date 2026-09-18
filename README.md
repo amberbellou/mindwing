@@ -62,6 +62,16 @@ The split is deliberate: the early levels reward clearing the noise, and the lat
 
 Purple **insight motes** dropped by defeated eagles refill your charges. Finishing a level without taking damage earns a focus bonus.
 
+### Small things to chase, eat, and escape
+
+A few mechanics borrowed from Loopy, an earlier fish-fairy side-scroller, chosen because each one is small and none of them touches the lessons:
+
+- **Grove seeds**: tiny green seeds drift across the sky in small orbiting clusters. Fly through one to eat it (+10 focus). Every tenth seed pays a streak bonus, so there is a reason to use the whole sky and not only the firing line.
+- **The glimmer**: once or twice a level a golden glimmer shimmers in for about two seconds and then is gone. Catch it for +150 focus and a burst of seeds. It is a variable reward on purpose, and the first one is named on screen ("VARIABLE REWARD") so the pattern is easier to spot in an app.
+- **The hook** (levels 2 to 4): a dark homing shape with one red notification eye follows Lumen. It is slower than she is in a straight line but turns well. Outfly it for about seven seconds and it gives up ("outflown", +120); or turn and face it, since two sparks bring it down. Either answer is a choice, which is the point.
+- **Arc sparks**: while holding fire, every fifth spark fans two extra sparks out at an angle.
+- **The opening** (boss, final phase): every few seconds the Engine stops firing for a moment and glows white. Sparks land in full only then; the rest of the time they mostly glance off its plating. Aim for the pause. Spam is not the same as aim.
+
 ## Feel
 
 - **Music**: a small generative score made in the browser (no audio files): a pentatonic arpeggio over a slow bass, a different mood and tempo for each level, and a pulsing low line for the boss. It ducks under cards, goes quiet on pause, and can be switched off in Settings (M still mutes everything).

@@ -31,7 +31,7 @@ const API_LINE = /const API_BASE_DEFAULT = "[^"]*";/;
 if (!API_LINE.test(src)) throw new Error("API_BASE_DEFAULT line not found in index.html");
 src = src.replace(API_LINE, 'const API_BASE_DEFAULT = "";');
 // Expose internals for assertions (test build only; the shipped file has no such hook).
-const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF, orbs, classStatus, classCode, preAnswers, postAnswers, progress, startLevel });\nwindow.__setInv = v => { inv = v; };\n`;
+const hook = `\nwindow.__mw = () => ({ state, hearts, bursts, score, level, killCount, quota, player, bullets, eagles, fires, parts, motes, boss, overlayOpen, inv, banner, card: currentCard, apiq: api.debug(), shake, flash, settings: SETTINGS, diff: DIFF, orbs, seeds, glimmer, classStatus, classCode, preAnswers, postAnswers, progress, startLevel });\nwindow.__setInv = v => { inv = v; };\n`;
 const tail = src.lastIndexOf("})();");
 src = src.slice(0, tail) + hook + src.slice(tail);
 
@@ -851,6 +851,136 @@ console.log("after-check: the win screen asks the same five and reports the diff
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
   else console.log("  the flow reaches the win screen, and the result card reports the real before and after scores");
+}
+
+console.log("loopy: seeds are eaten, the glimmer names itself, the hook chases and gives up, sparks fan out, the Engine opens");
+{
+  const errs = [];
+  // seeds: they drift in on level 1, touching one eats it and scores; every tenth pays a streak bonus
+  {
+    const w = makeWorld(61, { search: "?level=1", net: "off" });
+    if (!await toPlay(w)) errs.push("never reached level 1");
+    else {
+      const seed = await watchUntil(w, s => s.seeds.find(x => x.x > 120 && x.x < 560), 2500);
+      if (!seed) errs.push("no seed drifted into reach on level 1");
+      else {
+        const s0 = w.state(), before = s0.score;
+        s0.player.x = seed.x; s0.player.y = Math.max(30, Math.min(506, seed.y));
+        w.step(16.7); await settle(1);
+        const s1 = w.state();
+        if (s1.seeds.includes(seed)) errs.push("seed was not eaten on touch");
+        if (!(s1.score > before)) errs.push("eating a seed did not score");
+      }
+    }
+  }
+  // glimmer: it appears, names the pattern, pays when caught and scatters seeds; a missed one vanishes on its own
+  {
+    const w = makeWorld(62, { search: "?level=1", net: "off" });
+    const banners = new Set();
+    if (!await toPlay(w)) errs.push("never reached level 1");
+    else {
+      const g1 = await watchUntil(w, s => s.glimmer, 1800, banners);
+      if (!g1) errs.push("no glimmer appeared on level 1");
+      else {
+        const s0 = w.state(), before = s0.score, seedsBefore = s0.seeds.length;
+        s0.player.x = Math.min(g1.x, 595); s0.player.y = g1.y;
+        w.step(16.7); await settle(1);
+        const s1 = w.state();
+        if (s1.glimmer) errs.push("glimmer was not caught on touch");
+        if (!(s1.score >= before + 150)) errs.push(`catching the glimmer paid ${s1.score - before}, expected at least 150`);
+        if (!(s1.seeds.length >= seedsBefore + 5)) errs.push("a caught glimmer did not scatter seeds");
+        const g2 = await watchUntil(w, s => s.glimmer, 1800, banners);
+        if (!g2) errs.push("second glimmer never appeared");
+        else {
+          w.state().player.x = 24; w.state().player.y = 30;
+          const gone = await watchUntil(w, s => !s.glimmer, 220, banners);
+          if (gone === null) errs.push("a missed glimmer did not vanish within its lifetime");
+        }
+        const g3 = await watchUntil(w, s => s.glimmer, 1500, banners);
+        if (g3) errs.push("a third glimmer appeared; the level allows two");
+      }
+      if (!banners.has("VARIABLE REWARD")) errs.push("glimmer explainer not shown: " + [...banners].join(" | "));
+    }
+  }
+  // hook: it arrives on level 2, homes on the player, gives up after its life and pays the escape, and dies to two sparks
+  {
+    const w = makeWorld(63, { search: "?level=2", net: "off" });
+    const banners = new Set();
+    if (!await toPlay(w)) errs.push("never reached level 2");
+    else {
+      const h = await watchUntil(w, s => s.eagles.find(e => e.type === "hook" && e.x < 900), 1600, banners);
+      if (!h) errs.push("no hook appeared on level 2");
+      else {
+        w.state().player.y = 60;
+        await watchUntil(w, () => false, 40, banners);
+        if (!(h.vy < 0)) errs.push("hook did not steer toward the player (vy " + h.vy + ")");
+        const before = w.state().score;
+        h.life = 0.01;
+        await watchUntil(w, () => false, 4, banners);
+        const s1 = w.state();
+        if (s1.eagles.includes(h)) errs.push("hook did not give up when its life ran out");
+        if (!(s1.score >= before + 120)) errs.push("outflying the hook did not pay");
+        const h2 = await watchUntil(w, s => s.eagles.find(e => e.type === "hook" && e.x < 900), 1600, banners);
+        if (!h2) errs.push("second hook never came");
+        else {
+          const kills = w.state().killCount;
+          w.state().bullets.push({ x: h2.x, y: h2.y, r: 5 });
+          for (let i = 0; i < 5; i++){ w.step(16.7); await settle(1); }
+          if (!w.state().eagles.includes(h2)) errs.push("hook died to a single spark");
+          w.state().bullets.push({ x: h2.x, y: h2.y, r: 5 });
+          for (let i = 0; i < 5; i++){ w.step(16.7); await settle(1); }
+          if (w.state().eagles.includes(h2)) errs.push("hook survived two sparks");
+          if (w.state().killCount !== kills + 1) errs.push("turning back the hook did not count as a kill");
+        }
+      }
+      if (!banners.has("THE HOOK")) errs.push("hook explainer not shown: " + [...banners].join(" | "));
+    }
+  }
+  // arc sparks: holding fire fans a pair of angled sparks out every fifth shot
+  {
+    const w = makeWorld(64, { search: "?level=1", net: "off" });
+    if (!await toPlay(w)) errs.push("never reached level 1");
+    else {
+      w.key("keydown", " ");
+      const arc = await watchUntil(w, s => s.bullets.filter(b => b.vy).length >= 2, 120);
+      w.key("keyup", " ");
+      if (!arc) errs.push("holding fire never fanned sparks out");
+    }
+  }
+  // the opening: in phase 3 sparks land in full only while the Engine is open
+  {
+    const w = makeWorld(65, { search: "?level=5", net: "off" });
+    const banners = new Set();
+    if (!await toPlay(w)) errs.push("never reached level 5");
+    else {
+      const b = await watchUntil(w, s => s.boss && s.boss.entered && s.boss, 6000, banners);
+      if (!b) errs.push("boss never entered");
+      else {
+        b.hp = Math.floor(b.maxhp / 4) - 1;
+        const open = await watchUntil(w, s => s.boss && s.boss.phase === 3 && s.boss.open && s.boss.openT > 1.0, 400, banners);
+        if (!open) errs.push("the Engine never opened in phase 3");
+        else {
+          const hp0 = b.hp;
+          w.state().bullets.push({ x: b.x, y: b.y, r: 5 });
+          for (let i = 0; i < 3; i++){ w.step(16.7); await settle(1); }
+          const d1 = hp0 - b.hp;
+          if (Math.abs(d1 - 1) > 0.01) errs.push(`a spark during the opening took ${d1}, expected 1`);
+          const closed = await watchUntil(w, s => s.boss && !s.boss.open && s.boss.openT > 1.5, 400, banners);
+          if (!closed) errs.push("the Engine never closed again");
+          else {
+            const hp1 = b.hp;
+            w.state().bullets.push({ x: b.x, y: b.y, r: 5 });
+            for (let i = 0; i < 3; i++){ w.step(16.7); await settle(1); }
+            const d2 = hp1 - b.hp;
+            if (Math.abs(d2 - 0.35) > 0.01) errs.push(`a spark on the closed Engine took ${d2}, expected 0.35`);
+          }
+        }
+        if (!banners.has("THE ENGINE FALTERS")) errs.push("opening explainer not shown: " + [...banners].join(" | "));
+      }
+    }
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  seeds score on touch, the glimmer pays or vanishes and is named, the hook homes, gives up or dies to two sparks, sparks fan out, the Engine opens and closes");
 }
 
 console.log("saved progress: furthest level and best per level survive, and the title offers to continue");

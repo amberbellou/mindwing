@@ -303,6 +303,7 @@ const sfx = {
   hit: () => tone(150, 0.35, "sawtooth", 0.18, -80),
   burst: () => { tone(90, 0.5, "sawtooth", 0.2, -40); tone(1250, 0.45, "sine", 0.09, -600); },
   mote: () => tone(1320, 0.14, "sine", 0.11, 320),
+  seed: () => tone(1560, 0.05, "sine", 0.05, 220),
   card: () => tone(660, 0.09, "sine", 0.07, 120),
   bossHit: () => tone(220, 0.08, "square", 0.07, -60),
   win: () => { tone(523, 0.18, "sine", 0.12); setTimeout(()=>tone(659,0.18,"sine",0.12),140); setTimeout(()=>tone(784,0.3,"sine",0.12),280); }
@@ -428,11 +429,11 @@ const QUIZ = [
 const LEVELS = [
   { name:"Token Thicket", concept:"Tokens", ability:"calm", quota:8,  spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
     sky:["#141034","#3b2a6d","#8a4f8f"] },
-  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", quota:12, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
+  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", hook:2, quota:12, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
-  { name:"Retention Ridge", concept:"Retention Models", ability:"still", shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+  { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:2, shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
-  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", orbs:true, quota:14, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
+  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", hook:1, orbs:true, quota:14, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
     sky:["#0c2326","#2c5a57","#a4ae78"] },
   { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", drift:true, boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
@@ -532,6 +533,26 @@ const ORB_EVERY = 2.0, ORB_FAKE_SHARE = 0.55, ORB_SPEED = 58, ORB_REAL_POINTS = 
 const ORB_REAL = [ "2 sources agree", "From the textbook", "Page 12, checked", "Matches the study", "Quote verified" ];
 const ORB_FAKE = [ "100% certain!", "Everyone knows this!", "Studies prove it!", "Obviously true!", "Trust me!", "Definitely a fact!" ];
 let orbs = [], orbT = 0, orbTurn = 0;
+/* ---- small mechanics borrowed from Loopy (the fish-fairy side-scroller). None of them touch the lessons. ----
+   Grove seeds: tiny bites that drift across the sky in small orbiting clusters. Small score and a streak bonus,
+   so there is a reason to fly through the whole sky and not only shoot. */
+const SEED_EVERY = 3.6, SEED_CLUSTER = 3, SEED_POINTS = 10, SEED_STREAK = 10, SEED_STREAK_BONUS = 100, SEED_MAX = 18;
+let seeds = [], seedT = 0, seedStreak = 0;
+/* Glimmer: a bonus that shimmers in for a moment and is gone. It is a variable reward on purpose, and the game
+   names it the first time so the player can recognise the same trick in an app. */
+const GLIM_LIFE = 2.4, GLIM_POINTS = 150, GLIM_PER_LEVEL = 2;
+let glimmer = null, glimT = 0, glimCount = 0;
+/* The Hook: a homing shadow that follows Lumen. Slower than she is in a straight line but it turns well, so the
+   player can outfly it or turn and face it (two sparks). If it fails to catch her for HOOK_LIFE it gives up, and
+   outflying it pays. It lives in the eagles list so bursts, stillness, sparks and the aimbot all treat it as one. */
+const HOOK_SPEED = 215, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
+let hookT = 0, hookCount = 0;
+/* Arc sparks: every fifth spark while holding fire fans two extra sparks out. */
+const ARC_EVERY = 5, ARC_SPREAD = 0.26;
+let sparkStreak = 0;
+/* The opening: in its final phase the Engine pauses to reload for OPEN_TIME seconds every OPEN_CLOSED seconds.
+   Only then do sparks land in full; the rest of the time they mostly glance off. Timing beats spamming. */
+const OPEN_CLOSED = 3.2, OPEN_TIME = 1.5, OPEN_DAMAGE = 0.35;
 function spawnOrb(){
   const real = Math.random() >= ORB_FAKE_SHARE;
   const pool = real ? ORB_REAL : ORB_FAKE;
@@ -917,13 +938,14 @@ function beginLevel(i){
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
   driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; orbs = []; orbT = 1.6;
+  seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; sparkStreak = 0;
   levelStartScore = score;
   hitBlink = false;
   levelStartAt = performance.now();
   api.track("level_start", i + 1); api.flush();
   if (i > progress.furthest){ progress.furthest = i; saveProgress(); }
   const bossHp = Math.round(55 * DIFF.bossHp);
-  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false, phase:1, spin:0 } : null;
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false, phase:1, spin:0, open:false, openT:0 } : null;
   const abIntro = abilityOf(i) === "still"
     ? "Still Point (X): the sky freezes, nothing dies"
     : "Clarity Burst (X): clears the sky, then a breath of calm";
@@ -933,7 +955,7 @@ function beginLevel(i){
 function levelCleared(){
   state = "clear"; clearT = 1.6;
   for (const e of eagles) burstParticles(e.x, e.y, "#ffd166", 12);
-  eagles = []; fires = [];
+  eagles = []; fires = []; glimmer = null;
   const untouched = !tookDamage;
   if (untouched) award(500);
   api.track("level_clear", level + 1, Math.round(performance.now() - levelStartAt), score);
@@ -1085,6 +1107,10 @@ function shoot(){
   bullets.push({ x:player.x + 18, y:player.y, r:5 });
   sfx.shoot();
 }
+/* every fifth spark while holding fire fans two extra sparks out, so holding the button has a rhythm */
+function shootArc(){
+  for (const off of [-ARC_SPREAD, ARC_SPREAD]) bullets.push({ x:player.x + 18, y:player.y, r:4, vx:Math.cos(off)*560, vy:Math.sin(off)*560 });
+}
 function tryBurst(){
   if (bursts <= 0 || state !== "play") return;
   const still = abilityOf(level) === "still";
@@ -1134,6 +1160,23 @@ function spawnEagle(){
   if (type === "swooper"){ e.vx *= 1.1; e.swoopCd = rand(1.0, 2.0); e.swooping = 0; e.targetY = e.y; }
   e.baseY = e.y;
   eagles.push(e);
+}
+function spawnHook(){
+  const e = { type:"hook", x: W + 40, y: clamp(player.y + rand(-140, 140), 60, H - 90), r: 17, baseY: 0, t: 0,
+    vx: -HOOK_SPEED * DIFF.shotSpeed, vy: 0, fireT: 1e9, glow: 0, flap: rand(0, 6.28), pts: 140, hp: HOOK_HP, hurt: 0,
+    life: HOOK_LIFE, trail: [] };
+  e.baseY = e.y;
+  eagles.push(e); hookCount++;
+  introOnce("hook", "THE HOOK", "It follows you. Outfly it, or turn and face it. Both are choices.");
+}
+function spawnSeedCluster(){
+  const bx = W + 30, by = rand(90, H - 90), vx = -rand(38, 52), wob = rand(0, 6.28);
+  for (let k=0;k<SEED_CLUSTER;k++) seeds.push({ bx, by, vx, wob, a: k/SEED_CLUSTER*6.28 + rand(-0.2, 0.2), r: rand(16, 28), w: rand(1.2, 2.0), t: 0, x: bx, y: by });
+}
+function spawnGlimmer(){
+  glimmer = { x: rand(220, W - 140), y: rand(90, H - 90), t: 0 };
+  glimCount++;
+  introOnce("glimmer", "VARIABLE REWARD", "It appears, it vanishes. That flicker is designed to make you chase.");
 }
 function eagleFire(e){
   const cfg = LEVELS[level];
@@ -1203,7 +1246,7 @@ function update(dt){
   if (state === "clear"){
     clearT -= dt;
     for (let i=fires.length-1;i>=0;i--){ fires[i].x += fires[i].vx*dt; fires[i].y += fires[i].vy*dt; }
-    for (let i=bullets.length-1;i>=0;i--){ bullets[i].x += 560*dt; if (bullets[i].x > W + 20) bullets.splice(i,1); }
+    for (let i=bullets.length-1;i>=0;i--){ const b = bullets[i]; b.x += (b.vx || 560)*dt; b.y += (b.vy || 0)*dt; if (b.x > W + 20 || b.y < -20 || b.y > H + 20) bullets.splice(i,1); }
     if (clearT <= 0){ state = "postclear"; afterClear(); }
     return;
   }
@@ -1240,10 +1283,16 @@ function update(dt){
 
   /* shooting */
   player.cool -= dt;
-  if ((keys[" "] || touchActive) && player.cool <= 0){ shoot(); player.cool = 0.16; }
+  const firing = keys[" "] || touchActive;
+  if (firing && player.cool <= 0){
+    shoot(); player.cool = 0.16;
+    sparkStreak++;
+    if (sparkStreak % ARC_EVERY === 0) shootArc();
+  } else if (!firing) sparkStreak = 0;
   for (let i=bullets.length-1;i>=0;i--){
-    bullets[i].x += 560*dt;
-    if (bullets[i].x > W + 20) bullets.splice(i,1);
+    const b = bullets[i];
+    b.x += (b.vx || 560)*dt; b.y += (b.vy || 0)*dt;
+    if (b.x > W + 20 || b.y < -20 || b.y > H + 20) bullets.splice(i,1);
   }
 
   /* spawning */
@@ -1252,6 +1301,11 @@ function update(dt){
   if (spawnT <= 0 && !stilled && calmT <= 0 && wantMore && (!boss || boss.entered)){
     spawnEagle();
     spawnT = cfg.spawnEvery * DIFF.spawnGap * rand(0.7, 1.25);
+  }
+  /* the hook: one at a time, only on the levels that carry it */
+  if (cfg.hook && !stilled && calmT <= 0 && hookCount < cfg.hook && !eagles.some(e => e.type === "hook")){
+    hookT -= dt;
+    if (hookT <= 0){ spawnHook(); hookT = rand(9, 14); }
   }
 
   /* eagles */
@@ -1264,6 +1318,27 @@ function update(dt){
       else if (e.type === "zigzag") e.y = e.baseY + Math.sin(e.t*3.4)*70;
       else if (e.type === "diver") e.y += clamp(player.y - e.y, -95, 95)*dt;
       else if (e.type === "armored") e.y = e.baseY + Math.sin(e.t*1.1)*16;
+      else if (e.type === "hook"){
+        /* homing with a limited turn: a straight line outruns it, a tight turn slips it */
+        const want = Math.atan2(player.y - e.y, player.x - e.x), have = Math.atan2(e.vy, e.vx);
+        let diff = want - have;
+        while (diff > Math.PI) diff -= 2*Math.PI;
+        while (diff < -Math.PI) diff += 2*Math.PI;
+        const turn = clamp(diff, -HOOK_TURN*DIFF.turn*dt, HOOK_TURN*DIFF.turn*dt);
+        const sp = HOOK_SPEED * DIFF.shotSpeed;
+        e.vx = Math.cos(have + turn)*sp; e.vy = Math.sin(have + turn)*sp;
+        e.y += e.vy*dt;
+        e.x = clamp(e.x, 30, W + 60);
+        e.trail.push({ x:e.x, y:e.y }); if (e.trail.length > 14) e.trail.shift();
+        e.life -= dt;
+        if (e.life <= 0){
+          award(HOOK_ESCAPE_POINTS); sfx.mote();
+          pop(e.x, e.y - 18, "outflown +" + Math.round(HOOK_ESCAPE_POINTS * DIFF.score), "#9fe7ff");
+          burstParticles(e.x, e.y, "#8a6ad8", 14);
+          if (!banner) banner = { text:"", sub:"It gave up. You chose your line.", t:0, max:1.2 };
+          eagles.splice(i,1); continue;
+        }
+      }
       else if (e.type === "swooper"){
         if (e.swooping > 0){
           e.swooping -= dt;
@@ -1300,7 +1375,7 @@ function update(dt){
       boss.y = H/2 + Math.sin(boss.t*0.85) * 155;
       if (boss.phase < 3 && boss.hp <= boss.maxhp/4){
         /* phase 3: the feed goes endless, spiral volleys, more eagles */
-        boss.phase = 3; boss.enraged = true;
+        boss.phase = 3; boss.enraged = true; boss.open = false; boss.openT = 1.0;
         hitStop = Math.max(hitStop, 0.2); kick(8, 0.4); sfx.phase();
         banner = { text:"THE FEED NEVER ENDS", sub:"It is almost empty. Stay on purpose.", t:0, max:2.2 };
       }
@@ -1309,7 +1384,17 @@ function update(dt){
         hitStop = Math.max(hitStop, 0.15); kick(6, 0.3); sfx.phase();
         banner = { text:"THE ENGINE OVERCLOCKS", sub:"Endless feed! Stay on target.", t:0, max:2 };
       }
-      boss.fireT -= dt;
+      if (boss.phase === 3){
+        /* the opening: a short pause when the Engine stops firing and takes full damage */
+        boss.openT -= dt;
+        if (boss.open && boss.openT <= 0){ boss.open = false; boss.openT = OPEN_CLOSED; }
+        else if (!boss.open && boss.openT <= 0){
+          boss.open = true; boss.openT = OPEN_TIME; sfx.card();
+          introOnce("opening", "THE ENGINE FALTERS", "It pauses to reload. Aim for the pause. Spam is not the same as aim.", 2.4);
+          if (!banner) banner = { text:"", sub:"An opening. Now.", t:0, max:0.9 };
+        }
+      }
+      if (!boss.open) boss.fireT -= dt;
       if (boss.fireT <= 0 && boss.phase === 3 && boss.volley % 2 === 1){
         /* spiral: a turning ring with a gap the player can fly through */
         boss.volley++; boss.spin += 0.45;
@@ -1422,8 +1507,10 @@ function update(dt){
       }
     }
     if (!hit && boss && boss.entered && dist2(b.x,b.y,boss.x,boss.y) < (b.r+boss.r)*(b.r+boss.r)){
-      boss.hp--; boss.hurt = 0.15; sfx.bossHit();
-      burstParticles(b.x, b.y, "#ffd166", 4);
+      const closed = boss.phase === 3 && !boss.open;
+      boss.hp -= closed ? OPEN_DAMAGE : 1; boss.hurt = closed ? 0.06 : 0.15;
+      if (closed){ sfx.clank(); burstParticles(b.x, b.y, "#dcdcf0", 3); }
+      else { sfx.bossHit(); burstParticles(b.x, b.y, "#ffd166", 4); }
       hit = true;
       if (boss.hp <= 0){ killBoss(); return; }
     }
@@ -1453,6 +1540,46 @@ function update(dt){
       bursts = Math.min(Math.max(4, DIFF.bursts), bursts + 1);
       award(50); sfx.mote(); pop(m.x, m.y - 14, "+1 ✦", "#c9a7ff");
       burstParticles(player.x, player.y, "#c9a7ff", 10);
+    }
+  }
+
+  /* grove seeds */
+  seedT -= dt;
+  if (seedT <= 0 && seeds.length < SEED_MAX){ spawnSeedCluster(); seedT = SEED_EVERY * rand(0.8, 1.3); }
+  const wr = reducedMotion() ? 0.5 : 1;
+  for (let i=seeds.length-1;i>=0;i--){
+    const s = seeds[i];
+    s.t += dt; s.bx += s.vx*dt; s.a += s.w*wr*dt;
+    s.x = s.bx + Math.cos(s.a)*s.r; s.y = s.by + Math.sin(s.wob + s.t*0.9)*10 + Math.sin(s.a)*s.r*0.8;
+    if (s.x < -30){ seeds.splice(i,1); continue; }
+    if (dist2(s.x,s.y,player.x,player.y) < 22*22){
+      seeds.splice(i,1); seedStreak++; award(SEED_POINTS); sfx.seed();
+      burstParticles(s.x, s.y, "#b8f5a3", 3);
+      if (seedStreak % SEED_STREAK === 0){
+        award(SEED_STREAK_BONUS); sfx.mote();
+        pop(player.x, player.y - 30, `${seedStreak} seeds! +${Math.round(SEED_STREAK_BONUS * DIFF.score)}`, "#b8f5a3");
+        burstParticles(player.x, player.y, "#b8f5a3", 12);
+      }
+    }
+  }
+
+  /* glimmer */
+  if (!stilled){
+    glimT -= dt;
+    if (glimT <= 0 && !glimmer && glimCount < GLIM_PER_LEVEL && calmT <= 0){ spawnGlimmer(); glimT = rand(11, 17); }
+  }
+  if (glimmer){
+    glimmer.t += dt;
+    if (dist2(glimmer.x,glimmer.y,player.x,player.y) < 30*30){
+      award(GLIM_POINTS); sfx.mote();
+      pop(glimmer.x, glimmer.y - 22, "glimmer +" + Math.round(GLIM_POINTS * DIFF.score), "#ffe9a8");
+      burstParticles(glimmer.x, glimmer.y, "#ffd166", 18);
+      for (let k=0;k<5;k++) seeds.push({ bx:glimmer.x, by:glimmer.y, vx:-18, wob:rand(0,6.28), a:k/5*6.28, r:rand(16,26), w:rand(1.2,2), t:0, x:glimmer.x, y:glimmer.y });
+      glimmer = null;
+    } else if (glimmer.t >= GLIM_LIFE){
+      pop(glimmer.x, glimmer.y - 10, "gone", "#b9aee0");
+      burstParticles(glimmer.x, glimmer.y, "#ffe9a8", 6);
+      glimmer = null;
     }
   }
 }
@@ -1579,6 +1706,19 @@ function drawBoss(){
   const auraCol = b.phase === 3 ? "255,40,120" : b.phase === 2 ? "255,60,30" : "255,80,30";
   aura.addColorStop(0,`rgba(${auraCol},${b.phase === 3 ? 0.5 : 0.35})`); aura.addColorStop(1,`rgba(${auraCol},0)`);
   ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(0,0,95,0,6.28); ctx.fill();
+  if (b.phase === 3){
+    if (b.open){
+      /* the opening: a bright steady ring, the one moment sparks land in full */
+      const k = Math.min(1, b.openT / 0.3);
+      ctx.strokeStyle = `rgba(200,245,255,${0.55 + 0.35*k})`; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(14, 0, 64, 0, 6.28); ctx.stroke();
+      ctx.fillStyle = "rgba(230,250,255,0.18)"; ctx.beginPath(); ctx.arc(14, 0, 60, 0, 6.28); ctx.fill();
+    } else {
+      /* closed: a dim plated shell, sparks mostly glance off */
+      ctx.setLineDash([6, 6]); ctx.strokeStyle = highContrast() ? "#ffffff" : "rgba(180,180,200,0.45)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(14, 0, 62, 0, 6.28); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
   /* wings (metal) */
   ctx.fillStyle = hurt ? "#c8c8d8" : "#5a5a6e";
   ctx.beginPath(); ctx.moveTo(8,-6); ctx.lineTo(62, -44 - f*18); ctx.lineTo(74, -8); ctx.closePath(); ctx.fill();
@@ -1587,7 +1727,7 @@ function drawBoss(){
   ctx.fillStyle = hurt ? "#e0e0ea" : "#3c3c4c";
   ctx.beginPath(); ctx.ellipse(14, 0, 48, 30, 0, 0, 6.28); ctx.fill();
   /* glowing core */
-  ctx.fillStyle = "#ff5a3c";
+  ctx.fillStyle = b.open ? "#ffffff" : "#ff5a3c";
   ctx.beginPath(); ctx.arc(16, 2, 10 + Math.sin(b.t*4)*2, 0, 6.28); ctx.fill();
   ctx.fillStyle = "#ffd166";
   ctx.beginPath(); ctx.arc(16, 2, 4.5, 0, 6.28); ctx.fill();
@@ -1711,6 +1851,61 @@ function drawMote(m){
   ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(3,0); ctx.lineTo(0,4); ctx.lineTo(-3,0); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
+function drawSeed(s){
+  ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
+  const g = ctx.createRadialGradient(0,0,1,0,0,10);
+  g.addColorStop(0,"rgba(184,245,163,0.55)"); g.addColorStop(1,"rgba(184,245,163,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,10,0,6.28); ctx.fill();
+  ctx.fillStyle = "#d8f7c2";
+  ctx.beginPath(); ctx.ellipse(0,0,5,3,0,0,6.28); ctx.fill();
+  ctx.fillStyle = "#6fae52";
+  ctx.beginPath(); ctx.ellipse(1.5,0,2.2,1.2,0,0,6.28); ctx.fill();
+  if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(0,0,5,3,0,0,6.28); ctx.stroke(); }
+  ctx.restore();
+}
+function drawGlimmer(g){
+  ctx.save(); ctx.translate(g.x, g.y);
+  const left = Math.max(0, (GLIM_LIFE - g.t) / GLIM_LIFE);
+  /* a slow shimmer, about one cycle per second, never a fast flicker */
+  const sh = reducedMotion() ? 0.9 : 0.6 + 0.4*Math.sin(g.t*6.28);
+  ctx.globalAlpha = sh * Math.min(1, left * 4);
+  const rg = ctx.createRadialGradient(0,0,2,0,0,30);
+  rg.addColorStop(0,"rgba(255,233,168,0.8)"); rg.addColorStop(1,"rgba(255,233,168,0)");
+  ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(0,0,30,0,6.28); ctx.fill();
+  ctx.fillStyle = "#fff3c4";
+  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(4,-4); ctx.lineTo(12,0); ctx.lineTo(4,4); ctx.lineTo(0,12); ctx.lineTo(-4,4); ctx.lineTo(-12,0); ctx.lineTo(-4,-4); ctx.closePath(); ctx.fill();
+  /* the ring shrinks with the time left, so the deadline is visible without a number */
+  ctx.globalAlpha = Math.min(1, left * 4);
+  ctx.strokeStyle = highContrast() ? "#ffffff" : "rgba(255,233,168,0.7)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0,0, 8 + 20*left, 0, 6.28); ctx.stroke();
+  ctx.restore();
+}
+function drawHook(e){
+  ctx.save();
+  const n = e.trail.length;
+  for (let k=0;k<n;k++){
+    const p = e.trail[k], q = (k+1)/n;
+    ctx.globalAlpha = 0.25*q; ctx.fillStyle = "#6b4aa8";
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3 + 9*q, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(e.vy, e.vx));
+  const g = ctx.createRadialGradient(0,0,4,0,0,34);
+  g.addColorStop(0,"rgba(157,123,255,0.45)"); g.addColorStop(1,"rgba(157,123,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,34,0,6.28); ctx.fill();
+  /* body: a dark teardrop, the point leads */
+  ctx.fillStyle = e.hurt > 0 ? "#ffffff" : "#2a1b4d";
+  ctx.beginPath(); ctx.moveTo(18,0); ctx.quadraticCurveTo(4,-13,-14,-6); ctx.quadraticCurveTo(-22,0,-14,6); ctx.quadraticCurveTo(4,13,18,0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = highContrast() ? "#ffffff" : "#9d7bff"; ctx.lineWidth = highContrast() ? 2.5 : 1.5; ctx.stroke();
+  /* the hook itself: a curl at the tail */
+  ctx.strokeStyle = "#c9a7ff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(-18, 0, 6, -1.2, 2.6); ctx.stroke();
+  /* one red notification eye */
+  ctx.fillStyle = "#ff2f4f";
+  ctx.beginPath(); ctx.arc(8, 0, 3.6, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(9, -1, 1.2, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
 function drawHUD(){
   const cfg = LEVELS[level];
   const k = hudScale(), hc = highContrast();
@@ -1809,15 +2004,18 @@ function draw(){
   if (shake > 0) ctx.translate(rand(-shake,shake), rand(-shake,shake));
   drawBackground();
   if (highContrast()){ ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-20,-20,W+40,H+40); }
+  for (const s of seeds) drawSeed(s);
   for (const m of motes) drawMote(m);
   for (const o of orbs) drawOrb(o);
-  for (const e of eagles) drawEagle(e);
+  if (glimmer) drawGlimmer(glimmer);
+  for (const e of eagles) (e.type === "hook" ? drawHook(e) : drawEagle(e));
   if (boss) drawBoss();
   for (const f of fires) drawFire(f);
   /* bullets */
   for (const b of bullets){
+    const ang = b.vy ? Math.atan2(b.vy, b.vx) : 0;
     ctx.fillStyle = "rgba(150,230,255,0.35)";
-    ctx.beginPath(); ctx.ellipse(b.x-8, b.y, 12, 3.5, 0, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(b.x - 8*Math.cos(ang), b.y - 8*Math.sin(ang), 12, 3.5, ang, 0, 6.28); ctx.fill();
     ctx.fillStyle = "#eafcff";
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.28); ctx.fill();
   }
