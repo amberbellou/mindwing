@@ -1005,7 +1005,7 @@ console.log("serpent: it chases on level 3, coils when its head crosses its tail
         if (c < 2){
           if (!w.state().eagles.includes(s)) errs.push(`serpent bit itself after only ${c + 1} crossing(s)`);
           if (s.coils !== c + 1) errs.push(`expected ${c + 1} coil(s) after crossing ${c + 1}, saw ${s.coils}`);
-          await watchUntil(w, () => false, 60, banners);   // wait out the coil cooldown
+          await watchUntil(w, () => false, 75, banners);   // wait out the coil cooldown (1.1 s)
         }
       }
       const st = w.state();
@@ -1016,18 +1016,19 @@ console.log("serpent: it chases on level 3, coils when its head crosses its tail
       const s2 = await watchUntil(w, st2 => st2.eagles.find(e => e.type === "serpent" && e.x < 900), 1500, banners);
       if (!s2) errs.push("second serpent never came");
       else {
-        for (let n = 0; n < 3; n++){
+        s2.coils = 0; s2.coilAge = 0;   // a fresh count, so a natural crossing during the spark test cannot end it early
+        for (let n = 0; n < 7; n++){
           w.state().bullets.push({ x: s2.x, y: s2.y, r: 5 });
           for (let i = 0; i < 5; i++){ w.step(16.7); await settle(1); }
-          if (n < 2 && !w.state().eagles.includes(s2)) errs.push(`serpent died to ${n + 1} spark(s)`);
+          if (n < 6 && !w.state().eagles.includes(s2)) errs.push(`serpent died to ${n + 1} spark(s)`);
         }
-        if (w.state().eagles.includes(s2)) errs.push("serpent survived three sparks");
+        if (w.state().eagles.includes(s2)) errs.push("serpent survived seven sparks");
       }
     }
     if (!banners.has("THE SERPENT")) errs.push("serpent explainer not shown: " + [...banners].join(" | "));
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
-  else console.log("  serpent appears with its explainer, grows a tail, swallows itself when led into it, and falls to three sparks");
+  else console.log("  serpent appears with its explainer, grows a tail, swallows itself when led into it, and falls to seven sparks");
 }
 
 console.log("saved progress: furthest level and best per level survive, and the title offers to continue");
