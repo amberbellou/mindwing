@@ -32,10 +32,10 @@ The game is built around the idea that a message lands best when it arrives at a
 
 - **Start of the game**: a short story frame, the controls, and Lesson 1.
 - **Between levels**: one focused lesson card per concept, each ending in a practical "Field note" the player can use the same day.
-- **Quick checks**: two multiple-choice questions right after each lesson (eight in total). A right answer earns +100 focus, a wrong one costs nothing and shows the correct answer with a one-line explanation, so the check teaches rather than punishes.
+- **Quick checks**: two multiple-choice questions right after each lesson (ten in total). A right answer earns +100 focus, a wrong one costs nothing and shows the correct answer with a one-line explanation, so the check teaches rather than punishes.
 - **When you get hit**: the game pauses on a one-sentence "spark of insight". A hit from flattery explains sycophancy ("Flattered!"), a hit while the fake fires are flying explains drift ("Distracted!"), and any other hit rotates through ten general facts. The first time flattery or fakes appear in a level, a short banner names the idea ("SYCOPHANCY", "COGNITIVE DRIFT"). Getting hit is the moment a player is most likely to actually read, and the short pause doubles as a breather.
 - **Game over**: an encouraging retry screen that repeats one insight, so even losing teaches something.
-- **When you win**: a recap "field guide" that consolidates all four concepts into four sentences, then the global leaderboard and the "Grove statistics" card showing what everyone who has played is learning.
+- **When you win**: a recap "field guide" that consolidates all five concepts into five sentences, then the global leaderboard and the "Grove statistics" card showing what everyone who has played is learning.
 
 The pause screen itself asks a small reflective question about whether the break was chosen on purpose, which is the game's central theme in miniature.
 
@@ -47,9 +47,9 @@ Language is pitched for roughly ages 11 and up. It avoids jargon where possible 
 |---|---|
 | Arrow keys / WASD | Fly |
 | SPACE (tap or hold) | Shoot sparks |
-| Double-tap SPACE (or X) | Your clarity move (limited charges, shown as ✦). It differs by level: **levels 1-2, Clarity Burst** clears every eagle and fireball on screen and then holds the sky empty for about 1.5 seconds; **levels 3-4, Still Point** destroys nothing but freezes every eagle and fireball where it hangs for about 1.6 seconds while you fly through the gap |
+| Double-tap SPACE (or X) | Your clarity move (limited charges, shown as ✦). It differs by level: **levels 1-2, Clarity Burst** clears every eagle and fireball on screen and then holds the sky empty for about 1.5 seconds; **levels 3-5, Still Point** destroys nothing but freezes every eagle and fireball where it hangs for about 1.6 seconds while you fly through the gap |
 | Touch: drag | Fly (auto-fires while touching) |
-| Touch: double-tap | Clarity Burst |
+| Touch: double-tap | Your clarity move (Clarity Burst or Still Point, by level) |
 | P or Esc | Pause |
 | M | Mute |
 | 1, 2, 3 | Answer a quick-check question |
