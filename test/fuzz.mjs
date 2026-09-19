@@ -983,6 +983,53 @@ console.log("loopy: seeds are eaten, the glimmer names itself, the hook chases a
   else console.log("  seeds score on touch, the glimmer pays or vanishes and is named, the hook homes, gives up or dies to two sparks, sparks fan out, the Engine opens and closes");
 }
 
+console.log("serpent: it chases on level 3, coils when its head crosses its tail, and swallows itself on the third crossing");
+{
+  const errs = [];
+  const w = makeWorld(66, { search: "?level=3", net: "off" });
+  const banners = new Set();
+  if (!await toPlay(w)) errs.push("never reached level 3");
+  else {
+    const s = await watchUntil(w, st => st.eagles.find(e => e.type === "serpent" && e.x < 900), 1500, banners);
+    if (!s) errs.push("no serpent appeared on level 3");
+    else {
+      await watchUntil(w, () => false, 110, banners);   // let it arm and grow a full tail
+      if (!(s.hist.length >= 7 * 6)) errs.push("serpent tail history too short: " + s.hist.length);
+      if (!(s.armT <= 0)) errs.push("serpent never armed");
+      const before = w.state().score, kills = w.state().killCount;
+      // three crossings of its own tail are needed: the first two coil it, the third is the bite
+      for (let c = 0; c < 3; c++){
+        const q = s.hist[Math.min(s.hist.length - 1, 5 * 6)];
+        s.x = q.x; s.y = q.y;
+        await watchUntil(w, () => false, 3, banners);
+        if (c < 2){
+          if (!w.state().eagles.includes(s)) errs.push(`serpent bit itself after only ${c + 1} crossing(s)`);
+          if (s.coils !== c + 1) errs.push(`expected ${c + 1} coil(s) after crossing ${c + 1}, saw ${s.coils}`);
+          await watchUntil(w, () => false, 60, banners);   // wait out the coil cooldown
+        }
+      }
+      const st = w.state();
+      if (st.eagles.includes(s)) errs.push("serpent did not bite its own tail on the third crossing");
+      if (!(st.score >= before + 200)) errs.push("tail bite did not pay");
+      if (st.killCount !== kills + 1) errs.push("tail bite did not count as turning it back");
+      // a second serpent dies to three sparks
+      const s2 = await watchUntil(w, st2 => st2.eagles.find(e => e.type === "serpent" && e.x < 900), 1500, banners);
+      if (!s2) errs.push("second serpent never came");
+      else {
+        for (let n = 0; n < 3; n++){
+          w.state().bullets.push({ x: s2.x, y: s2.y, r: 5 });
+          for (let i = 0; i < 5; i++){ w.step(16.7); await settle(1); }
+          if (n < 2 && !w.state().eagles.includes(s2)) errs.push(`serpent died to ${n + 1} spark(s)`);
+        }
+        if (w.state().eagles.includes(s2)) errs.push("serpent survived three sparks");
+      }
+    }
+    if (!banners.has("THE SERPENT")) errs.push("serpent explainer not shown: " + [...banners].join(" | "));
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  serpent appears with its explainer, grows a tail, swallows itself when led into it, and falls to three sparks");
+}
+
 console.log("saved progress: furthest level and best per level survive, and the title offers to continue");
 {
   const errs = [];

@@ -431,9 +431,9 @@ const LEVELS = [
     sky:["#141034","#3b2a6d","#8a4f8f"] },
   { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", hook:2, quota:12, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
-  { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:2, shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+  { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:1, serpent:2, shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
-  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", hook:1, orbs:true, quota:14, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
+  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", hook:1, serpent:1, orbs:true, quota:14, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
     sky:["#0c2326","#2c5a57","#a4ae78"] },
   { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", drift:true, boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
@@ -547,6 +547,11 @@ let glimmer = null, glimT = 0, glimCount = 0;
    outflying it pays. It lives in the eagles list so bursts, stillness, sparks and the aimbot all treat it as one. */
 const HOOK_SPEED = 215, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
 let hookT = 0, hookCount = 0;
+/* The Serpent: a snake that follows Lumen with a slow, swaying turn and a trailing body. Three sparks to the head
+   bring it down, but the elegant answer is to lead it in a tight circle until its head crosses its own tail: then it
+   swallows itself. A loop that feeds on its own output is the picture the game wants for feeds and drift. */
+const SERP_SPEED = 170, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 3, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 0.9, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
+let serpT = 0, serpentCount = 0;
 /* Arc sparks: every fifth spark while holding fire fans two extra sparks out. */
 const ARC_EVERY = 5, ARC_SPREAD = 0.26;
 let sparkStreak = 0;
@@ -938,7 +943,7 @@ function beginLevel(i){
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
   driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; orbs = []; orbT = 1.6;
-  seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; sparkStreak = 0;
+  seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; serpT = rand(6, 9); serpentCount = 0; sparkStreak = 0;
   levelStartScore = score;
   hitBlink = false;
   levelStartAt = performance.now();
@@ -1161,6 +1166,26 @@ function spawnEagle(){
   e.baseY = e.y;
   eagles.push(e);
 }
+function spawnSerpent(){
+  const cfg = LEVELS[level];
+  const e = { type:"serpent", x: W + 50, y: clamp(player.y + rand(-100, 100), 70, H - 90), r: 16, baseY: 0, t: 0,
+    vx: -SERP_SPEED * DIFF.shotSpeed, vy: 0, fireT: rand(cfg.fireMin, cfg.fireMax) * 1.6 * DIFF.fireGap, glow: 0, flap: rand(0, 6.28),
+    pts: 180, hp: SERP_HP, hurt: 0, hist: [], armT: SERP_ARM, coils: 0, coilT: 0, coilAge: 0 };
+  e.baseY = e.y;
+  eagles.push(e); serpentCount++;
+  introOnce("serpent", "THE SERPENT", "It follows your every move. Lead it in a circle and it bites its own tail.");
+}
+/* the serpent's head crossed its own tail: it swallows itself, and that counts as turning it back */
+function serpentBite(i, e){
+  award(SERP_BITE_POINTS); killCount++;
+  pop(e.x, e.y - 20, "bit its own tail +" + Math.round(SERP_BITE_POINTS * DIFF.score), "#8ef0b0");
+  for (let k=0;k<SERP_SEGS;k++){ const q = e.hist[Math.min(e.hist.length - 1, (k + 1) * SERP_GAP)]; if (q) burstParticles(q.x, q.y, "#4fbf86", 4); }
+  burstParticles(e.x, e.y, "#8ef0b0", 16);
+  hitStop = Math.max(hitStop, 0.05); sfx.eagleDown();
+  if (!banner) banner = { text:"", sub:"It swallowed its own tail. Loops feed on themselves.", t:0, max:1.6 };
+  eagles.splice(i, 1);
+  if (!boss && killCount >= quota) levelCleared();
+}
 function spawnHook(){
   const e = { type:"hook", x: W + 40, y: clamp(player.y + rand(-140, 140), 60, H - 90), r: 17, baseY: 0, t: 0,
     vx: -HOOK_SPEED * DIFF.shotSpeed, vy: 0, fireT: 1e9, glow: 0, flap: rand(0, 6.28), pts: 140, hp: HOOK_HP, hurt: 0,
@@ -1307,6 +1332,11 @@ function update(dt){
     hookT -= dt;
     if (hookT <= 0){ spawnHook(); hookT = rand(9, 14); }
   }
+  /* the serpent: one at a time, only on the levels that carry it */
+  if (cfg.serpent && !stilled && calmT <= 0 && serpentCount < cfg.serpent && !eagles.some(e => e.type === "serpent")){
+    serpT -= dt;
+    if (serpT <= 0){ spawnSerpent(); serpT = rand(8, 12); }
+  }
 
   /* eagles */
   for (let i=eagles.length-1;i>=0;i--){
@@ -1318,6 +1348,32 @@ function update(dt){
       else if (e.type === "zigzag") e.y = e.baseY + Math.sin(e.t*3.4)*70;
       else if (e.type === "diver") e.y += clamp(player.y - e.y, -95, 95)*dt;
       else if (e.type === "armored") e.y = e.baseY + Math.sin(e.t*1.1)*16;
+      else if (e.type === "serpent"){
+        /* a swaying chase with a slow turn, so a tight circle brings the head across the tail */
+        const want = Math.atan2(player.y - e.y, player.x - e.x) + Math.sin(tGlobal*3 + e.x*0.01)*0.25;
+        const sp = SERP_SPEED * DIFF.shotSpeed;
+        const k = 1 - Math.exp(-dt * SERP_TURN * DIFF.turn);
+        e.vx += (Math.cos(want)*sp - e.vx)*k; e.vy += (Math.sin(want)*sp - e.vy)*k;
+        e.y += e.vy*dt;
+        e.x = clamp(e.x, 30, W + 60);
+        e.hist.unshift({ x:e.x, y:e.y }); if (e.hist.length > SERP_SEGS*SERP_GAP + 4) e.hist.pop();
+        e.armT -= dt; e.coilT -= dt;
+        if (e.coils > 0){ e.coilAge += dt; if (e.coilAge > SERP_COIL_FADE){ e.coils = 0; e.coilAge = 0; } }   // coils unwind if the player stops
+        if (e.armT <= 0 && e.coilT <= 0){
+          let cross = false;
+          for (let k2=SERP_BITE_FROM;k2<SERP_SEGS && !cross;k2++){
+            const q = e.hist[Math.min(e.hist.length - 1, (k2 + 1) * SERP_GAP)];
+            if (q && dist2(e.x, e.y, q.x, q.y) < 16*16) cross = true;
+          }
+          if (cross){
+            /* each crossing of its own tail is one coil; the third one is the bite */
+            e.coils++; e.coilT = SERP_COIL_GAP; e.coilAge = 0;
+            if (e.coils >= SERP_COILS){ serpentBite(i, e); if (state !== "play") return; continue; }
+            pop(e.x, e.y - 20, `coiling ${e.coils}/${SERP_COILS}`, "#8ef0b0");
+            burstParticles(e.x, e.y, "#4fbf86", 6); sfx.clank();
+          }
+        }
+      }
       else if (e.type === "hook"){
         /* homing with a limited turn: a straight line outruns it, a tight turn slips it */
         const want = Math.atan2(player.y - e.y, player.x - e.x), have = Math.atan2(e.vy, e.vx);
@@ -1880,6 +1936,37 @@ function drawGlimmer(g){
   ctx.beginPath(); ctx.arc(0,0, 8 + 20*left, 0, 6.28); ctx.stroke();
   ctx.restore();
 }
+function drawSerpent(e){
+  ctx.save();
+  const armed = e.armT <= 0;
+  for (let k=SERP_SEGS-1;k>=0;k--){
+    const q = e.hist[Math.min(e.hist.length - 1, (k + 1) * SERP_GAP)];
+    if (!q) continue;
+    const r = 5 + 6 * (1 - k/SERP_SEGS);
+    ctx.globalAlpha = 0.95 - k*0.08;
+    ctx.fillStyle = k % 2 ? "#2f7a5a" : "#3f9a6e";
+    ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 6.28); ctx.fill();
+    if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.stroke(); }
+    /* the part of the tail the head can bite is ringed once the serpent is armed */
+    if (armed && k >= SERP_BITE_FROM){ ctx.strokeStyle = "rgba(255,209,102,0.6)"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(q.x, q.y, r + 2, 0, 6.28); ctx.stroke(); }
+  }
+  ctx.globalAlpha = 1;
+  /* coil progress: one gold dot per crossing so far */
+  for (let c=0;c<e.coils;c++){ ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(e.x - 8 + c*8, e.y - 24, 3, 0, 6.28); ctx.fill(); }
+  ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(e.vy, e.vx));
+  ctx.fillStyle = e.hurt > 0 ? "#ffffff" : "#4fbf86";
+  ctx.beginPath(); ctx.moveTo(16,0); ctx.quadraticCurveTo(6,-11,-10,-8); ctx.lineTo(-10,8); ctx.quadraticCurveTo(6,11,16,0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = highContrast() ? "#ffffff" : "#1f5a3c"; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath(); ctx.arc(4,-4,2.2,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(4,4,2.2,0,6.28); ctx.fill();
+  ctx.fillStyle = "#1a1a1a";
+  ctx.beginPath(); ctx.arc(5,-4,1,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(5,4,1,0,6.28); ctx.fill();
+  if (!reducedMotion() && Math.sin(tGlobal*9) > 0.6){
+    ctx.strokeStyle = "#ff5a76"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(24,-2); ctx.moveTo(16,0); ctx.lineTo(24,2); ctx.stroke();
+  }
+  ctx.restore();
+}
 function drawHook(e){
   ctx.save();
   const n = e.trail.length;
@@ -2008,7 +2095,7 @@ function draw(){
   for (const m of motes) drawMote(m);
   for (const o of orbs) drawOrb(o);
   if (glimmer) drawGlimmer(glimmer);
-  for (const e of eagles) (e.type === "hook" ? drawHook(e) : drawEagle(e));
+  for (const e of eagles) (e.type === "hook" ? drawHook(e) : e.type === "serpent" ? drawSerpent(e) : drawEagle(e));
   if (boss) drawBoss();
   for (const f of fires) drawFire(f);
   /* bullets */
