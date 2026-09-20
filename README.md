@@ -31,7 +31,7 @@ The game remembers, in that browser only, the furthest level reached and the bes
 The game is built around the idea that a message lands best when it arrives at a moment the player is already paying attention.
 
 - **Start of the game**: a short story frame, the controls, and Lesson 1.
-- **Between levels**: one focused lesson card per concept, each ending in a practical "Field note" the player can use the same day.
+- **Between levels**: one focused lesson card per concept, each ending in a practical "Field note" the player can use the same day. A light runs around the card's frame while an eight-second reading time counts down, and the card cannot be skipped before it ends; the hint says so, and the frame holds gold when the quick check opens.
 - **Quick checks**: two multiple-choice questions right after each lesson (ten in total). A right answer earns +100 focus, a wrong one costs nothing and shows the correct answer with a one-line explanation, so the check teaches rather than punishes.
 - **When you get hit**: the game pauses on a one-sentence "spark of insight". A hit from flattery explains sycophancy ("Flattered!"), a hit while the fake fires are flying explains drift ("Distracted!"), and any other hit rotates through ten general facts. The first time flattery or fakes appear in a level, a short banner names the idea ("SYCOPHANCY", "COGNITIVE DRIFT"). Getting hit is the moment a player is most likely to actually read, and the short pause doubles as a breather.
 - **Game over**: an encouraging retry screen that repeats one insight, so even losing teaches something.
@@ -69,8 +69,9 @@ A few mechanics borrowed from Loopy, an earlier fish-fairy side-scroller, chosen
 - **Grove seeds**: tiny green seeds drift across the sky in small orbiting clusters. Fly through one to eat it (+10 focus). Every tenth seed pays a streak bonus, so there is a reason to use the whole sky and not only the firing line.
 - **The glimmer**: once or twice a level a golden glimmer shimmers in for about two seconds and then is gone. Catch it for +150 focus and a burst of seeds. It is a variable reward on purpose, and the first one is named on screen ("VARIABLE REWARD") so the pattern is easier to spot in an app.
 - **The hook** (levels 2 to 4): a dark homing shape with one red notification eye follows Lumen. It is slower than she is in a straight line but turns well. Outfly it for about seven seconds and it gives up ("outflown", +120); or turn and face it, since two sparks bring it down. Either answer is a choice, which is the point.
-- **The serpent** (levels 3 and 4): a green snake with a trailing body follows Lumen with a slow, swaying turn. Seven sparks to the head bring it down, but the elegant answer is to lead it in a tight circle so its head crosses its own tail (the biteable part is ringed in gold once it is armed). Each crossing is a coil, shown as a gold dot and a "coiling 1/3" pop, and coils unwind if you stop; on the third it swallows itself for +200 and the line "Loops feed on themselves." A skilled circle takes four to five seconds.
+- **The serpent** (levels 2 to 5): a green snake with a trailing body follows Lumen with a slow, swaying turn. Seven sparks to the head bring it down, but the elegant answer is to lead it in a tight circle so its head crosses its own tail (the biteable part is ringed in gold once it is armed). Each crossing is a coil, shown as a gold dot and a "coiling 1/3" pop, and coils unwind if you stop; on the third it swallows itself for +200 and the line "Loops feed on themselves." A skilled circle takes four to five seconds.
 - **Arc sparks**: while holding fire, every fifth spark fans two extra sparks out at an angle.
+- **The fake serpent** (levels 4 and 5): a faded serpent with empty eye sockets and no bite. Sparks pass straight through it and it never costs a heart, but touching it shoves Lumen off her line, the same pull the decoy fires make. It is cognitive drift in serpent form: the missing bright centre is the tell.
 - **The opening** (boss, final phase): every few seconds the Engine stops firing for a moment and glows white. Sparks land in full only then; the rest of the time they mostly glance off its plating. Aim for the pause. Spam is not the same as aim.
 
 ## Feel
@@ -78,6 +79,7 @@ A few mechanics borrowed from Loopy, an earlier fish-fairy side-scroller, chosen
 - **Music**: a small generative score made in the browser (no audio files): a pentatonic arpeggio over a slow bass, a different mood and tempo for each level, and a pulsing low line for the boss. It ducks under cards, goes quiet on pause, and can be switched off in Settings (M still mutes everything).
 - **Impact**: a few frames of hit-stop when an eagle falls, when you are hurt, and when the boss changes phase or falls; floating score pop-ups; tumbling feathers; red edges when you lose a heart.
 - **Eagles**: gliders, zigzaggers and divers are joined by **armored eagles** (levels 2 and 3: slower, plated, take two sparks, 200 points) and **swoopers** (level 3: cruise, then dive at where you are and climb away; the crest glows during the dive).
+- **The final level** brings every enemy at once: all five eagle types, flattery shots, the hook, serpents, fake serpents, and the decoy fires, with a sturdier Engine (80 health on normal, from 55). Quotas on the earlier levels are 12, 16, 20 and 18 eagles, so each level is a little longer. The whole game runs at 80% of its original pace.
 - **Boss phases**: at half health the Engine overclocks and fires faster; below a quarter it announces "THE FEED NEVER ENDS" and alternates spiral volleys (a turning ring with a gap to fly through) with its aimed shots, and calls in an extra eagle.
 
 ## Settings: difficulty and accessibility
@@ -128,7 +130,7 @@ No personal data is stored. IP addresses are only hashed with a daily salt for r
 ## Submission materials
 
 - [docs/SUBMISSION.md](docs/SUBMISSION.md): one-page overview for reviewers, with the concept-to-mechanic map, how learning is measured, a ten-minute evaluation path, accessibility, privacy, and background reading.
-- [docs/screenshots/](docs/screenshots/): fourteen 1280x720 captures covering the title, story, lesson, checks, every level, the hit card, the boss, and the teacher dashboard.
+- [docs/screenshots/](docs/screenshots/): fifteen 1280x720 captures covering the title, story, lesson, checks, every level, the hit card, the boss, the all-enemies finale, and the teacher dashboard.
 
 ## Testing
 

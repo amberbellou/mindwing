@@ -67,12 +67,17 @@ function makeWorld(seed, { search = "", net = "off" } = {}){
   };
   const ov = { classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) }, addEventListener: on("ov") };
   let inputValue = "";
+  const cardClasses = new Set();
+  const hintStub = { textContent: "", classList: { add: c => {}, remove: c => {} } };
   const card = {
     innerHTML: "",
+    classList: { add: c => cardClasses.add(c), remove: c => cardClasses.delete(c), contains: c => cardClasses.has(c), toggle: (c, on) => { if (on === undefined) on = !cardClasses.has(c); on ? cardClasses.add(c) : cardClasses.delete(c); return on; } },
+    appendChild(){},
     querySelector(sel){
       if (sel === "input") return { get value(){ return inputValue; }, set value(v){ inputValue = String(v); }, focus(){}, addEventListener(){} };
       if (sel === "[data-slot=msg]") return { textContent: "" };
       if (sel === "[data-slot=async]") return { innerHTML: "" };
+      if (sel === ".hint") return hintStub;
       return null;
     }
   };
@@ -102,7 +107,7 @@ function makeWorld(seed, { search = "", net = "off" } = {}){
     addEventListener: on("window"),
     fetch: fetchImpl,
     navigator: { sendBeacon(){ beacons++; return true; } },
-    document: { getElementById: id => ({ game: canvas, ov, card })[id], addEventListener: on("document"), hidden: false }
+    document: { getElementById: id => ({ game: canvas, ov, card })[id], addEventListener: on("document"), hidden: false, createElement: () => ({ className: "", style: {} }) }
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
@@ -495,10 +500,12 @@ console.log("drift: level 5 fires split into decoys that push you but never burn
         if (Math.hypot(t.player.x - px, t.player.y - py) < 15) errs.push("touching a decoy did not push the fairy");
       }
       // a real fire landing while decoys fly explains drift
-      const real = await watchUntil(w, s => s.fires.some(f => f.kind === "decoy") && s.fires.find(f => f.kind === "fire"), 8000);
+      // the final level also carries flattery now, so pick a fire that will not morph into praise on contact
+      const real = await watchUntil(w, s => s.fires.some(f => f.kind === "decoy") && s.fires.find(f => f.kind === "fire" && !f.morph), 8000);
       if (!real) errs.push("never saw a real fire alongside decoys");
       else {
         const s = w.state();
+        for (const f of s.fires) if (f.kind === "praise" || (f.kind === "fire" && f.morph)){ f.x = -500; f.y = -500; }   // no flattery in the way
         w.setInv(0); real.x = s.player.x; real.y = s.player.y;
         w.step(16.7); await settle(2);
         const h = w.state();
@@ -537,7 +544,7 @@ console.log("settings: easy, hard and reduced motion change the game as promised
       else {
         const s = w.state();
         if (s.hearts !== 5 || s.bursts !== 4) errs.push(`easy should start with 5 hearts and 4 charges, got ${s.hearts} and ${s.bursts}`);
-        if (s.quota !== 6) errs.push(`easy level 1 quota should be 6, got ${s.quota}`);
+        if (s.quota !== 9) errs.push(`easy level 1 quota should be 9, got ${s.quota}`);
       }
     }
   }
@@ -553,7 +560,7 @@ console.log("settings: easy, hard and reduced motion change the game as promised
       else {
         const s = w.state();
         if (s.hearts !== 3 || s.bursts !== 2) errs.push(`hard should start with 3 hearts and 2 charges, got ${s.hearts} and ${s.bursts}`);
-        if (s.quota !== 10) errs.push(`hard level 1 quota should be 10, got ${s.quota}`);
+        if (s.quota !== 14) errs.push(`hard level 1 quota should be 14, got ${s.quota}`);
         // take a hit: reduced motion means no screen shake
         const e = await untilEagles(w, 1);
         if (e){

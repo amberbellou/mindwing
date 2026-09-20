@@ -73,6 +73,17 @@
   body.big-text #card h2{font-size:30px;}
   body.big-text #card .tag, body.big-text #card .muted, body.big-text #card .hint, body.big-text #card .set .why{font-size:15px;}
   body.calm-motion #card .hint{animation:none;opacity:.9;}
+  /* lesson cards: a light runs around the frame while the reading time counts down, then holds gold */
+  @property --neon { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+  #card.lesson{position:relative;}
+  #card.lesson .neon{position:absolute;inset:0;border-radius:18px;padding:3px;pointer-events:none;
+    background:conic-gradient(from var(--neon),transparent 0 58%,#9d7bff 72%,#ffd166 84%,#ff8fd8 92%,transparent 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+    animation:neon-spin 2.6s linear infinite;filter:drop-shadow(0 0 6px rgba(157,123,255,.8));}
+  #card.lesson.ready .neon{animation:none;background:conic-gradient(#ffd166,#ff8fd8,#9d7bff,#ffd166);opacity:.85;}
+  @keyframes neon-spin{to{--neon:360deg;}}
+  body.calm-motion #card.lesson .neon{animation:none;background:conic-gradient(#9d7bff,#ffd166,#ff8fd8,#9d7bff);opacity:.6;}
+  #card .hint.wait{color:var(--dim);animation:none;opacity:.9;}
   body.high-contrast{--ink:#ffffff;--dim:#e6e0ff;--accent:#ffe14d;--card-bg:#07051a;}
   body.high-contrast #card{border:2px solid #ffffff;}
   body.high-contrast #card button{border-width:2px;border-color:#cfc4ff;}
@@ -429,15 +440,15 @@ const QUIZ = [
 ];
 
 const LEVELS = [
-  { name:"Token Thicket", concept:"Tokens", ability:"calm", quota:8,  spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
+  { name:"Token Thicket", concept:"Tokens", ability:"calm", quota:12, spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
     sky:["#141034","#3b2a6d","#8a4f8f"] },
-  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", hook:2, quota:12, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
+  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", hook:2, serpent:1, quota:16, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
-  { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:1, serpent:2, shots:"praise", quota:16, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+  { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:1, serpent:3, shots:"praise", quota:20, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
-  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", hook:1, serpent:1, orbs:true, quota:14, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
+  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", hook:1, serpent:2, phantom:1, orbs:true, quota:18, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
     sky:["#0c2326","#2c5a57","#a4ae78"] },
-  { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", drift:true, boss:true, spawnEvery:5, types:["glider","zigzag"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
+  { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", hook:1, serpent:2, phantom:2, shots:"praise", drift:true, boss:true, spawnEvery:3.6, types:["glider","zigzag","diver","swooper","armored"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
     sky:["#1a0b12","#4a1626","#8f2f2a"] }
 ];
 
@@ -527,6 +538,8 @@ let calmT = 0, stillT = 0;
    cannot burn you, but touching one shoves you off your line, which is what drift does to attention. */
 const PRAISE_MORPH = 0.4, PRAISE_TURN = 1.5, PRAISE_LIFE = 4.2, PRAISE_SPEED = 0.8;
 const DECOY_SPLIT = 0.45, DECOY_COUNT = 3, DECOY_LIFE = 3.4, DRIFT_PUSH = 230, DRIFT_TIME = 0.9;
+/* Global pace. Enemy speeds, shot speeds and spawn rate all scale by this; the player is a little slower too. */
+const PACE = 0.8;
 let driftVx = 0, driftVy = 0, driftT = 0, praiseTurn = 0;
 /* Hallucination (level 4): answer orbs drift through the marsh. Real insight carries a ✓ source badge, a calm
    look and a checkable claim; a hallucination is shinier and more certain, with no source. Real ones refill a
@@ -547,13 +560,17 @@ let glimmer = null, glimT = 0, glimCount = 0;
 /* The Hook: a homing shadow that follows Lumen. Slower than she is in a straight line but it turns well, so the
    player can outfly it or turn and face it (two sparks). If it fails to catch her for HOOK_LIFE it gives up, and
    outflying it pays. It lives in the eagles list so bursts, stillness, sparks and the aimbot all treat it as one. */
-const HOOK_SPEED = 215, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
+const HOOK_SPEED = 185, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
 let hookT = 0, hookCount = 0;
 /* The Serpent: a snake that follows Lumen with a slow, swaying turn and a trailing body. Three sparks to the head
    bring it down, but the elegant answer is to lead it in a tight circle until its head crosses its own tail: then it
    swallows itself. A loop that feeds on its own output is the picture the game wants for feeds and drift. */
-const SERP_SPEED = 185, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
+const SERP_SPEED = 160, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
 let serpT = 0, serpentCount = 0;
+/* The fake serpent (levels 4 and 5): a drift decoy in serpent form. Faded, no bright eyes, no bite, and sparks pass
+   straight through it. Touching it shoves Lumen off her line, the same pull the decoy fires make. Let it pass. */
+const PHANTOM_LIFE = 11;
+let phantT = 0, phantomCount = 0;
 /* Arc sparks: every fifth spark while holding fire fans two extra sparks out. */
 const ARC_EVERY = 5, ARC_SPREAD = 0.26;
 let sparkStreak = 0;
@@ -636,7 +653,11 @@ function buildCard(c){
 function renderCard(c){
   currentCard = c; cardSerial++;
   cardEl.innerHTML = buildCard(c);
+  cardEl.classList.toggle("lesson", c.lesson != null);
+  cardEl.classList.remove("ready");
+  if (c.lesson != null){ const n = document.createElement("div"); n.className = "neon"; cardEl.appendChild(n); }
   cardShownAt = performance.now();
+  tickLessonHint();
   if (c.type === "initials"){
     const inp = cardEl.querySelector("input");
     if (inp){
@@ -680,9 +701,26 @@ function leaveCurrentCard(){
   const c = currentCard;
   if (c && c.lesson != null) api.track("lesson_view", c.lesson + 1, Math.min(600000, Math.round(performance.now() - cardShownAt)));
 }
+/* Lesson cards cannot be skipped until LESSON_MIN_MS have passed. The hint counts the seconds down and the
+   frame ring holds gold once reading time is up, so the wait reads as part of the card, not as a broken button. */
+const LESSON_MIN_MS = 8000;
+let lastHintSec = -1;
+function tickLessonHint(){
+  const c = currentCard;
+  if (!overlayOpen || !c || c.lesson == null) return;
+  const left = Math.ceil((LESSON_MIN_MS - (performance.now() - cardShownAt)) / 1000);
+  const hint = cardEl.querySelector(".hint");
+  if (!hint) return;
+  if (left > 0){
+    if (left !== lastHintSec){ hint.textContent = "Take your time. The quick check opens in " + left + "s"; hint.classList.add("wait"); lastHintSec = left; }
+  } else if (lastHintSec !== 0){
+    hint.textContent = c.hint || "Press SPACE or tap for a quick check"; hint.classList.remove("wait"); cardEl.classList.add("ready"); lastHintSec = 0;
+  }
+}
 function advanceCard(force){
   if (!overlayOpen) return;
   if (performance.now() - cardShownAt < 400) return;   // guard against double-tap skipping
+  if (!force && currentCard && currentCard.lesson != null && performance.now() - cardShownAt < LESSON_MIN_MS) return;   // read first
   if (!force && currentCard && (currentCard.type === "quiz" || currentCard.type === "initials")) return;   // these need a choice
   sfx.card();
   leaveCurrentCard();
@@ -945,13 +983,13 @@ function beginLevel(i){
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
   driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; orbs = []; orbT = 1.6;
-  seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; serpT = rand(6, 9); serpentCount = 0; sparkStreak = 0;
+  seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; serpT = rand(6, 9); serpentCount = 0; phantT = rand(7, 11); phantomCount = 0; sparkStreak = 0;
   levelStartScore = score;
   hitBlink = false;
   levelStartAt = performance.now();
   api.track("level_start", i + 1); api.flush();
   if (i > progress.furthest){ progress.furthest = i; saveProgress(); }
-  const bossHp = Math.round(55 * DIFF.bossHp);
+  const bossHp = Math.round(80 * DIFF.bossHp);   // the final level brings every enemy at once, and the Engine itself is sturdier
   boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false, phase:1, spin:0, open:false, openT:0 } : null;
   const abIntro = abilityOf(i) === "still"
     ? "Still Point (X): the sky freezes, nothing dies"
@@ -1139,6 +1177,7 @@ function tryBurst(){
   kick(6, 1);
   fires = [];
   for (const e of eagles){
+    if (e.type === "phantom"){ burstParticles(e.x, e.y, "#7f9a90", 8); continue; }   // a fake was never an eagle
     award(e.pts);
     burstParticles(e.x, e.y, "#ffd166", 14);
     killCount++;
@@ -1156,7 +1195,7 @@ function spawnEagle(){
   const e = {
     type, x: W + 50, y: rand(60, H - 90), r: 20,
     baseY: 0, t: rand(0, 6.28),
-    vx: -(cfg.speed * rand(0.85, 1.2)),
+    vx: -(cfg.speed * PACE * rand(0.85, 1.2)),
     fireT: rand(cfg.fireMin, cfg.fireMax) * DIFF.fireGap,
     glow: 0, flap: rand(0, 6.28),
     pts: type === "armored" ? 200 : type === "swooper" ? 160 : type === "diver" ? 150 : (type === "zigzag" ? 120 : 100),
@@ -1178,6 +1217,14 @@ function spawnSerpent(){
   introOnce("serpent", "THE SERPENT", "It follows your every move. Lead it in a circle and it bites its own tail.");
 }
 /* the serpent's head crossed its own tail: it swallows itself, and that counts as turning it back */
+function spawnPhantom(){
+  const e = { type:"phantom", x: W + 50, y: clamp(player.y + rand(-140, 140), 70, H - 90), r: 16, baseY: 0, t: 0,
+    vx: -SERP_SPEED * 0.85 * DIFF.shotSpeed, vy: 0, fireT: 1e9, glow: 0, flap: rand(0, 6.28), pts: 0, hp: 1e9, hurt: 0,
+    hist: [], armT: 1e9, coils: 0, coilT: 0, coilAge: 0, life: PHANTOM_LIFE, sway: rand(0, 6.28) };
+  e.baseY = e.y;
+  eagles.push(e); phantomCount++;
+  introOnce("phantom", "A FAKE SERPENT", "No bright eyes, no bite. It only pulls your line off course. Let it pass.");
+}
 function serpentBite(i, e){
   award(SERP_BITE_POINTS); killCount++;
   pop(e.x, e.y - 20, "bit its own tail +" + Math.round(SERP_BITE_POINTS * DIFF.score), "#8ef0b0");
@@ -1209,7 +1256,7 @@ function eagleFire(e){
   const cfg = LEVELS[level];
   const dx = player.x - e.x, dy = player.y - e.y;
   const d = Math.hypot(dx, dy) || 1;
-  const sp = cfg.fireSpeed * DIFF.shotSpeed;
+  const sp = cfg.fireSpeed * PACE * DIFF.shotSpeed;
   const shot = { x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0, kind:"fire" };
   if (cfg.shots === "praise") shot.morph = PRAISE_MORPH;
   fires.push(shot);
@@ -1285,7 +1332,7 @@ function update(dt){
   const stilled = stillT > 0;
   /* player */
   if (!Number.isFinite(player.x) || !Number.isFinite(player.y)){ player.x = 140; player.y = H/2; }
-  const sp = 275;
+  const sp = 250;
   let dx = 0, dy = 0;
   if (keys["ArrowLeft"] || keys["a"]) dx -= 1;
   if (keys["ArrowRight"] || keys["d"]) dx += 1;
@@ -1323,21 +1370,27 @@ function update(dt){
   }
 
   /* spawning */
-  const wantMore = boss ? eagles.length < (boss.phase === 3 ? 4 : 3) && boss.entered : (killCount + eagles.length < quota + 3);
+  const regular = eagles.filter(e => e.type !== "hook" && e.type !== "serpent" && e.type !== "phantom").length;
+  const wantMore = boss ? regular < (boss.phase === 3 ? 4 : 3) && boss.entered : (killCount + regular < quota + 3);
   if (!stilled) spawnT -= dt;
   if (spawnT <= 0 && !stilled && calmT <= 0 && wantMore && (!boss || boss.entered)){
     spawnEagle();
-    spawnT = cfg.spawnEvery * DIFF.spawnGap * rand(0.7, 1.25);
+    spawnT = cfg.spawnEvery / PACE * DIFF.spawnGap * rand(0.7, 1.25);
   }
   /* the hook: one at a time, only on the levels that carry it */
-  if (cfg.hook && !stilled && calmT <= 0 && hookCount < cfg.hook && !eagles.some(e => e.type === "hook")){
+  if (cfg.hook && !stilled && calmT <= 0 && hookCount < cfg.hook && !eagles.some(e => e.type === "hook") && (!boss || boss.entered)){
     hookT -= dt;
     if (hookT <= 0){ spawnHook(); hookT = rand(9, 14); }
   }
   /* the serpent: one at a time, only on the levels that carry it */
-  if (cfg.serpent && !stilled && calmT <= 0 && serpentCount < cfg.serpent && !eagles.some(e => e.type === "serpent")){
+  if (cfg.serpent && !stilled && calmT <= 0 && serpentCount < cfg.serpent && !eagles.some(e => e.type === "serpent") && (!boss || boss.entered)){
     serpT -= dt;
     if (serpT <= 0){ spawnSerpent(); serpT = rand(8, 12); }
+  }
+  /* the fake serpent: one at a time, on the drift levels */
+  if (cfg.phantom && !stilled && calmT <= 0 && phantomCount < cfg.phantom && !eagles.some(e => e.type === "phantom") && (!boss || boss.entered)){
+    phantT -= dt;
+    if (phantT <= 0){ spawnPhantom(); phantT = rand(9, 13); }
   }
 
   /* eagles */
@@ -1350,15 +1403,20 @@ function update(dt){
       else if (e.type === "zigzag") e.y = e.baseY + Math.sin(e.t*3.4)*70;
       else if (e.type === "diver") e.y += clamp(player.y - e.y, -95, 95)*dt;
       else if (e.type === "armored") e.y = e.baseY + Math.sin(e.t*1.1)*16;
-      else if (e.type === "serpent"){
+      else if (e.type === "serpent" || e.type === "phantom"){
         /* a swaying chase with a slow turn, so a tight circle brings the head across the tail */
-        const want = Math.atan2(player.y - e.y, player.x - e.x) + Math.sin(tGlobal*3 + e.x*0.01)*0.25;
-        const sp = SERP_SPEED * DIFF.shotSpeed;
+        const fake = e.type === "phantom";
+        const want = Math.atan2(player.y - e.y, player.x - e.x) + Math.sin(tGlobal*3 + e.x*0.01)*(fake ? 0.6 : 0.25);
+        const sp = SERP_SPEED * (fake ? 0.85 : 1) * DIFF.shotSpeed;
         const k = 1 - Math.exp(-dt * SERP_TURN * DIFF.turn);
         e.vx += (Math.cos(want)*sp - e.vx)*k; e.vy += (Math.sin(want)*sp - e.vy)*k;
         e.y += e.vy*dt;
         e.x = clamp(e.x, 30, W + 60);
         e.hist.unshift({ x:e.x, y:e.y }); if (e.hist.length > SERP_SEGS*SERP_GAP + 4) e.hist.pop();
+        if (fake){
+          e.life -= dt;
+          if (e.life <= 0){ burstParticles(e.x, e.y, "#7f9a90", 10); eagles.splice(i,1); continue; }
+        }
         e.armT -= dt; e.coilT -= dt;
         if (e.coils > 0){ e.coilAge += dt; if (e.coilAge > SERP_COIL_FADE){ e.coils = 0; e.coilAge = 0; } }   // coils unwind if the player stops
         if (e.armT <= 0 && e.coilT <= 0){
@@ -1417,6 +1475,15 @@ function update(dt){
       if (e.x < -60){ e.x = W + 50; e.baseY = rand(60, H-90); e.y = e.baseY; }
     }
     /* collide with player */
+    if (e.type === "phantom" && dist2(e.x,e.y,player.x,player.y) < (e.r+player.r)*(e.r+player.r)){
+      /* a fake serpent never costs a heart, it only moves you */
+      const d = Math.hypot(e.vx, e.vy) || 1;
+      driftVx = e.vx/d*DRIFT_PUSH; driftVy = e.vy/d*DRIFT_PUSH; driftT = DRIFT_TIME;
+      burstParticles(e.x, e.y, "#7f9a90", 14);
+      eagles.splice(i,1);
+      if (!banner) banner = { text:"", sub:"Drifting... that pull was not your choice.", t:0, max:1.2 };
+      continue;
+    }
     if (inv <= 0 && dist2(e.x,e.y,player.x,player.y) < (e.r+player.r-4)*(e.r+player.r-4)){
       eagles.splice(i,1); onPlayerHit(); if (state !== "play") return; continue;
     }
@@ -1459,7 +1526,7 @@ function update(dt){
         for (let k=0;k<14;k++){
           if (k === 0 || k === 1) continue;
           const a = boss.spin + k/14*Math.PI*2;
-          fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150*DIFF.shotSpeed, vy:Math.sin(a)*150*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
+          fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150*PACE*DIFF.shotSpeed, vy:Math.sin(a)*150*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
         }
         boss.fireT = rand(0.9, 1.2) * DIFF.fireGap;
       } else if (boss.fireT <= 0){
@@ -1468,11 +1535,11 @@ function update(dt){
         if (boss.volley % 4 === 0){
           for (let k=0;k<10;k++){
             const a = k/10*Math.PI*2;
-            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*135*DIFF.shotSpeed, vy:Math.sin(a)*135*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
+            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*135*PACE*DIFF.shotSpeed, vy:Math.sin(a)*135*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
           }
         } else {
           for (const off of [-0.24, 0, 0.24]){
-            const shot = { x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205*DIFF.shotSpeed, vy:Math.sin(base+off)*205*DIFF.shotSpeed, r:8, t:0, kind:"fire" };
+            const shot = { x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205*PACE*DIFF.shotSpeed, vy:Math.sin(base+off)*205*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" };
             if (cfg.drift && off === 0) shot.split = DECOY_SPLIT;
             fires.push(shot);
           }
@@ -1555,6 +1622,7 @@ function update(dt){
     let hit = false;
     for (let j=eagles.length-1;j>=0;j--){
       const e = eagles[j];
+      if (e.type === "phantom") continue;   // sparks pass straight through a fake
       if (dist2(b.x,b.y,e.x,e.y) < (b.r+e.r)*(b.r+e.r)){
         if ((e.hp || 1) > 1){
           e.hp--; e.hurt = 0.2; sfx.clank();
@@ -1940,25 +2008,38 @@ function drawGlimmer(g){
 }
 function drawSerpent(e){
   ctx.save();
-  const armed = e.armT <= 0;
+  const fake = e.type === "phantom";
+  const armed = !fake && e.armT <= 0;
+  if (fake){
+    /* the tell: faded, and no bright eyes. A slow shimmer, about one cycle per second, never a fast flicker */
+    const sh = reducedMotion() ? 0.5 : 0.42 + 0.14*Math.sin(tGlobal*6.28 + e.sway);
+    ctx.globalAlpha = Math.min(1, e.life / 0.8) * sh;
+  }
   for (let k=SERP_SEGS-1;k>=0;k--){
     const q = e.hist[Math.min(e.hist.length - 1, (k + 1) * SERP_GAP)];
     if (!q) continue;
     const r = 5 + 6 * (1 - k/SERP_SEGS);
-    ctx.globalAlpha = 0.95 - k*0.08;
-    ctx.fillStyle = k % 2 ? "#2f7a5a" : "#3f9a6e";
+    if (!fake) ctx.globalAlpha = 0.95 - k*0.08;
+    ctx.fillStyle = fake ? (k % 2 ? "#4a5c58" : "#5c7470") : (k % 2 ? "#2f7a5a" : "#3f9a6e");
     ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 6.28); ctx.fill();
     if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.stroke(); }
     /* the part of the tail the head can bite is ringed once the serpent is armed */
     if (armed && k >= SERP_BITE_FROM){ ctx.strokeStyle = "rgba(255,209,102,0.6)"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(q.x, q.y, r + 2, 0, 6.28); ctx.stroke(); }
   }
-  ctx.globalAlpha = 1;
+  if (!fake) ctx.globalAlpha = 1;
   /* coil progress: one gold dot per crossing so far */
   for (let c=0;c<e.coils;c++){ ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(e.x - 8 + c*8, e.y - 24, 3, 0, 6.28); ctx.fill(); }
   ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(e.vy, e.vx));
-  ctx.fillStyle = e.hurt > 0 ? "#ffffff" : "#4fbf86";
+  ctx.fillStyle = fake ? "#6f8a84" : e.hurt > 0 ? "#ffffff" : "#4fbf86";
   ctx.beginPath(); ctx.moveTo(16,0); ctx.quadraticCurveTo(6,-11,-10,-8); ctx.lineTo(-10,8); ctx.quadraticCurveTo(6,11,16,0); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = highContrast() ? "#ffffff" : "#1f5a3c"; ctx.lineWidth = 1.5; ctx.stroke();
+  if (fake && (reducedMotion() || highContrast())){ ctx.setLineDash([4, 4]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
+  else { ctx.strokeStyle = highContrast() ? "#ffffff" : fake ? "#3a4a46" : "#1f5a3c"; ctx.lineWidth = 1.5; ctx.stroke(); }
+  if (fake){
+    /* empty sockets where the eyes would be: the missing bright centre is the tell */
+    ctx.fillStyle = "#2a3532";
+    ctx.beginPath(); ctx.arc(4,-4,2.2,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(4,4,2.2,0,6.28); ctx.fill();
+    ctx.restore(); return;
+  }
   ctx.fillStyle = "#ffd166";
   ctx.beginPath(); ctx.arc(4,-4,2.2,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(4,4,2.2,0,6.28); ctx.fill();
   ctx.fillStyle = "#1a1a1a";
@@ -2097,7 +2178,7 @@ function draw(){
   for (const m of motes) drawMote(m);
   for (const o of orbs) drawOrb(o);
   if (glimmer) drawGlimmer(glimmer);
-  for (const e of eagles) (e.type === "hook" ? drawHook(e) : e.type === "serpent" ? drawSerpent(e) : drawEagle(e));
+  for (const e of eagles) (e.type === "hook" ? drawHook(e) : (e.type === "serpent" || e.type === "phantom") ? drawSerpent(e) : drawEagle(e));
   if (boss) drawBoss();
   for (const f of fires) drawFire(f);
   /* bullets */
@@ -2153,6 +2234,7 @@ function frame(now){
   try {
     if (hitStop > 0){ hitStop = Math.max(0, hitStop - dt); draw(); }
     else { update(dt); draw(); }
+    if (overlayOpen) tickLessonHint();
   }
   catch(err){ console.error("Mindwing frame error:", err); }   // one bad frame must not freeze the game
   requestAnimationFrame(frame);
