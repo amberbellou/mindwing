@@ -76,10 +76,10 @@ A few mechanics borrowed from Loopy, an earlier fish-fairy side-scroller, chosen
 
 ## Feel
 
-- **Music**: a small generative score made in the browser (no audio files): a pentatonic arpeggio over a slow bass, a different mood and tempo for each level, and a pulsing low line for the boss. It ducks under cards, goes quiet on pause, and can be switched off in Settings (M still mutes everything).
+- **Music**: a small generative synthwave score made in the browser (no audio files): a lead of two detuned sawtooths through a filter that opens on every note, an eighth-note bass, a kick and hi-hats, a soft chord pad, and a dotted-eighth echo. Each level has its own key and tempo, from 104 to 128 beats per minute, and the chords walk a bright I, V, vi, IV so it stays uplifting even on the boss. It ducks under cards, goes quiet on pause, and can be switched off in Settings (M still mutes everything).
 - **Impact**: a few frames of hit-stop when an eagle falls, when you are hurt, and when the boss changes phase or falls; floating score pop-ups; tumbling feathers; red edges when you lose a heart.
 - **Eagles**: gliders, zigzaggers and divers are joined by **armored eagles** (levels 2 and 3: slower, plated, take two sparks, 200 points) and **swoopers** (level 3: cruise, then dive at where you are and climb away; the crest glows during the dive).
-- **The final level** brings every enemy at once: all five eagle types, flattery shots, the hook, serpents, fake serpents, and the decoy fires, with a sturdier Engine (80 health on normal, from 55). Quotas on the earlier levels are 12, 16, 20 and 18 eagles, so each level is a little longer. The whole game runs at 80% of its original pace.
+- **The final level** brings every enemy at once: all five eagle types, flattery shots, the hook, serpents, fake serpents, and the decoy fires, with a sturdier Engine (80 health on normal, from 55). Quotas on the earlier levels are 12, 16, 20 and 18 eagles, so each level is a little longer. The whole game runs at about 70% of its original pace.
 - **Boss phases**: at half health the Engine overclocks and fires faster; below a quarter it announces "THE FEED NEVER ENDS" and alternates spiral volleys (a turning ring with a gap to fly through) with its aimed shots, and calls in an extra eagle.
 
 ## Settings: difficulty and accessibility

@@ -54,7 +54,7 @@ Analytics are anonymous and aggregate: a random per-browser id, level events, qu
 
 ## Technical notes
 
-- One HTML file, no build step, no dependencies, about 2,000 lines of vanilla JavaScript on a 2D canvas. Generative music in the browser (no audio files).
+- One HTML file, no build step, no dependencies, about 2,000 lines of vanilla JavaScript on a 2D canvas. Generative synthwave music in the browser (no audio files): detuned sawtooth lead, filtered bass, kick and hats, chord pad and echo, one key and tempo per level.
 - Tests: `node test/fuzz.mjs` runs the real game script headlessly with a stubbed canvas, hammers it with random input across four network conditions, plays it to completion with an aimbot against the real backend code in-process, and runs targeted scenarios for every mechanic and lesson. `cd backend && npm test` covers the API. Both pass at the time of writing.
 - Performance: about half a millisecond per frame with a full sky on a laptop; phones have headroom. Landscape is the intended phone orientation.
 

@@ -265,45 +265,116 @@ function tone(freq, dur, type, vol, slide){
     o.start(); o.stop(actx.currentTime + dur + 0.02);
   }catch(e){}
 }
-/* A small generative score: a pentatonic arpeggio over a slow bass, one mood per level, scheduled a
-   quarter-second ahead on the audio clock so it stays in time even when frames stutter. It ducks under
-   cards, falls quiet on pause, and never plays when muted or switched off in Settings. */
+/* A small generative synthwave score, no audio files: two detuned sawtooths through a lowpass filter with an
+   envelope for the lead, a driving eighth-note bass, a kick and hi-hats, a soft chord pad, and a short echo.
+   Each level has its own key and tempo; chords walk a bright I, V, vi, IV so it stays uplifting. Scheduled a
+   quarter-second ahead on the audio clock so it holds time when frames stutter, ducks under cards, goes quiet
+   on pause, and can be switched off in Settings (M mutes everything). */
 const MUSIC_LEVELS = [
-  { root:220.00, bpm:92,  wave:"sine",     pattern:[0,2,4,2,1,3,4,3] },
-  { root:246.94, bpm:100, wave:"triangle", pattern:[0,2,4,5,4,2,1,2] },
-  { root:196.00, bpm:108, wave:"triangle", pattern:[0,4,2,4,1,4,3,4] },
-  { root:207.65, bpm:112, wave:"sine",     pattern:[0,2,5,2,4,1,4,3] },
-  { root:174.61, bpm:124, wave:"square",   pattern:[0,3,1,4,2,5,3,4], pulse:true }
+  { root:220.00, bpm:104, prog:[0,7,9,5], lead:"sawtooth", bright:1900 },              // A major: warm dawn
+  { root:246.94, bpm:110, prog:[0,9,5,7], lead:"sawtooth", bright:2300 },              // B major: climbing
+  { root:261.63, bpm:118, prog:[0,5,9,7], lead:"square",   bright:2700 },              // C major: neon ridge
+  { root:233.08, bpm:112, prog:[0,7,5,9], lead:"sawtooth", bright:2100, haze:true },   // B flat major: marsh haze
+  { root:196.00, bpm:128, prog:[0,9,7,5], lead:"sawtooth", bright:3300, pulse:true }   // G major: full drive
 ];
-const PENTA = [0, 3, 5, 7, 10, 12];
-let musicGain = null, musicNext = 0, musicStep = 0, musicTimer = null;
-function musicNote(freq, when, dur, wave, vol){
+const MAJOR = [0, 4, 7], MINOR = [0, 3, 7];
+const ARP = [0, 1, 2, 3, 2, 1, 0, 2];   // chord-tone indices, 3 = root an octave up
+let musicGain = null, musicBus = null, musicDelay = null, musicNext = 0, musicStep = 0, musicTimer = null, noiseBuf = null;
+function musicSetup(){
+  musicGain = actx.createGain(); musicGain.gain.value = 0; musicGain.connect(actx.destination);
+  musicBus = actx.createGain(); musicBus.gain.value = 1; musicBus.connect(musicGain);
+  /* echo: dotted-eighth feedback delay, the "neon" tail */
+  musicDelay = actx.createDelay(1.0);
+  const fb = actx.createGain(); fb.gain.value = 0.3;
+  const wet = actx.createGain(); wet.gain.value = 0.2;
+  const tone = actx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = 2400;
+  musicBus.connect(musicDelay); musicDelay.connect(tone); tone.connect(fb); fb.connect(musicDelay); tone.connect(wet); wet.connect(musicGain);
+  /* one bar of white noise for the hi-hats */
+  noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.25), actx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+/* the lead: two saws detuned against each other through a filter that opens on the attack and closes as it fades */
+function synthLead(freq, when, dur, wave, bright, vol){
+  try {
+    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 6;
+    f.frequency.setValueAtTime(bright, when);
+    f.frequency.exponentialRampToValueAtTime(Math.max(300, bright * 0.3), when + dur);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.015);
+    g.gain.exponentialRampToValueAtTime(vol * 0.5, when + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    f.connect(g); g.connect(musicBus);
+    for (const det of [-9, 9]){
+      const o = actx.createOscillator(); o.type = wave; o.frequency.setValueAtTime(freq, when); o.detune.value = det;
+      o.connect(f); o.start(when); o.stop(when + dur + 0.05);
+    }
+  } catch(e){}
+}
+/* the bass: a filtered square on every eighth, the engine under the melody */
+function synthBass(freq, when, dur, vol){
+  try {
+    const o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
+    o.type = "square"; o.frequency.setValueAtTime(freq, when);
+    f.type = "lowpass"; f.frequency.setValueAtTime(700, when); f.frequency.exponentialRampToValueAtTime(220, when + dur);
+    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(f); f.connect(g); g.connect(musicGain);   // dry: bass stays out of the echo
+    o.start(when); o.stop(when + dur + 0.05);
+  } catch(e){}
+}
+/* the pad: chord tones on soft triangles with a slow swell, under everything */
+function synthPad(freqs, when, dur, vol){
+  try {
+    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 1400;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.4); g.gain.setValueAtTime(vol, when + dur - 0.5); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    f.connect(g); g.connect(musicBus);
+    for (const fr of freqs){ const o = actx.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(fr, when); o.detune.value = 4; o.connect(f); o.start(when); o.stop(when + dur + 0.1); }
+  } catch(e){}
+}
+function synthKick(when, vol){
   try {
     const o = actx.createOscillator(), g = actx.createGain();
-    o.type = wave; o.frequency.setValueAtTime(freq, when);
-    g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(vol, when + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    o.connect(g); g.connect(musicGain);
-    o.start(when); o.stop(when + dur + 0.05);
+    o.type = "sine"; o.frequency.setValueAtTime(150, when); o.frequency.exponentialRampToValueAtTime(42, when + 0.16);
+    g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.24);
+    o.connect(g); g.connect(musicGain); o.start(when); o.stop(when + 0.3);
+  } catch(e){}
+}
+function synthHat(when, open, vol){
+  try {
+    if (!noiseBuf) return;
+    const src = actx.createBufferSource(); src.buffer = noiseBuf;
+    const f = actx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7500;
+    const g = actx.createGain(); const dur = open ? 0.14 : 0.04;
+    g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    src.connect(f); f.connect(g); g.connect(musicGain); src.start(when); src.stop(when + dur + 0.02);
   } catch(e){}
 }
 function musicTick(){
   if (!actx) return;
-  if (!musicGain){ try { musicGain = actx.createGain(); musicGain.gain.value = 0; musicGain.connect(actx.destination); } catch(e){ return; } }
+  if (!musicGain){ try { musicSetup(); } catch(e){ musicGain = null; return; } }
   const off = muted || SETTINGS.music !== "on" || document.hidden;
   const live = state === "play" || state === "hit" || state === "clear" || state === "postclear";
-  const target = off ? 0 : state === "pause" ? 0.0001 : live ? 0.55 : 0.25;
+  const target = off ? 0 : state === "pause" ? 0.0001 : live ? 0.5 : 0.22;
   try { musicGain.gain.setTargetAtTime(target, actx.currentTime, 0.15); } catch(e){}
   if (off) { musicNext = 0; return; }
   const L = MUSIC_LEVELS[Math.min(level, MUSIC_LEVELS.length - 1)] || MUSIC_LEVELS[0];
-  const step = 60 / L.bpm / 2;
+  const step = 60 / L.bpm / 2;                       // one eighth note
+  try { musicDelay.delayTime.setTargetAtTime(step * 1.5, actx.currentTime, 0.2); } catch(e){}
   if (musicNext < actx.currentTime) musicNext = actx.currentTime + 0.06;
   while (musicNext < actx.currentTime + 0.25){
-    const deg = PENTA[L.pattern[musicStep % L.pattern.length] % PENTA.length];
-    musicNote(L.root * Math.pow(2, deg / 12), musicNext, step * 1.6, L.wave, L.wave === "square" ? 0.018 : 0.045);
-    if (musicStep % 8 === 0) musicNote(L.root / 2, musicNext, step * 7, "triangle", 0.06);
-    if (L.pulse && musicStep % 2 === 1) musicNote(L.root / 4, musicNext, step * 0.5, "sine", 0.05);
+    const inBar = musicStep % 8, bar = Math.floor(musicStep / 8);
+    const chordRoot = L.prog[bar % L.prog.length];
+    const shape = chordRoot === 9 ? MINOR : MAJOR;    // the vi is minor, the rest major
+    const tones = shape.map(i => chordRoot + i).concat([chordRoot + 12]);
+    const hz = semi => L.root * Math.pow(2, semi / 12);
+    if (inBar === 0) synthPad(tones.slice(0, 3).map(hz), musicNext, step * 8, L.haze ? 0.028 : 0.02);
+    const leadTone = tones[ARP[(musicStep + bar) % ARP.length]] + (L.pulse && inBar >= 4 ? 12 : 0);
+    synthLead(hz(leadTone) * 2, musicNext, step * (inBar % 2 ? 0.9 : 1.4), L.lead, L.bright, L.lead === "square" ? 0.02 : 0.03);
+    synthBass(hz(chordRoot) / 2 * (L.pulse && inBar % 2 ? 2 : 1), musicNext, step * 0.85, 0.07);
+    if (inBar % 4 === 0 || (L.pulse && inBar % 2 === 0)) synthKick(musicNext, 0.32);
+    synthHat(musicNext, inBar % 4 === 2, inBar % 2 ? 0.035 : 0.02);
     musicNext += step; musicStep++;
   }
 }
@@ -539,7 +610,7 @@ let calmT = 0, stillT = 0;
 const PRAISE_MORPH = 0.4, PRAISE_TURN = 1.5, PRAISE_LIFE = 4.2, PRAISE_SPEED = 0.8;
 const DECOY_SPLIT = 0.45, DECOY_COUNT = 3, DECOY_LIFE = 3.4, DRIFT_PUSH = 230, DRIFT_TIME = 0.9;
 /* Global pace. Enemy speeds, shot speeds and spawn rate all scale by this; the player is a little slower too. */
-const PACE = 0.8;
+const PACE = 0.72;
 let driftVx = 0, driftVy = 0, driftT = 0, praiseTurn = 0;
 /* Hallucination (level 4): answer orbs drift through the marsh. Real insight carries a ✓ source badge, a calm
    look and a checkable claim; a hallucination is shinier and more certain, with no source. Real ones refill a
@@ -560,12 +631,12 @@ let glimmer = null, glimT = 0, glimCount = 0;
 /* The Hook: a homing shadow that follows Lumen. Slower than she is in a straight line but it turns well, so the
    player can outfly it or turn and face it (two sparks). If it fails to catch her for HOOK_LIFE it gives up, and
    outflying it pays. It lives in the eagles list so bursts, stillness, sparks and the aimbot all treat it as one. */
-const HOOK_SPEED = 185, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
+const HOOK_SPEED = 170, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
 let hookT = 0, hookCount = 0;
 /* The Serpent: a snake that follows Lumen with a slow, swaying turn and a trailing body. Three sparks to the head
    bring it down, but the elegant answer is to lead it in a tight circle until its head crosses its own tail: then it
    swallows itself. A loop that feeds on its own output is the picture the game wants for feeds and drift. */
-const SERP_SPEED = 160, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
+const SERP_SPEED = 148, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
 let serpT = 0, serpentCount = 0;
 /* The fake serpent (levels 4 and 5): a drift decoy in serpent form. Faded, no bright eyes, no bite, and sparks pass
    straight through it. Touching it shoves Lumen off her line, the same pull the decoy fires make. Let it pass. */
@@ -1332,7 +1403,7 @@ function update(dt){
   const stilled = stillT > 0;
   /* player */
   if (!Number.isFinite(player.x) || !Number.isFinite(player.y)){ player.x = 140; player.y = H/2; }
-  const sp = 250;
+  const sp = 240;
   let dx = 0, dy = 0;
   if (keys["ArrowLeft"] || keys["a"]) dx -= 1;
   if (keys["ArrowRight"] || keys["d"]) dx += 1;
