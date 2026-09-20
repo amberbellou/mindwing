@@ -610,7 +610,7 @@ let calmT = 0, stillT = 0;
 const PRAISE_MORPH = 0.4, PRAISE_TURN = 1.5, PRAISE_LIFE = 4.2, PRAISE_SPEED = 0.8;
 const DECOY_SPLIT = 0.45, DECOY_COUNT = 3, DECOY_LIFE = 3.4, DRIFT_PUSH = 230, DRIFT_TIME = 0.9;
 /* Global pace. Enemy speeds, shot speeds and spawn rate all scale by this; the player is a little slower too. */
-const PACE = 0.72;
+const PACE = 0.65;
 let driftVx = 0, driftVy = 0, driftT = 0, praiseTurn = 0;
 /* Hallucination (level 4): answer orbs drift through the marsh. Real insight carries a ✓ source badge, a calm
    look and a checkable claim; a hallucination is shinier and more certain, with no source. Real ones refill a
@@ -631,12 +631,12 @@ let glimmer = null, glimT = 0, glimCount = 0;
 /* The Hook: a homing shadow that follows Lumen. Slower than she is in a straight line but it turns well, so the
    player can outfly it or turn and face it (two sparks). If it fails to catch her for HOOK_LIFE it gives up, and
    outflying it pays. It lives in the eagles list so bursts, stillness, sparks and the aimbot all treat it as one. */
-const HOOK_SPEED = 170, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
+const HOOK_SPEED = 158, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
 let hookT = 0, hookCount = 0;
 /* The Serpent: a snake that follows Lumen with a slow, swaying turn and a trailing body. Three sparks to the head
    bring it down, but the elegant answer is to lead it in a tight circle until its head crosses its own tail: then it
    swallows itself. A loop that feeds on its own output is the picture the game wants for feeds and drift. */
-const SERP_SPEED = 148, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
+const SERP_SPEED = 138, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
 let serpT = 0, serpentCount = 0;
 /* The fake serpent (levels 4 and 5): a drift decoy in serpent form. Faded, no bright eyes, no bite, and sparks pass
    straight through it. Touching it shoves Lumen off her line, the same pull the decoy fires make. Let it pass. */
@@ -1267,7 +1267,7 @@ function spawnEagle(){
     type, x: W + 50, y: rand(60, H - 90), r: 20,
     baseY: 0, t: rand(0, 6.28),
     vx: -(cfg.speed * PACE * rand(0.85, 1.2)),
-    fireT: rand(cfg.fireMin, cfg.fireMax) * DIFF.fireGap,
+    fireT: rand(cfg.fireMin, cfg.fireMax) / PACE * DIFF.fireGap,
     glow: 0, flap: rand(0, 6.28),
     pts: type === "armored" ? 200 : type === "swooper" ? 160 : type === "diver" ? 150 : (type === "zigzag" ? 120 : 100),
     hp: type === "armored" ? 2 : 1, hurt: 0
@@ -1281,7 +1281,7 @@ function spawnEagle(){
 function spawnSerpent(){
   const cfg = LEVELS[level];
   const e = { type:"serpent", x: W + 50, y: clamp(player.y + rand(-100, 100), 70, H - 90), r: 16, baseY: 0, t: 0,
-    vx: -SERP_SPEED * DIFF.shotSpeed, vy: 0, fireT: rand(cfg.fireMin, cfg.fireMax) * 1.6 * DIFF.fireGap, glow: 0, flap: rand(0, 6.28),
+    vx: -SERP_SPEED * DIFF.shotSpeed, vy: 0, fireT: rand(cfg.fireMin, cfg.fireMax) * 1.6 / PACE * DIFF.fireGap, glow: 0, flap: rand(0, 6.28),
     pts: 180, hp: SERP_HP, hurt: 0, hist: [], armT: SERP_ARM, coils: 0, coilT: 0, coilAge: 0 };
   e.baseY = e.y;
   eagles.push(e); serpentCount++;
@@ -1403,7 +1403,7 @@ function update(dt){
   const stilled = stillT > 0;
   /* player */
   if (!Number.isFinite(player.x) || !Number.isFinite(player.y)){ player.x = 140; player.y = H/2; }
-  const sp = 240;
+  const sp = 230;
   let dx = 0, dy = 0;
   if (keys["ArrowLeft"] || keys["a"]) dx -= 1;
   if (keys["ArrowRight"] || keys["d"]) dx += 1;
@@ -1479,7 +1479,7 @@ function update(dt){
         const fake = e.type === "phantom";
         const want = Math.atan2(player.y - e.y, player.x - e.x) + Math.sin(tGlobal*3 + e.x*0.01)*(fake ? 0.6 : 0.25);
         const sp = SERP_SPEED * (fake ? 0.85 : 1) * DIFF.shotSpeed;
-        const k = 1 - Math.exp(-dt * SERP_TURN * DIFF.turn);
+        const k = 1 - Math.exp(-dt * SERP_TURN * PACE * DIFF.turn);
         e.vx += (Math.cos(want)*sp - e.vx)*k; e.vy += (Math.sin(want)*sp - e.vy)*k;
         e.y += e.vy*dt;
         e.x = clamp(e.x, 30, W + 60);
@@ -1511,7 +1511,7 @@ function update(dt){
         let diff = want - have;
         while (diff > Math.PI) diff -= 2*Math.PI;
         while (diff < -Math.PI) diff += 2*Math.PI;
-        const turn = clamp(diff, -HOOK_TURN*DIFF.turn*dt, HOOK_TURN*DIFF.turn*dt);
+        const turn = clamp(diff, -HOOK_TURN*PACE*DIFF.turn*dt, HOOK_TURN*PACE*DIFF.turn*dt);
         const sp = HOOK_SPEED * DIFF.shotSpeed;
         e.vx = Math.cos(have + turn)*sp; e.vy = Math.sin(have + turn)*sp;
         e.y += e.vy*dt;
@@ -1542,7 +1542,7 @@ function update(dt){
       e.y = clamp(e.y, 40, H-50);
       if (e.glow > 0) e.glow -= dt;
       e.fireT -= dt;
-      if (e.fireT <= 0 && e.x < W - 40 && e.x > player.x + 60){ eagleFire(e); e.fireT = rand(cfg.fireMin, cfg.fireMax) * DIFF.fireGap; }
+      if (e.fireT <= 0 && e.x < W - 40 && e.x > player.x + 60){ eagleFire(e); e.fireT = rand(cfg.fireMin, cfg.fireMax) / PACE * DIFF.fireGap; }
       if (e.x < -60){ e.x = W + 50; e.baseY = rand(60, H-90); e.y = e.baseY; }
     }
     /* collide with player */
@@ -1599,7 +1599,7 @@ function update(dt){
           const a = boss.spin + k/14*Math.PI*2;
           fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150*PACE*DIFF.shotSpeed, vy:Math.sin(a)*150*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
         }
-        boss.fireT = rand(0.9, 1.2) * DIFF.fireGap;
+        boss.fireT = rand(0.9, 1.2) / PACE * DIFF.fireGap;
       } else if (boss.fireT <= 0){
         boss.volley++;
         const base = Math.atan2(player.y - boss.y, player.x - boss.x);
@@ -1615,7 +1615,7 @@ function update(dt){
             fires.push(shot);
           }
         }
-        boss.fireT = (boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0)) * DIFF.fireGap;
+        boss.fireT = (boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0)) / PACE * DIFF.fireGap;
       }
     }
   }
@@ -1642,7 +1642,7 @@ function update(dt){
         let diff = want - have;
         while (diff > Math.PI) diff -= 2*Math.PI;
         while (diff < -Math.PI) diff += 2*Math.PI;
-        const turn = clamp(diff, -PRAISE_TURN*DIFF.turn*dt, PRAISE_TURN*DIFF.turn*dt);
+        const turn = clamp(diff, -PRAISE_TURN*PACE*DIFF.turn*dt, PRAISE_TURN*PACE*DIFF.turn*dt);
         const sp = Math.hypot(f.vx, f.vy);
         f.vx = Math.cos(have + turn)*sp; f.vy = Math.sin(have + turn)*sp;
         if (f.x < player.x - 40 && f.t < PRAISE_LIFE - 0.5) f.t = PRAISE_LIFE - 0.5;   // missed you: fade out, do not clutter the sky
