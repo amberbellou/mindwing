@@ -62,11 +62,11 @@ Analytics are anonymous and aggregate: a random per-browser id, level events, qu
 
 The concepts are simplified for the audience. The sources below are the ones the simplifications rest on; readers who want the full picture should go there rather than to the game.
 
-- Sharma et al. (2023), *Towards Understanding Sycophancy in Language Models*. Anthropic. On assistants trained from human preference judgements learning to agree with users.
-- Ji et al. (2023), *Survey of Hallucination in Natural Language Generation*. ACM Computing Surveys. On fluent, confident, false generation.
-- Risko and Gilbert (2016), *Cognitive Offloading*. Trends in Cognitive Sciences. On delegating thinking to tools and its costs and benefits.
-- Jakesch et al. (2023), *Co-Writing with Opinionated Language Models Affects Users' Views*. CHI. On writing assistance shifting the opinions people express.
-- Eyal (2014), *Hooked: How to Build Habit-Forming Products*. The design playbook the retention level is warning about.
+- Sharma, M., Tong, M., Korbak, T., Duvenaud, D., Askell, A., Bowman, S. R., Cheng, N., Durmus, E., Hatfield-Dodds, Z., Johnston, S. R., Kravec, S., Maxwell, T., McCandlish, S., Ndousse, K., Rausch, O., Schiefer, N., Yan, D., Zhang, M., and Perez, E. (2024). Towards Understanding Sycophancy in Language Models. *International Conference on Learning Representations (ICLR 2024)*. arXiv:2310.13548. On assistants trained from human preference judgements learning to agree with users. https://arxiv.org/abs/2310.13548
+- Ji, Z., Lee, N., Frieske, R., Yu, T., Su, D., Xu, Y., Ishii, E., Bang, Y. J., Madotto, A., and Fung, P. (2023). Survey of Hallucination in Natural Language Generation. *ACM Computing Surveys*, 55(12), Article 248. On fluent, confident, false generation. https://doi.org/10.1145/3571730
+- Risko, E. F., and Gilbert, S. J. (2016). Cognitive Offloading. *Trends in Cognitive Sciences*, 20(9), 676-688. On delegating thinking to tools, and its costs and benefits. https://doi.org/10.1016/j.tics.2016.07.002
+- Jakesch, M., Bhat, A., Buschek, D., Zalmanson, L., and Naaman, M. (2023). Co-Writing with Opinionated Language Models Affects Users' Views. *Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems (CHI '23)*. An online experiment with 1,506 participants in which a writing assistant biased toward one opinion shifted both what people wrote and what they then reported believing. https://doi.org/10.1145/3544548.3581196
+- Eyal, N., with Hoover, R. (2014). *Hooked: How to Build Habit-Forming Products*. Portfolio/Penguin. ISBN 978-1-59184-778-6. A practitioner's playbook, not a study; it is the design pattern the retention level warns about.
 
 "Cognitive drift" is the game's own name for the slow slide of attention, opinion, and style toward what a system feeds you. It is a framing for young players rather than an established term in the literature.
 
