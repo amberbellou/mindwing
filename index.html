@@ -84,6 +84,22 @@
   @keyframes neon-spin{to{--neon:360deg;}}
   body.calm-motion #card.lesson .neon{animation:none;background:conic-gradient(#9d7bff,#ffd166,#ff8fd8,#9d7bff);opacity:.6;}
   #card .hint.wait{color:var(--dim);animation:none;opacity:.9;}
+  /* the keeper's lever: a big handle to pull, and the lights it switches on */
+  #card .leverwrap{display:flex;gap:18px;align-items:flex-start;margin:6px 0 4px 0;}
+  #card .lever{flex:0 0 auto;width:74px;height:120px;position:relative;background:transparent;border:0;padding:0;cursor:pointer;}
+  #card .lever .base{position:absolute;left:12px;right:12px;bottom:6px;height:22px;border-radius:8px;background:#2a2350;border:1px solid #4a3d8a;}
+  #card .lever .slot{position:absolute;left:33px;top:10px;width:8px;height:92px;border-radius:4px;background:#0e0a24;border:1px solid #4a3d8a;}
+  #card .lever .arm{position:absolute;left:34px;bottom:24px;width:6px;height:78px;border-radius:3px;background:linear-gradient(#c9a7ff,#9d7bff);transform-origin:50% 100%;transition:transform .18s ease;}
+  #card .lever .knob{position:absolute;left:-10px;top:-14px;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe9a8,#ffd166 55%,#b8862e);box-shadow:0 0 14px rgba(255,209,102,.6);}
+  #card .lever.pulled .arm{transform:rotate(38deg);}
+  #card .lever:focus{outline:2px solid var(--accent2);outline-offset:4px;border-radius:12px;}
+  #card .lights{flex:1;display:flex;flex-direction:column;gap:8px;min-height:120px;}
+  #card .light{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.45);border-radius:10px;padding:8px 12px;color:var(--ink);font-size:15px;
+    box-shadow:0 0 18px rgba(255,209,102,.25);animation:lightup .5s ease-out;}
+  #card .light b{color:var(--accent);font-size:17px;margin-right:6px;}
+  @keyframes lightup{from{opacity:0;transform:translateY(6px);box-shadow:0 0 0 rgba(255,209,102,0);}to{opacity:1;transform:none;}}
+  body.calm-motion #card .light{animation:none;}
+  body.calm-motion #card .lever .arm{transition:none;}
   body.high-contrast{--ink:#ffffff;--dim:#e6e0ff;--accent:#ffe14d;--card-bg:#07051a;}
   body.high-contrast #card{border:2px solid #ffffff;}
   body.high-contrast #card button{border-width:2px;border-color:#cfc4ff;}
@@ -440,6 +456,33 @@ const HIT_FACTS = [
   "A hallucination is a confident answer that is simply wrong. Fluent wording is not evidence.",
   "Ask where a claim comes from, then check that source yourself. Some sources a chatbot cites do not exist."
 ];
+/* The keeper's lever: things that are yours. A machine can describe each one; you can live it. Fifteen, so the
+   start and the four interludes each light three, in order, without repeating. Kept careful: models can
+   produce words and even metaphors about all of these, so each line says what is different, not what is impossible. */
+const HUMAN = [
+  { w:"Love",        t:"You can care about someone so much that it changes what you do. A machine can write the word. Nothing is at stake for it." },
+  { w:"Curiosity",   t:"You wonder about things nobody asked you. A model only answers what it is given." },
+  { w:"Meaning",     t:"You decide what matters to you. A model has no \"matters\"." },
+  { w:"Metaphor",    t:"You can see one thing as another, a heart as a drum, and make a new one on the spot. A model mostly remixes the ones people already wrote." },
+  { w:"Imagination", t:"You can invent a whole game from nothing on a rainy afternoon. A model waits for a prompt." },
+  { w:"A body",      t:"You feel cold, hungry, dizzy, thrilled. Words about feelings are not feelings." },
+  { w:"Conscience",  t:"You can feel that something is wrong before you can say why." },
+  { w:"Friendship",  t:"You can be missed. When a chat ends, no one on the other side is waiting for you." },
+  { w:"Play",        t:"You play for no reason at all, and that is the reason." },
+  { w:"Humor",       t:"You laugh, and you know why it was funny to you." },
+  { w:"Courage",     t:"You can be scared and do it anyway." },
+  { w:"Growing",     t:"You change because things happen to you. A model changes only when someone retrains it." },
+  { w:"Choice",      t:"You can change your mind and mean it." },
+  { w:"Wonder",      t:"You can stand under the stars and feel small and glad at the same time." },
+  { w:"Forgiveness", t:"You can forgive someone. A model holds nothing against you, and has nothing to let go of either." }
+];
+let humanCursor = 0;
+function leverCard(need){
+  return { type:"lever", need, pulls:0, done:false, tag:"The keeper's lever", h:"What is yours",
+    p:[ "Pull the lever. Every pull lights up something that is <strong>yours</strong>: a machine can describe it, and you can live it." ],
+    hint:"" };
+}
+
 /* Which facts a hit can show. "general" rotates as before; the other groups explain the thing that just hit you. */
 const FACT_GROUPS = { general:[0,1,2,3,4,5,6,7,8,9], sycophancy:[10,11,12], drift:[13,14], hallucination:[15,16] };
 const factTurn = { general:0, sycophancy:0, drift:0, hallucination:0 };
@@ -716,6 +759,10 @@ function buildCard(c){
   if (c.type === "leaderboard" || c.type === "stats") html += `<div data-slot="async"><p class="muted">Loading…</p></div>`;
   if (c.type === "settings") html += settingsHTML(c);
   if (c.type === "checkresult") html += `<p>${checkResultText()}</p>`;
+  if (c.type === "lever"){
+    html += `<div class="leverwrap"><button type="button" class="lever" data-act="pull" aria-label="Pull the lever"><span class="slot"></span><span class="arm"><span class="knob"></span></span><span class="base"></span></button><div class="lights" data-slot="lights" aria-live="polite"></div></div>`;
+    html += `<div class="hint wait">Pull the lever, or press SPACE. ${c.need} pulls.</div>`;
+  }
   if (c.buttons) html += `<div class="row">` + c.buttons.map(b => `<button type="button" class="ghost" data-act="${b.act}">${b.label}</button>`).join("") + `</div>`;
   if (c.note) html += `<div class="note">${c.note}</div>`;
   if (c.hint !== "") html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
@@ -792,6 +839,7 @@ function advanceCard(force){
   if (!overlayOpen) return;
   if (performance.now() - cardShownAt < 400) return;   // guard against double-tap skipping
   if (!force && currentCard && currentCard.lesson != null && performance.now() - cardShownAt < LESSON_MIN_MS) return;   // read first
+  if (!force && currentCard && currentCard.type === "lever" && !currentCard.done){ cardAction("pull"); return; }   // a tap anywhere pulls
   if (!force && currentCard && (currentCard.type === "quiz" || currentCard.type === "initials")) return;   // these need a choice
   sfx.card();
   leaveCurrentCard();
@@ -808,6 +856,22 @@ function advanceCard(force){
 function cardAction(act, val){
   const c = currentCard;
   if (!overlayOpen || !c) return;
+  if (act === "pull" && c.type === "lever"){
+    if (c.done) return;
+    const item = HUMAN[humanCursor % HUMAN.length]; humanCursor++;
+    c.pulls++;
+    const slot = cardEl.querySelector("[data-slot=lights]");
+    if (slot) slot.insertAdjacentHTML("beforeend", `<div class="light"><b>${esc(item.w)}</b>${esc(item.t)}</div>`);
+    const lev = cardEl.querySelector(".lever");
+    if (lev && lev.classList){ lev.classList.add("pulled"); setTimeout(() => lev.classList.remove("pulled"), 220); }
+    sfx.mote();
+    const hint = cardEl.querySelector(".hint");
+    if (c.pulls >= c.need){
+      c.done = true;
+      if (hint){ hint.textContent = "Press SPACE or tap to continue"; hint.classList.remove("wait"); }
+    } else if (hint) hint.textContent = "Pull again. " + (c.need - c.pulls) + " to go.";
+    return;
+  }
   if (act === "choose" && c.type === "quiz"){
     const choice = parseInt(val, 10);
     if (!(choice >= 0 && choice < c.options.length)) return;
@@ -1017,14 +1081,15 @@ function showTitle(){
   preAnswers = null; postAnswers = 0;
   /* The run is registered once the player leaves the title cards, so the "before" answers belong to it and are
      sent straight away rather than waiting in a queue for a session that does not exist yet. */
-  showCards(titleCards(), () => {
+  humanCursor = 0;
+  showCards(titleCards().concat([leverCard(3)]), () => {
     runStartAt = performance.now();
     api.startRun(startLevel);
     showCards(checkCards("pre"), () => { api.flush(); showLessonThen(startLevel); });
   });
 }
-function showLessonThen(i){
-  showCards([lessonCard(i), ...quizCards(i)], () => beginLevel(i));
+function showLessonThen(i, withLever){
+  showCards((withLever ? [leverCard(3)] : []).concat([lessonCard(i), ...quizCards(i)]), () => beginLevel(i));
 }
 function quizCards(i){
   if (quizDone[i]) return [];
@@ -1080,7 +1145,7 @@ function levelCleared(){
 }
 function afterClear(){
   if (level >= LEVELS.length - 1){ winGame(); return; }
-  showLessonThen(level + 1);
+  showLessonThen(level + 1, true);
 }
 function hitFactCard(fi){
   const f = HIT_FACTS[fi];

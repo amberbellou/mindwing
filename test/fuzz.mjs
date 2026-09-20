@@ -78,6 +78,8 @@ function makeWorld(seed, { search = "", net = "off" } = {}){
       if (sel === "[data-slot=msg]") return { textContent: "" };
       if (sel === "[data-slot=async]") return { innerHTML: "" };
       if (sel === ".hint") return hintStub;
+      if (sel === "[data-slot=lights]") return { insertAdjacentHTML(){} };
+      if (sel === ".lever") return { classList: { add(){}, remove(){} } };
       return null;
     }
   };
@@ -1036,6 +1038,33 @@ console.log("serpent: it chases on level 3, coils when its head crosses its tail
   }
   if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
   else console.log("  serpent appears with its explainer, grows a tail, swallows itself when led into it, and falls to seven sparks");
+}
+
+console.log("lever: the keeper's lever appears after the title cards, needs three pulls, and lights three human things");
+{
+  const errs = [];
+  const w = makeWorld(81, { search: "", net: "off" });
+  let lever = null;
+  for (let i = 0; i < 40 && !lever; i++){
+    const s = w.state();
+    if (s.card && s.card.type === "lever") lever = s.card;
+    else w.click();
+    w.step(500); await settle(1);
+  }
+  if (!lever) errs.push("no lever card after the title cards");
+  else {
+    w.click(); w.step(500); await settle(1);                      // a tap anywhere pulls
+    if (lever.pulls !== 1) errs.push("first tap did not pull (pulls " + lever.pulls + ")");
+    if (w.state().card !== lever) errs.push("the lever card advanced before three pulls");
+    w.key("keydown", " "); w.key("keyup", " "); w.step(500); await settle(1);   // space pulls too
+    if (lever.pulls !== 2) errs.push("space did not pull (pulls " + lever.pulls + ")");
+    w.click("pull"); w.step(500); await settle(1);                // the lever button itself
+    if (!lever.done || lever.pulls !== 3) errs.push("three pulls did not finish the lever");
+    w.click(); w.step(500); await settle(1);
+    if (w.state().card === lever) errs.push("the finished lever did not advance on tap");
+  }
+  if (errs.length){ failed = true; console.log("  FAIL: " + errs.join("; ")); }
+  else console.log("  lever card shown, tap and space both pull, three pulls open the way");
 }
 
 console.log("saved progress: furthest level and best per level survive, and the title offers to continue");

@@ -30,7 +30,8 @@ The game remembers, in that browser only, the furthest level reached and the bes
 
 The game is built around the idea that a message lands best when it arrives at a moment the player is already paying attention.
 
-- **Start of the game**: a short story frame, the controls, and Lesson 1.
+- **Start of the game**: a short story frame, the controls, the keeper's lever, and Lesson 1.
+- **The keeper's lever**: at the start and between levels, a card with a big lever. Each pull lights up one thing that is yours (love, curiosity, meaning, metaphor, imagination, a body, conscience, friendship, play, humor, courage, growing, choice, wonder, forgiveness), with one careful line on what a machine can and cannot do with it. Three pulls open the way; the card cannot be skipped before that. Fifteen lights across the run, none repeated.
 - **Between levels**: one focused lesson card per concept, each ending in a practical "Field note" the player can use the same day. A light runs around the card's frame while an eight-second reading time counts down, and the card cannot be skipped before it ends; the hint says so, and the frame holds gold when the quick check opens.
 - **Quick checks**: two multiple-choice questions right after each lesson (ten in total). A right answer earns +100 focus, a wrong one costs nothing and shows the correct answer with a one-line explanation, so the check teaches rather than punishes.
 - **When you get hit**: the game pauses on a one-sentence "spark of insight". A hit from flattery explains sycophancy ("Flattered!"), a hit while the fake fires are flying explains drift ("Distracted!"), and any other hit rotates through ten general facts. The first time flattery or fakes appear in a level, a short banner names the idea ("SYCOPHANCY", "COGNITIVE DRIFT"). Getting hit is the moment a player is most likely to actually read, and the short pause doubles as a breather.
@@ -130,7 +131,7 @@ No personal data is stored. IP addresses are only hashed with a daily salt for r
 ## Submission materials
 
 - [docs/SUBMISSION.md](docs/SUBMISSION.md): one-page overview for reviewers, with the concept-to-mechanic map, how learning is measured, a ten-minute evaluation path, accessibility, privacy, and background reading.
-- [docs/screenshots/](docs/screenshots/): fifteen 1280x720 captures covering the title, story, lesson, checks, every level, the hit card, the boss, the all-enemies finale, and the teacher dashboard.
+- [docs/screenshots/](docs/screenshots/): sixteen 1280x720 captures covering the title, story, lesson, checks, the keeper's lever, every level, the hit card, the boss, the all-enemies finale, and the teacher dashboard.
 
 ## Testing
 
