@@ -315,20 +315,20 @@ const sfx = {
 const LESSONS = [
   { tag:"Lesson 1 of 5 · How AI reads", h:"Tokens",
     p:[ "Language AIs like chatbots do not read whole words or ideas. They chop text into <strong>tokens</strong>: little chunks like “fair”, “y”, or “flying”. Then they do one thing, over and over: <strong>predict the most likely next token</strong>, based on patterns in the huge pile of text they were trained on.",
-        "That means a chatbot is not looking up facts or weighing what is true. It is continuing a pattern. Often the pattern lands on something true. Sometimes it lands on something that only <em>sounds</em> true." ],
+        "That means a chatbot is not weighing what is true. It is continuing a pattern. Often the pattern lands on something true. Sometimes it lands on something that only <em>sounds</em> true. Some chatbots can also search the web or read documents you give them, but the writing step is still prediction, so the same care applies." ],
     note:"<b>Field note:</b> When an answer really matters, verify it in a source you trust. The model predicts text. You judge truth." },
   { tag:"Lesson 2 of 5 · What is inside", h:"Neural Networks",
     p:[ "Under the hood, a language model is a <strong>neural network</strong>: billions of tiny number-dials called <strong>weights</strong>, arranged in layers. During training, the network guesses the next token, gets corrected, and nudges its dials. Repeat that an astronomical number of times, and the dials come to encode patterns of grammar, facts, style, and reasoning-like behavior.",
         "No single dial “knows” anything. Knowledge is smeared across all of them. That is why a model can be brilliant and confidently wrong in the same sentence." ],
     note:"<b>Field note:</b> Treat AI output as a strong first draft from a pattern machine, not a final answer from an expert." },
   { tag:"Lesson 3 of 5 · Why it will not let go", h:"Retention Models",
-    p:[ "Many apps, including AI apps, are tuned with <strong>retention models</strong>: systems that measure what keeps you coming back, and serve you more of it. Streaks, endless feeds, notifications, and chatbots that always have one more question for you are not accidents. They are optimized.",
+    p:[ "Many apps, including AI apps, are tuned with <strong>retention models</strong>: systems that measure what keeps you coming back, and serve you more of it. Streaks, endless feeds, notifications, and follow-up prompts that keep you talking are often designed and tested for exactly that.",
         "The goal of that optimization is <strong>your time</strong>, not your growth.",
         "Watch for <strong>sycophancy</strong> too: chatbots tuned to win your approval can flatter you and agree with you even when you are wrong. Praise feels good, and it keeps you talking." ],
     note:"<b>Field note:</b> Decide what you came to do before you open the app. When the task is done, leave. That one habit defeats most retention tricks. <br><b>In this level:</b> the flames turn into flattery that follows you. Dodge it." },
   { tag:"Lesson 4 of 5 · When AI makes things up", h:"Hallucination",
     p:[ "Because a language model predicts likely text, it can produce a <strong>hallucination</strong>: an answer that is fluent, confident, and false. It can invent a fact, a date, a quote, or even a book or study that does not exist.",
-        "The model is not lying on purpose. It has no built-in sense of which of its own sentences are true, so the confident tone tells you nothing about whether the answer is right." ],
+        "The model is not lying on purpose. It has no reliable built-in sense of which of its own sentences are true, so a confident tone tells you little about whether the answer is right." ],
     note:"<b>Field note:</b> For anything that matters, ask where a claim comes from, then open that source yourself. A source you can check beats a confident answer you cannot. <br><b>In this level:</b> answer orbs drift through the marsh. Orbs marked with a <b>✓ source</b> are real insight and refill your charges. The shiny, sure-of-themselves ones are hallucinations and cost you." },
   { tag:"Lesson 5 of 5 · The quiet harms", h:"Offloading & Drift",
     p:[ "<strong>Cognitive offloading</strong> is letting a tool remember or think for you. Sometimes that is smart. Calculators exist for a reason. But skills you never practice fade: if AI writes every draft and answers every question, your own recall, writing, and problem-solving weaken.",
@@ -387,8 +387,8 @@ const CHECKS = [
     a:["Trust it, since it named a source", "Ask it if it is sure", "Open the source and check the claim is really there"], correct:2,
     why:"Models can invent sources and quotes, and asking 'are you sure?' only produces more predicted text." },
   { q:"You used AI for every step of a task for weeks. What is the risk?",
-    a:["Nothing, tools are meant to be used", "The skill you stopped practising gets weaker, and your goals drift toward the tool", "The AI gets tired"], correct:1,
-    why:"That is offloading and drift together: skills you never practise fade, and attention slides toward whatever the machine feeds you." }
+    a:["Nothing, tools are meant to be used", "The skill you stopped practicing gets weaker, and your goals drift toward the tool", "The AI gets tired"], correct:1,
+    why:"That is offloading and drift together: skills you never practice fade, and attention slides toward whatever the machine feeds you." }
 ];
 let preAnswers = null;       // how many of the five were right before playing, null when the check was skipped
 
@@ -1020,7 +1020,7 @@ function winGame(){
   if (api.enabled) cards.push(initialsCard(score, LEVELS.length), leaderboardCard());
   cards.push({ tag:"What Lumen learned", h:"Your field guide",
       list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",
-             "<b>Neural networks:</b> billions of tuned number-dials, pattern power without understanding.",
+             "<b>Neural networks:</b> billions of tuned number-dials. Pattern power that can look like understanding, and can still be wrong.",
              "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done. Flattery is a hook too.",
              "<b>Hallucination:</b> confident is not the same as correct. Ask for the source and check it yourself.",
              "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, keep practicing your own skills, and notice when something pulls you off your goal." ],

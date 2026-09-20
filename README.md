@@ -125,6 +125,11 @@ An unknown or mistyped class code never blocks play: the student is told the cod
 
 No personal data is stored. IP addresses are only hashed with a daily salt for rate limiting. Full details, the API reference, and the five-minute deploy steps are in [backend/README.md](backend/README.md). The live backend runs at https://mindwing-api.amberbellou.workers.dev (check it with `/v1/health`); the game points at it through `API_BASE_DEFAULT` at the top of the script in `index.html`. Redeploy with `backend/deploy.sh`.
 
+## Submission materials
+
+- [docs/SUBMISSION.md](docs/SUBMISSION.md): one-page overview for reviewers, with the concept-to-mechanic map, how learning is measured, a ten-minute evaluation path, accessibility, privacy, and background reading.
+- [docs/screenshots/](docs/screenshots/): fourteen 1280x720 captures covering the title, story, lesson, checks, every level, the hit card, the boss, and the teacher dashboard.
+
 ## Testing
 
 Two test suites, both plain Node with no extra dependencies:
