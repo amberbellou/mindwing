@@ -479,7 +479,7 @@ const HUMAN = [
 let humanCursor = 0;
 function leverCard(need){
   return { type:"lever", need, pulls:0, done:false, tag:"The keeper's lever", h:"What is yours",
-    p:[ "Pull the lever. Every pull lights up something that is <strong>yours</strong>: a machine can describe it, and you can live it." ],
+    p:[ "Pull the lever. Every pull lights up something <strong>inherently human</strong>. It lives in you, and <strong>no machine does it better than you</strong>. A machine can describe it. You can do it." ],
     hint:"" };
 }
 
@@ -868,7 +868,7 @@ function cardAction(act, val){
     const hint = cardEl.querySelector(".hint");
     if (c.pulls >= c.need){
       c.done = true;
-      if (hint){ hint.textContent = "Press SPACE or tap to continue"; hint.classList.remove("wait"); }
+      if (hint){ hint.textContent = "Three lights, all yours. Press SPACE or tap to continue"; hint.classList.remove("wait"); }
     } else if (hint) hint.textContent = "Pull again. " + (c.need - c.pulls) + " to go.";
     return;
   }
