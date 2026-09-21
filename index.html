@@ -85,10 +85,17 @@
   body.calm-motion #card.lesson .neon{animation:none;background:conic-gradient(#9d7bff,#ffd166,#ff8fd8,#9d7bff);opacity:.6;}
   #card .hint.wait{color:var(--dim);animation:none;opacity:.9;}
   /* the reading sweep: a neon underline walks word by word through the lesson at a comfortable pace */
-  #card.lesson .w{border-bottom:2px solid transparent;border-radius:3px;padding:0 1px;transition:color .15s;}
+  /* each word carries its own hue (--h), drifting through the neon palette along the text; the current word glows
+     in its hue and the three words before it keep a fading afterglow, so the light moves like a comet */
+  #card.lesson .w{--h:270;border-bottom:2px solid transparent;border-radius:4px;padding:0 2px;margin:0 -1px;transition:color .18s,text-shadow .25s,border-color .25s,background-color .25s;}
   #card.lesson .w.read{color:var(--ink);}
-  #card.lesson .w.now{color:#ffffff;border-bottom-color:var(--accent);background:rgba(157,123,255,.18);text-shadow:0 0 8px rgba(157,123,255,.9),0 0 16px rgba(255,209,102,.5);}
+  #card.lesson .w.now{color:#ffffff;background:hsl(var(--h) 90% 65% / .22);border-bottom-color:hsl(var(--h) 100% 72%);
+    text-shadow:0 0 8px hsl(var(--h) 100% 72% / .95),0 0 18px hsl(var(--h) 100% 62% / .6);}
+  #card.lesson .w.t1{color:#ffffff;border-bottom-color:hsl(var(--h) 100% 72% / .65);text-shadow:0 0 8px hsl(var(--h) 100% 72% / .6);}
+  #card.lesson .w.t2{border-bottom-color:hsl(var(--h) 100% 72% / .4);text-shadow:0 0 6px hsl(var(--h) 100% 72% / .35);}
+  #card.lesson .w.t3{border-bottom-color:hsl(var(--h) 100% 72% / .2);}
   body.high-contrast #card.lesson .w.now{background:#ffe14d;color:#07051a;text-shadow:none;border-bottom-color:#ffffff;}
+  body.high-contrast #card.lesson .w.t1,body.high-contrast #card.lesson .w.t2,body.high-contrast #card.lesson .w.t3{text-shadow:none;border-bottom-color:transparent;color:var(--ink);}
   body.calm-motion #card.lesson .w{transition:none;}
   /* the keeper's lever: a big handle to pull, and the lights it switches on */
   #card .leverwrap{display:flex;gap:18px;align-items:flex-start;margin:6px 0 4px 0;}
@@ -847,7 +854,9 @@ function wrapWords(root){
         for (const part of tn.nodeValue.split(/(\s+)/)){
           if (!part) continue;
           if (/^\s+$/.test(part)){ frag.appendChild(document.createTextNode(part)); continue; }
-          const sp = document.createElement("span"); sp.className = "w"; sp.textContent = part; frag.appendChild(sp); out.push(sp);
+          const sp = document.createElement("span"); sp.className = "w"; sp.textContent = part;
+          try { sp.style.setProperty("--h", String((250 + out.length * 11) % 360)); } catch(e){}   // a slow drift round the colour wheel
+          frag.appendChild(sp); out.push(sp);
         }
         tn.parentNode.replaceChild(frag, tn);
       }
@@ -862,9 +871,9 @@ function tickLessonHint(){
   if (lessonWords.length){
     const idx = Math.min(lessonWords.length, Math.floor(elapsed / 1000 * WORDS_PER_SEC));
     if (idx !== lastWordIdx){
-      if (lastWordIdx >= 0 && lastWordIdx < lessonWords.length){ lessonWords[lastWordIdx].classList.remove("now"); lessonWords[lastWordIdx].classList.add("read"); }
+      for (let k = Math.max(0, lastWordIdx - 3); k <= Math.min(lessonWords.length - 1, lastWordIdx); k++){ const cl = lessonWords[k].classList; cl.remove("now", "t1", "t2", "t3"); cl.add("read"); }
       for (let k = Math.max(0, lastWordIdx + 1); k < idx; k++) lessonWords[k].classList.add("read");
-      if (idx < lessonWords.length) lessonWords[idx].classList.add("now");
+      for (let t = 0; t <= 3; t++){ const k = idx - t; if (k >= 0 && k < lessonWords.length) lessonWords[k].classList.add(t === 0 ? "now" : "t" + t); }
       lastWordIdx = idx;
     }
   }
