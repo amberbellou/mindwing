@@ -84,19 +84,23 @@
   @keyframes neon-spin{to{--neon:360deg;}}
   body.calm-motion #card.lesson .neon{animation:none;background:conic-gradient(#9d7bff,#ffd166,#ff8fd8,#9d7bff);opacity:.6;}
   #card .hint.wait{color:var(--dim);animation:none;opacity:.9;}
+  #card .art{display:block;width:100%;max-width:560px;height:auto;margin:2px auto 10px auto;}
+  #card .art .spin{transform-origin:0 0;animation:spin 9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  body.calm-motion #card .art .spin{animation:none;}
   /* the reading sweep: a neon underline walks word by word through the lesson at a comfortable pace */
   /* each word carries its own hue (--h), drifting through the neon palette along the text; the current word glows
      in its hue and the three words before it keep a fading afterglow, so the light moves like a comet */
-  #card.lesson .w{--h:270;border-bottom:2px solid transparent;border-radius:4px;padding:0 2px;margin:0 -1px;transition:color .18s,text-shadow .25s,border-color .25s,background-color .25s;}
-  #card.lesson .w.read{color:var(--ink);}
-  #card.lesson .w.now{color:#ffffff;background:hsl(var(--h) 90% 65% / .22);border-bottom-color:hsl(var(--h) 100% 72%);
+  #card.sweep .w{--h:270;border-bottom:2px solid transparent;border-radius:4px;padding:0 2px;margin:0 -1px;transition:color .18s,text-shadow .25s,border-color .25s,background-color .25s;}
+  #card.sweep .w.read{color:var(--ink);}
+  #card.sweep .w.now{color:#ffffff;background:hsl(var(--h) 90% 65% / .22);border-bottom-color:hsl(var(--h) 100% 72%);
     text-shadow:0 0 8px hsl(var(--h) 100% 72% / .95),0 0 18px hsl(var(--h) 100% 62% / .6);}
-  #card.lesson .w.t1{color:#ffffff;border-bottom-color:hsl(var(--h) 100% 72% / .65);text-shadow:0 0 8px hsl(var(--h) 100% 72% / .6);}
-  #card.lesson .w.t2{border-bottom-color:hsl(var(--h) 100% 72% / .4);text-shadow:0 0 6px hsl(var(--h) 100% 72% / .35);}
-  #card.lesson .w.t3{border-bottom-color:hsl(var(--h) 100% 72% / .2);}
-  body.high-contrast #card.lesson .w.now{background:#ffe14d;color:#07051a;text-shadow:none;border-bottom-color:#ffffff;}
-  body.high-contrast #card.lesson .w.t1,body.high-contrast #card.lesson .w.t2,body.high-contrast #card.lesson .w.t3{text-shadow:none;border-bottom-color:transparent;color:var(--ink);}
-  body.calm-motion #card.lesson .w{transition:none;}
+  #card.sweep .w.t1{color:#ffffff;border-bottom-color:hsl(var(--h) 100% 72% / .65);text-shadow:0 0 8px hsl(var(--h) 100% 72% / .6);}
+  #card.sweep .w.t2{border-bottom-color:hsl(var(--h) 100% 72% / .4);text-shadow:0 0 6px hsl(var(--h) 100% 72% / .35);}
+  #card.sweep .w.t3{border-bottom-color:hsl(var(--h) 100% 72% / .2);}
+  body.high-contrast #card.sweep .w.now{background:#ffe14d;color:#07051a;text-shadow:none;border-bottom-color:#ffffff;}
+  body.high-contrast #card.sweep .w.t1,body.high-contrast #card.sweep .w.t2,body.high-contrast #card.sweep .w.t3{text-shadow:none;border-bottom-color:transparent;color:var(--ink);}
+  body.calm-motion #card.sweep .w{transition:none;}
   /* the keeper's lever: a big handle to pull, and the lights it switches on */
   #card .leverwrap{display:flex;gap:18px;align-items:flex-start;margin:6px 0 4px 0;}
   #card .lever{flex:0 0 auto;width:74px;height:120px;position:relative;background:transparent;border:0;padding:0;cursor:pointer;}
@@ -469,6 +473,55 @@ const HIT_FACTS = [
   "A hallucination is a confident answer that is simply wrong. Fluent wording is not evidence.",
   "Ask where a claim comes from, then check that source yourself. Some sources a chatbot cites do not exist."
 ];
+/* The story card's picture: Lumen, the Engine, and a mind being spun. Inline SVG, so it scales and needs no file. */
+const STORY_ART = `<svg class="art" viewBox="0 0 600 150" role="img" aria-label="Lumen the fairy, the Engagement Engine, and a mind being spun by a spiral">
+  <defs>
+    <radialGradient id="gl" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c4" stop-opacity=".9"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient>
+    <radialGradient id="rd" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff5a3c" stop-opacity=".55"/><stop offset="1" stop-color="#ff5a3c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sp" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#9d7bff" stop-opacity=".5"/><stop offset="1" stop-color="#9d7bff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <!-- Lumen -->
+  <g transform="translate(100,78)">
+    <circle r="58" fill="url(#gl)"/>
+    <ellipse cx="-14" cy="-8" rx="24" ry="13" transform="rotate(-38)" fill="rgba(190,225,255,.75)"/>
+    <ellipse cx="-14" cy="8" rx="20" ry="11" transform="rotate(34)" fill="rgba(190,225,255,.7)"/>
+    <ellipse cx="3" cy="4" rx="13" ry="18" transform="rotate(14)" fill="#ffe9b8"/>
+    <path d="M-3,-3 L15,15 L-9,15 Z" fill="#9d7bff"/>
+    <circle cx="10" cy="-13" r="9.5" fill="#ffe9b8"/>
+    <path d="M1,-15 a9,9 0 0 1 17,-4 l-4,-6 a10,10 0 0 0 -14,4 z" fill="#ff8fd8"/>
+    <circle cx="14" cy="-14" r="1.7" fill="#2b1b4d"/>
+    <circle cx="24" cy="-1" r="3.5" fill="#ffd166"/>
+    <path d="M24,-9 v16 M16,-1 h16" stroke="#ffd166" stroke-width="1.4" opacity=".8"/>
+    <text y="62" text-anchor="middle" font-size="12" fill="#b9aee0" font-family="inherit">Lumen</text>
+  </g>
+  <!-- the Engagement Engine -->
+  <g transform="translate(300,78)">
+    <circle r="62" fill="url(#rd)"/>
+    <path d="M-48,-4 L-10,-40 L4,-8 Z M-48,6 L-10,38 L4,10 Z" fill="#5a5a6e"/>
+    <ellipse cx="4" cy="0" rx="42" ry="26" fill="#3c3c4c"/>
+    <path d="M40,0 L66,-14 L66,14 Z" fill="#50506a"/>
+    <circle cx="-36" cy="-9" r="15" fill="#8a8aa0"/>
+    <path d="M-50,-10 L-70,-4 L-48,-1 Z" fill="#ff8c1a"/>
+    <rect x="-44" y="-15" width="7" height="5" rx="1" fill="#ff2020"/>
+    <rect x="-34" y="-13" width="6" height="4" rx="1" fill="#ff2020"/>
+    <circle cx="6" cy="2" r="9" fill="#ff5a3c"/><circle cx="6" cy="2" r="4" fill="#ffd166"/>
+    <path d="M-2,-30 h16 M6,-30 v-8" stroke="#8a8aa0" stroke-width="2"/><circle cx="6" cy="-40" r="3" fill="#ff2020"/>
+    <text y="62" text-anchor="middle" font-size="12" fill="#b9aee0" font-family="inherit">the Engagement Engine</text>
+  </g>
+  <!-- a mind being spun -->
+  <g transform="translate(500,78)">
+    <circle r="60" fill="url(#sp)"/>
+    <path d="M-30,44 v-14 a34,36 0 1 1 60,0 v14" fill="none" stroke="#c9a7ff" stroke-width="3" stroke-linecap="round"/>
+    <g class="spin"><path d="M1.5,0.0 L1.9,0.3 L2.3,0.7 L2.5,1.2 L2.7,1.8 L2.7,2.4 L2.6,3.1 L2.3,3.8 L1.9,4.5 L1.3,5.2 L0.6,5.7 L-0.3,6.2 L-1.2,6.5 L-2.3,6.6 L-3.5,6.6 L-4.6,6.4 L-5.8,5.9 L-7.0,5.3 L-8.0,4.4 L-9.0,3.3 L-9.8,2.1 L-10.4,0.7 L-10.8,-0.9 L-11.0,-2.6 L-10.9,-4.3 L-10.5,-6.1 L-9.8,-7.8 L-8.9,-9.5 L-7.7,-11.0 L-6.1,-12.4 L-4.4,-13.6 L-2.4,-14.5 L-0.3,-15.1 L1.9,-15.4 L4.3,-15.4 L6.7,-15.0 L9.0,-14.2 L11.3,-13.0 L13.4,-11.5 L15.3,-9.7 L16.9,-7.5 L18.2,-5.1 L19.2,-2.4 L19.8,0.4 L19.9,3.4 L19.6,6.4 L18.9,9.4 L17.6,12.3 L16.0,15.0 L13.9,17.5 L11.4,19.7 L8.5,21.6 L5.4,23.0 L2.0,23.9 L-1.5,24.4 L-5.2,24.3 L-8.8,23.7 L-12.4,22.6 L-15.8,20.8 L-19.0,18.6 L-21.9,15.9 L-24.3,12.7 L-26.3,9.2 L-27.8,5.3 L-28.7,1.2 L-29.0,-3.0 L-28.6,-7.4 L-27.6,-11.6 L-26.0,-15.8 L-23.8,-19.7 L-20.9,-23.2 L-17.5,-26.4 L-13.7,-29.1 L-9.4,-31.1 L-4.8,-32.6 L-0.0,-33.4 L4.9,-33.4 L9.9,-32.8 L14.8,-31.4 L19.4,-29.2 L23.8,-26.4 L27.7,-22.9 L31.1,-18.8 L33.9,-14.3 L36.0,-9.3 L37.4,-3.9 L38.0,1.6 L37.8,7.2 L36.7,12.8 L34.9,18.2 L32.2,23.4 L28.7,28.1 L24.6,32.4 L19.8,36.0 L14.5,38.9 L8.7,41.0 L2.7,42.2 L-3.6,42.6 L-9.9,42.0 L-16.0,40.5 L-22.0,38.1 L-27.6,34.8 L-32.7,30.7 L-37.2,25.8 L-40.9,20.3 L-43.9,14.3 L-45.9,7.8 L-47.0,1.0 L-47.0,-5.9 L-46.1,-12.9 L-44.1,-19.6 L-41.1,-26.1 L-37.2,-32.1 L-32.4,-37.5 L-26.8,-42.2 L-20.5,-46.0 L-13.7,-48.9 L-6.4,-50.8 L1.1,-51.7 L8.7,-51.4 L16.2,-49.9" fill="none" stroke="#ff8fd8" stroke-width="2.2" stroke-linecap="round"/></g>
+    <g fill="#ffd166" opacity=".85">
+      <rect x="38" y="-40" width="9" height="3" rx="1" transform="rotate(-25 42 -38)"/>
+      <rect x="46" y="-24" width="7" height="3" rx="1" transform="rotate(-10 49 -22)"/>
+      <rect x="50" y="-6" width="6" height="3" rx="1" transform="rotate(12 53 -4)"/>
+    </g>
+    <text y="62" text-anchor="middle" font-size="12" fill="#b9aee0" font-family="inherit">a mind being spun</text>
+  </g>
+</svg>`;
+
 /* The keeper's lever: things that are yours. A machine can describe each one; you can live it. Fifteen, so the
    start and the four interludes each light three, in order, without repeating. Kept careful: models can
    produce words and even metaphors about all of these, so each line says what is different, not what is impossible. */
@@ -757,6 +810,7 @@ function buildCard(c){
   if (c.big) html += `<p class="big">${c.big}</p>`;
   if (c.tag) html += `<p class="tag">${c.tag}</p>`;
   if (c.h && !c.big) html += `<h2>${c.h}</h2>`;
+  if (c.art) html += c.art;
   if (c.sub) html += `<p class="sub">${c.sub}</p>`;
   if (c.p) for (const t of c.p) html += `<p>${t}</p>`;
   if (c.list){ html += "<ul>"; for (const t of c.list) html += `<li>${t}</li>`; html += "</ul>"; }
@@ -785,9 +839,10 @@ function renderCard(c){
   currentCard = c; cardSerial++;
   cardEl.innerHTML = buildCard(c);
   cardEl.classList.toggle("lesson", c.lesson != null);
+  cardEl.classList.toggle("sweep", c.lesson != null || !!c.sweep);
   cardEl.classList.remove("ready");
   if (c.lesson != null){ const n = document.createElement("div"); n.className = "neon"; cardEl.appendChild(n); }
-  lessonWords = c.lesson != null ? wrapWords(cardEl) : [];
+  lessonWords = (c.lesson != null || c.sweep) ? wrapWords(cardEl) : [];
   lastWordIdx = -1;
   cardShownAt = performance.now();
   tickLessonHint();
@@ -866,7 +921,7 @@ function wrapWords(root){
 }
 function tickLessonHint(){
   const c = currentCard;
-  if (!overlayOpen || !c || c.lesson == null) return;
+  if (!overlayOpen || !c || (c.lesson == null && !c.sweep)) return;
   const elapsed = performance.now() - cardShownAt;
   if (lessonWords.length){
     const idx = Math.min(lessonWords.length, Math.floor(elapsed / 1000 * WORDS_PER_SEC));
@@ -877,6 +932,7 @@ function tickLessonHint(){
       lastWordIdx = idx;
     }
   }
+  if (c.lesson == null) return;
   const left = Math.ceil((LESSON_MIN_MS - elapsed) / 1000);
   const hint = cardEl.querySelector(".hint");
   if (!hint) return;
@@ -1052,7 +1108,7 @@ function titleCards(){
         ] : []),
       note: classNote(),
       hint: progress.furthest > 0 ? "Press SPACE or tap to continue" : "Press SPACE or tap to begin" },
-    { tag:"The story", h:"The Grove of Minds",
+    { tag:"The story", h:"The Grove of Minds", sweep:true, art: STORY_ART,
       p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
           "But the <strong>Engagement Engine</strong>, a machine that feeds on attention, has sent its fire-eagles to scorch the grove and keep every mind staring at the flames.",
           "Fly, Lumen. With every eagle you turn back, you will learn how the Engine works. Understand it, and it loses its power over you." ] },
