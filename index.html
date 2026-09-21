@@ -830,7 +830,7 @@ function leaveCurrentCard(){
 /* Lesson cards cannot be skipped until LESSON_MIN_MS have passed. The hint counts the seconds down and the
    frame ring holds gold once reading time is up, so the wait reads as part of the card, not as a broken button. */
 const LESSON_MIN_MS = 10000;
-const WORDS_PER_SEC = 2.8;      // the sweep's pace: a comfortable read-aloud speed for ages 11 and up
+const WORDS_PER_SEC = 3.0;      // the sweep's pace: a comfortable read-aloud speed for ages 11 and up
 let lastHintSec = -1, lessonWords = [], lastWordIdx = -1;
 /* Split the lesson's paragraphs and note into word spans so the sweep can light them one at a time. */
 function wrapWords(root){
