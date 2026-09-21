@@ -84,6 +84,12 @@
   @keyframes neon-spin{to{--neon:360deg;}}
   body.calm-motion #card.lesson .neon{animation:none;background:conic-gradient(#9d7bff,#ffd166,#ff8fd8,#9d7bff);opacity:.6;}
   #card .hint.wait{color:var(--dim);animation:none;opacity:.9;}
+  /* the reading sweep: a neon underline walks word by word through the lesson at a comfortable pace */
+  #card.lesson .w{border-bottom:2px solid transparent;border-radius:3px;padding:0 1px;transition:color .15s;}
+  #card.lesson .w.read{color:var(--ink);}
+  #card.lesson .w.now{color:#ffffff;border-bottom-color:var(--accent);background:rgba(157,123,255,.18);text-shadow:0 0 8px rgba(157,123,255,.9),0 0 16px rgba(255,209,102,.5);}
+  body.high-contrast #card.lesson .w.now{background:#ffe14d;color:#07051a;text-shadow:none;border-bottom-color:#ffffff;}
+  body.calm-motion #card.lesson .w{transition:none;}
   /* the keeper's lever: a big handle to pull, and the lights it switches on */
   #card .leverwrap{display:flex;gap:18px;align-items:flex-start;margin:6px 0 4px 0;}
   #card .lever{flex:0 0 auto;width:74px;height:120px;position:relative;background:transparent;border:0;padding:0;cursor:pointer;}
@@ -774,6 +780,8 @@ function renderCard(c){
   cardEl.classList.toggle("lesson", c.lesson != null);
   cardEl.classList.remove("ready");
   if (c.lesson != null){ const n = document.createElement("div"); n.className = "neon"; cardEl.appendChild(n); }
+  lessonWords = c.lesson != null ? wrapWords(cardEl) : [];
+  lastWordIdx = -1;
   cardShownAt = performance.now();
   tickLessonHint();
   if (c.type === "initials"){
@@ -821,12 +829,46 @@ function leaveCurrentCard(){
 }
 /* Lesson cards cannot be skipped until LESSON_MIN_MS have passed. The hint counts the seconds down and the
    frame ring holds gold once reading time is up, so the wait reads as part of the card, not as a broken button. */
-const LESSON_MIN_MS = 8000;
-let lastHintSec = -1;
+const LESSON_MIN_MS = 10000;
+const WORDS_PER_SEC = 2.8;      // the sweep's pace: a comfortable read-aloud speed for ages 11 and up
+let lastHintSec = -1, lessonWords = [], lastWordIdx = -1;
+/* Split the lesson's paragraphs and note into word spans so the sweep can light them one at a time. */
+function wrapWords(root){
+  const out = [];
+  try {
+    const blocks = root.querySelectorAll("p:not(.tag):not(.muted):not(.sub), .note, li");
+    for (const el of blocks){
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const texts = [];
+      while (walker.nextNode()) texts.push(walker.currentNode);
+      for (const tn of texts){
+        if (!tn.nodeValue.trim() || (tn.parentElement && tn.parentElement.classList.contains("hint"))) continue;
+        const frag = document.createDocumentFragment();
+        for (const part of tn.nodeValue.split(/(\s+)/)){
+          if (!part) continue;
+          if (/^\s+$/.test(part)){ frag.appendChild(document.createTextNode(part)); continue; }
+          const sp = document.createElement("span"); sp.className = "w"; sp.textContent = part; frag.appendChild(sp); out.push(sp);
+        }
+        tn.parentNode.replaceChild(frag, tn);
+      }
+    }
+  } catch(e){}
+  return out;
+}
 function tickLessonHint(){
   const c = currentCard;
   if (!overlayOpen || !c || c.lesson == null) return;
-  const left = Math.ceil((LESSON_MIN_MS - (performance.now() - cardShownAt)) / 1000);
+  const elapsed = performance.now() - cardShownAt;
+  if (lessonWords.length){
+    const idx = Math.min(lessonWords.length, Math.floor(elapsed / 1000 * WORDS_PER_SEC));
+    if (idx !== lastWordIdx){
+      if (lastWordIdx >= 0 && lastWordIdx < lessonWords.length){ lessonWords[lastWordIdx].classList.remove("now"); lessonWords[lastWordIdx].classList.add("read"); }
+      for (let k = Math.max(0, lastWordIdx + 1); k < idx; k++) lessonWords[k].classList.add("read");
+      if (idx < lessonWords.length) lessonWords[idx].classList.add("now");
+      lastWordIdx = idx;
+    }
+  }
+  const left = Math.ceil((LESSON_MIN_MS - elapsed) / 1000);
   const hint = cardEl.querySelector(".hint");
   if (!hint) return;
   if (left > 0){
