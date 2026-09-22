@@ -16,12 +16,12 @@
     --card-bg:#171233;
   }
   /* Fonts are self-hosted (SIL Open Font License, see fonts/LICENSE.md): no third-party request, works offline. */
-  @font-face{font-family:'Audiowide';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/Audiowide-normal-400.woff2) format('woff2');}
+  @font-face{font-family:'Fredoka';font-style:normal;font-weight:300 700;font-display:swap;src:url(fonts/Fredoka-normal-300-700.woff2) format('woff2');}
   @font-face{font-family:'Nunito';font-style:italic;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-italic-400-900.woff2) format('woff2');}
   @font-face{font-family:'Nunito';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-normal-400-900.woff2) format('woff2');}
   html,body{margin:0;padding:0;height:100%;background:#0b0820;overflow:hidden;
     font-family:"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
-  #card .big,#card .tag,#card h2{font-family:"Audiowide","Nunito","Avenir Next",sans-serif;font-weight:400;}
+  #card .big,#card .tag,#card h2{font-family:"Fredoka","Nunito","Avenir Next",sans-serif;font-weight:600;}
   #card h2{letter-spacing:.5px;}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0820;}
   canvas{display:block;touch-action:none;-webkit-touch-callout:none;}
@@ -151,9 +151,9 @@
 "use strict";
 const W = 960, H = 540;
 const FONT_UI = '"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif';
-const FONT_DISPLAY = '"Audiowide","Nunito","Avenir Next",sans-serif';
+const FONT_DISPLAY = '"Fredoka","Nunito","Avenir Next",sans-serif';
 /* warm the self-hosted fonts so the canvas HUD and banners use them from the first frame */
-try { document.fonts.load('400 16px "Audiowide"'); document.fonts.load('600 16px "Nunito"'); document.fonts.load('800 16px "Nunito"'); } catch(e){}
+try { document.fonts.load('600 16px "Fredoka"'); document.fonts.load('600 16px "Nunito"'); document.fonts.load('800 16px "Nunito"'); } catch(e){}
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const ov = document.getElementById("ov");
@@ -2360,7 +2360,7 @@ function drawHUD(){
   /* level + progress */
   ctx.textAlign = "center";
   ctx.fillStyle = dimWhite(0.85);
-  ctx.font = font(14, 400, true);
+  ctx.font = font(15, 600, true);
   ctx.fillText(`${cfg.name} · ${cfg.concept}`, W/2, 12);
   const row = 12 + 20*k;
   if (!boss){
@@ -2395,7 +2395,7 @@ function drawBanner(){
   ctx.globalAlpha = Math.max(0, a);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillStyle = "#ffffff";
-  ctx.font = `400 ${Math.round(32 * hudScale())}px ${FONT_DISPLAY}`;
+  ctx.font = `600 ${Math.round(34 * hudScale())}px ${FONT_DISPLAY}`;
   ctx.shadowColor = "#9d7bff"; ctx.shadowBlur = 24;
   if (banner.text) ctx.fillText(banner.text, W/2, H/2 - 40);
   if (banner.sub){
