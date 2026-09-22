@@ -15,8 +15,14 @@
     --accent2:#9d7bff;
     --card-bg:#171233;
   }
+  /* Fonts are self-hosted (SIL Open Font License, see fonts/LICENSE.md): no third-party request, works offline. */
+  @font-face{font-family:'Audiowide';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/Audiowide-normal-400.woff2) format('woff2');}
+  @font-face{font-family:'Nunito';font-style:italic;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-italic-400-900.woff2) format('woff2');}
+  @font-face{font-family:'Nunito';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-normal-400-900.woff2) format('woff2');}
   html,body{margin:0;padding:0;height:100%;background:#0b0820;overflow:hidden;
-    font-family:"Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
+    font-family:"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
+  #card .big,#card .tag,#card h2{font-family:"Audiowide","Nunito","Avenir Next",sans-serif;font-weight:400;}
+  #card h2{letter-spacing:.5px;}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0820;}
   canvas{display:block;touch-action:none;-webkit-touch-callout:none;}
   #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
@@ -144,6 +150,10 @@
 (() => {
 "use strict";
 const W = 960, H = 540;
+const FONT_UI = '"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif';
+const FONT_DISPLAY = '"Audiowide","Nunito","Avenir Next",sans-serif';
+/* warm the self-hosted fonts so the canvas HUD and banners use them from the first frame */
+try { document.fonts.load('400 16px "Audiowide"'); document.fonts.load('600 16px "Nunito"'); document.fonts.load('800 16px "Nunito"'); } catch(e){}
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const ov = document.getElementById("ov");
@@ -2123,14 +2133,14 @@ function drawPraise(f){
   g.addColorStop(0,"rgba(255,224,138,0.55)"); g.addColorStop(1,"rgba(255,224,138,0)");
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,24,0,6.28); ctx.fill();
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "20px sans-serif";
+  ctx.font = "20px " + FONT_UI;
   ctx.fillText("👍", 0, 1);
   /* the words matter at the moment of attack; after that only the thumb stays, and never over the HUD */
   const wordAlpha = Math.max(0, Math.min(1, (2.0 - f.t) / 0.4));
   const inHud = f.y < 90 && f.x < 220;
   if (f.phrase && wordAlpha > 0 && !inHud){
     ctx.globalAlpha = Math.max(0, fade) * wordAlpha;
-    ctx.font = "700 12px sans-serif";
+    ctx.font = "700 12px " + FONT_UI;
     if (!f.tw) f.tw = ctx.measureText(f.phrase).width;
     const bw = f.tw + 14, bh = 20, by = -32;
     ctx.fillStyle = "rgba(255,248,225,0.95)";
@@ -2201,7 +2211,7 @@ function drawOrb(o){
   }
   /* the claim */
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = `${o.real ? 600 : 800} ${Math.round(11 * hudScale())}px sans-serif`;
+  ctx.font = `${o.real ? 600 : 800} ${Math.round(11 * hudScale())}px ${FONT_UI}`;
   const tw = ctx.measureText(o.text).width + 12;
   ctx.fillStyle = o.real ? "rgba(10,40,25,0.85)" : "rgba(60,40,0,0.85)";
   ctx.fillRect(-tw/2, 17, tw, 16);
@@ -2322,7 +2332,7 @@ function drawHook(e){
 function drawHUD(){
   const cfg = LEVELS[level];
   const k = hudScale(), hc = highContrast();
-  const font = (px, w) => `${w ? w + " " : ""}${Math.round(px * k)}px sans-serif`;
+  const font = (px, w, display) => `${w ? w + " " : ""}${Math.round(px * k)}px ${display ? FONT_DISPLAY : FONT_UI}`;
   const dimWhite = a => hc ? "#ffffff" : `rgba(255,255,255,${a})`;
   ctx.textBaseline = "top";
   /* hearts: empty hearts are outlined, so full versus empty never depends on color alone */
@@ -2350,7 +2360,7 @@ function drawHUD(){
   /* level + progress */
   ctx.textAlign = "center";
   ctx.fillStyle = dimWhite(0.85);
-  ctx.font = font(15, 600);
+  ctx.font = font(14, 400, true);
   ctx.fillText(`${cfg.name} · ${cfg.concept}`, W/2, 12);
   const row = 12 + 20*k;
   if (!boss){
@@ -2385,11 +2395,11 @@ function drawBanner(){
   ctx.globalAlpha = Math.max(0, a);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillStyle = "#ffffff";
-  ctx.font = `800 ${Math.round(34 * hudScale())}px sans-serif`;
+  ctx.font = `400 ${Math.round(32 * hudScale())}px ${FONT_DISPLAY}`;
   ctx.shadowColor = "#9d7bff"; ctx.shadowBlur = 24;
   if (banner.text) ctx.fillText(banner.text, W/2, H/2 - 40);
   if (banner.sub){
-    ctx.font = `600 ${Math.round(17 * hudScale())}px sans-serif`;
+    ctx.font = `700 ${Math.round(17 * hudScale())}px ${FONT_UI}`;
     ctx.fillStyle = "#ffd166";
     ctx.fillText(banner.sub, W/2, H/2 - 4);
   }
@@ -2408,7 +2418,7 @@ function drawStillness(){
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = `rgba(230,250,255,${0.55*k})`;
-  ctx.font = "600 12px sans-serif";
+  ctx.font = "600 12px " + FONT_UI;
   ctx.fillText("STILL", W/2, H - 22);   // bottom centre: the top strip already carries the level readout
   ctx.restore();
 }
@@ -2444,7 +2454,7 @@ function draw(){
   ctx.globalAlpha = 1;
   if (pops.length){
     ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = `800 ${Math.round(15 * hudScale())}px sans-serif`;
+    ctx.font = `800 ${Math.round(15 * hudScale())}px ${FONT_UI}`;
     for (const q of pops){
       ctx.globalAlpha = Math.max(0, 1 - q.t / 0.9);
       ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillText(q.text, q.x + 1, q.y + 1);
