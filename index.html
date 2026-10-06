@@ -1,0 +1,2501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%230b0820%27/%3E%3Cpath d=%27M32 8l5 17 17 5-17 5-5 17-5-17-17-5 17-5z%27 fill=%27%23ffd166%27/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0b0820">
+<title>Mindwing</title>
+<meta name="description" content="A tiny browser game about how AI works, and how to keep your mind your own. Tokens, neural networks, retention models, cognitive offloading, and cognitive drift.">
+<style>
+  :root{
+    --ink:#f2edff;
+    --dim:#b9aee0;
+    --accent:#ffd166;
+    --accent2:#9d7bff;
+    --card-bg:#171233;
+  }
+  /* Fonts are self-hosted (SIL Open Font License, see fonts/LICENSE.md): no third-party request, works offline. */
+  @font-face{font-family:'Fredoka';font-style:normal;font-weight:300 700;font-display:swap;src:url(fonts/Fredoka-normal-300-700.woff2) format('woff2');}
+  @font-face{font-family:'Nunito';font-style:italic;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-italic-400-900.woff2) format('woff2');}
+  @font-face{font-family:'Nunito';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-normal-400-900.woff2) format('woff2');}
+  html,body{margin:0;padding:0;height:100%;background:#0b0820;overflow:hidden;
+    font-family:"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
+  #card .big,#card .tag,#card h2{font-family:"Fredoka","Nunito","Avenir Next",sans-serif;font-weight:600;}
+  #card h2{letter-spacing:.5px;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0820;}
+  canvas{display:block;touch-action:none;-webkit-touch-callout:none;}
+  #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,6,22,.80);z-index:10;padding:18px;box-sizing:border-box;touch-action:pan-y;}
+  #ov.hidden{display:none;}
+  #card{max-width:660px;width:100%;max-height:92vh;overflow-y:auto;background:var(--card-bg);
+    border:1px solid #3a2f6e;border-radius:18px;padding:28px 32px;color:var(--ink);
+    box-shadow:0 0 60px rgba(157,123,255,.25), inset 0 0 40px rgba(157,123,255,.05);
+    line-height:1.55;-webkit-user-select:none;user-select:none;cursor:pointer;}
+  #card .big{font-size:clamp(28px,9vw,52px);font-weight:800;letter-spacing:2px;margin:0 0 4px 0;
+    background:linear-gradient(90deg,#ffd166,#ff8fd8,#9d7bff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;}
+  #card .tag{color:var(--accent);font-size:13px;font-weight:700;text-transform:uppercase;
+    letter-spacing:2.5px;margin:0 0 6px 0;}
+  #card h2{margin:0 0 14px 0;font-size:26px;color:var(--ink);}
+  #card p{margin:0 0 12px 0;font-size:16px;color:var(--dim);}
+  #card p strong{color:var(--ink);}
+  #card .note{background:rgba(157,123,255,.12);border-left:3px solid var(--accent2);
+    border-radius:0 10px 10px 0;padding:10px 14px;margin:16px 0 4px 0;font-size:15px;color:var(--ink);}
+  #card .note b{color:var(--accent2);}
+  #card .sub{text-align:center;color:var(--dim);font-size:17px;margin-bottom:10px;}
+  #card ul{margin:0 0 12px 0;padding-left:20px;color:var(--dim);font-size:16px;}
+  #card ul li{margin-bottom:6px;}
+  #card ul b{color:var(--ink);}
+  #card .hint{margin-top:18px;text-align:center;font-size:13px;color:var(--accent);
+    letter-spacing:1px;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  #card .opts{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px 0;}
+  #card button{font:inherit;font-size:15px;line-height:1.35;text-align:left;background:rgba(157,123,255,.14);color:var(--ink);
+    border:1px solid #4a3d8a;border-radius:10px;padding:10px 14px;cursor:pointer;}
+  #card button:hover,#card button:focus{background:rgba(157,123,255,.3);outline:none;border-color:var(--accent2);}
+  #card button.primary{background:var(--accent2);color:#12092b;font-weight:700;text-align:center;}
+  #card button.ghost{background:transparent;text-align:center;color:var(--dim);}
+  #card .row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:8px;}
+  #card input.ini{font:inherit;font-size:28px;letter-spacing:10px;text-transform:uppercase;width:120px;text-align:center;
+    background:#0e0a24;color:var(--accent);border:1px solid #4a3d8a;border-radius:10px;padding:8px 4px 8px 14px;}
+  #card input.ini:focus{outline:none;border-color:var(--accent);}
+  #card table{width:100%;border-collapse:collapse;font-size:15px;color:var(--dim);margin:4px 0 8px 0;}
+  #card td,#card th{padding:4px 6px;text-align:left;border-bottom:1px solid #2a2350;}
+  #card th{color:var(--accent);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;}
+  #card tr.me td{color:var(--ink);font-weight:700;}
+  #card .ok{color:#7ee2a8;font-weight:700;}
+  #card .bad{color:#ff8fa3;font-weight:700;}
+  #card .muted{color:var(--dim);font-size:13px;text-align:center;margin-top:6px;}
+  #card .set{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:8px 12px;align-items:center;margin:8px 0 4px 0;}
+  #card .set .lbl{color:var(--ink);font-weight:700;font-size:15px;}
+  #card .set .seg{display:flex;flex-wrap:wrap;gap:6px;}
+  #card .set .seg button{text-align:center;padding:7px 12px;}
+  #card .set .seg button[aria-pressed="true"]{background:var(--accent2);color:#12092b;font-weight:700;border-color:var(--accent2);}
+  #card .set .why{grid-column:2;color:var(--dim);font-size:13px;margin-top:-4px;}
+  body.big-text #card p, body.big-text #card ul, body.big-text #card button{font-size:19px;}
+  body.big-text #card .note{font-size:18px;}
+  body.big-text #card .set .lbl{font-size:18px;}
+  body.big-text #card h2{font-size:30px;}
+  body.big-text #card .tag, body.big-text #card .muted, body.big-text #card .hint, body.big-text #card .set .why{font-size:15px;}
+  body.calm-motion #card .hint{animation:none;opacity:.9;}
+  /* lesson cards: a light runs around the frame while the reading time counts down, then holds gold */
+  @property --neon { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+  #card.lesson{position:relative;}
+  #card.lesson .neon{position:absolute;inset:0;border-radius:18px;padding:3px;pointer-events:none;
+    background:conic-gradient(from var(--neon),transparent 0 58%,#9d7bff 72%,#ffd166 84%,#ff8fd8 92%,transparent 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+    animation:neon-spin 2.6s linear infinite;filter:drop-shadow(0 0 6px rgba(157,123,255,.8));}
+  #card.lesson.ready .neon{animation:none;background:conic-gradient(#ffd166,#ff8fd8,#9d7bff,#ffd166);opacity:.85;}
+  @keyframes neon-spin{to{--neon:360deg;}}
+  body.calm-motion #card.lesson .neon{animation:none;background:conic-gradient(#9d7bff,#ffd166,#ff8fd8,#9d7bff);opacity:.6;}
+  #card .hint.wait{color:var(--dim);animation:none;opacity:.9;}
+  #card .art{display:block;width:100%;max-width:560px;height:auto;margin:2px auto 10px auto;}
+  #card .art .spin{transform-origin:0 0;animation:spin 9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  body.calm-motion #card .art .spin{animation:none;}
+  /* the reading sweep: a neon underline walks word by word through the lesson at a comfortable pace */
+  /* each word carries its own hue (--h), drifting through the neon palette along the text; the current word glows
+     in its hue and the three words before it keep a fading afterglow, so the light moves like a comet */
+  #card.sweep .w{--h:270;border-bottom:2px solid transparent;border-radius:4px;padding:0 2px;margin:0 -1px;transition:color .18s,text-shadow .25s,border-color .25s,background-color .25s;}
+  #card.sweep .w.read{color:var(--ink);}
+  #card.sweep .w.now{color:#ffffff;background:hsl(var(--h) 90% 65% / .22);border-bottom-color:hsl(var(--h) 100% 72%);
+    text-shadow:0 0 8px hsl(var(--h) 100% 72% / .95),0 0 18px hsl(var(--h) 100% 62% / .6);}
+  #card.sweep .w.t1{color:#ffffff;border-bottom-color:hsl(var(--h) 100% 72% / .65);text-shadow:0 0 8px hsl(var(--h) 100% 72% / .6);}
+  #card.sweep .w.t2{border-bottom-color:hsl(var(--h) 100% 72% / .4);text-shadow:0 0 6px hsl(var(--h) 100% 72% / .35);}
+  #card.sweep .w.t3{border-bottom-color:hsl(var(--h) 100% 72% / .2);}
+  body.high-contrast #card.sweep .w.now{background:#ffe14d;color:#07051a;text-shadow:none;border-bottom-color:#ffffff;}
+  body.high-contrast #card.sweep .w.t1,body.high-contrast #card.sweep .w.t2,body.high-contrast #card.sweep .w.t3{text-shadow:none;border-bottom-color:transparent;color:var(--ink);}
+  body.calm-motion #card.sweep .w{transition:none;}
+  /* the keeper's lever: a big handle to pull, and the lights it switches on */
+  #card .leverwrap{display:flex;gap:18px;align-items:flex-start;margin:6px 0 4px 0;}
+  #card .lever{flex:0 0 auto;width:74px;height:120px;position:relative;background:transparent;border:0;padding:0;cursor:pointer;}
+  #card .lever .base{position:absolute;left:12px;right:12px;bottom:6px;height:22px;border-radius:8px;background:#2a2350;border:1px solid #4a3d8a;}
+  #card .lever .slot{position:absolute;left:33px;top:10px;width:8px;height:92px;border-radius:4px;background:#0e0a24;border:1px solid #4a3d8a;}
+  #card .lever .arm{position:absolute;left:34px;bottom:24px;width:6px;height:78px;border-radius:3px;background:linear-gradient(#c9a7ff,#9d7bff);transform-origin:50% 100%;transition:transform .18s ease;}
+  #card .lever .knob{position:absolute;left:-10px;top:-14px;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe9a8,#ffd166 55%,#b8862e);box-shadow:0 0 14px rgba(255,209,102,.6);}
+  #card .lever.pulled .arm{transform:rotate(38deg);}
+  #card .lever:focus{outline:2px solid var(--accent2);outline-offset:4px;border-radius:12px;}
+  #card .lights{flex:1;display:flex;flex-direction:column;gap:8px;min-height:120px;}
+  #card .light{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.45);border-radius:10px;padding:8px 12px;color:var(--ink);font-size:15px;
+    box-shadow:0 0 18px rgba(255,209,102,.25);animation:lightup .5s ease-out;}
+  #card .light b{color:var(--accent);font-size:17px;margin-right:6px;}
+  @keyframes lightup{from{opacity:0;transform:translateY(6px);box-shadow:0 0 0 rgba(255,209,102,0);}to{opacity:1;transform:none;}}
+  body.calm-motion #card .light{animation:none;}
+  body.calm-motion #card .lever .arm{transition:none;}
+  body.high-contrast{--ink:#ffffff;--dim:#e6e0ff;--accent:#ffe14d;--card-bg:#07051a;}
+  body.high-contrast #card{border:2px solid #ffffff;}
+  body.high-contrast #card button{border-width:2px;border-color:#cfc4ff;}
+  @media (max-width:520px){
+    #card{padding:20px 18px;border-radius:14px;}
+    #card h2{font-size:22px;}
+    #card p, #card ul{font-size:15px;}
+  }
+  @media (max-height:540px){
+    #card{padding:14px 20px;max-height:94vh;}
+    #card .big{font-size:34px;}
+    #card .sub{font-size:15px;margin-bottom:6px;}
+    #card h2{font-size:20px;margin-bottom:8px;}
+    #card p, #card ul{font-size:14px;margin-bottom:8px;}
+    #card ul li{margin-bottom:3px;}
+    #card .note{padding:8px 12px;margin-top:10px;font-size:14px;}
+    #card .hint{margin-top:10px;}
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="960" height="540"></canvas></div>
+<div id="ov" class="hidden"><div id="card" role="dialog" aria-live="polite"></div></div>
+<script>
+(() => {
+"use strict";
+const W = 960, H = 540;
+const FONT_UI = '"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif';
+const FONT_DISPLAY = '"Fredoka","Nunito","Avenir Next",sans-serif';
+/* warm the self-hosted fonts so the canvas HUD and banners use them from the first frame */
+try { document.fonts.load('600 16px "Fredoka"'); document.fonts.load('600 16px "Nunito"'); document.fonts.load('800 16px "Nunito"'); } catch(e){}
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const ov = document.getElementById("ov");
+const cardEl = document.getElementById("card");
+
+/* ---------- optional backend: global leaderboard + anonymous learning analytics ----------
+   Set API_BASE_DEFAULT to your deployed Cloudflare Worker URL (see backend/README.md).
+   Leave it empty and the game runs fully offline. For local development, open the game
+   with ?api=http://localhost:8787 (only localhost URLs are accepted by the override).
+   Nothing personal is ever sent: a random client id, gameplay events, and 3-letter initials. */
+const API_BASE_DEFAULT = "https://mindwing-api.amberbellou.workers.dev";
+/* Which layout of the game produced a run. Runs from the original 4-level game carry no build. */
+const GAME_BUILD = "5L-2026.09";
+/* Classroom: a teacher shares a link with ?class=CODE. The code is remembered in this browser so a student
+   who reloads stays in the class. Only the code travels with a run; the teacher dashboard shows how far each
+   run got, its quick-check answers, its answer orbs, and any initials typed on the leaderboard. */
+const CLASS_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+let classCode = null, classLabel = null, classStatus = "none";   // none | checking | ok | unknown | offline
+try {
+  const q = new URLSearchParams(location.search).get("class");
+  if (q && q.toLowerCase() === "none") localStorage.removeItem("mindwing_class");
+  else if (q && CLASS_RE.test(q.trim().toUpperCase())) localStorage.setItem("mindwing_class", q.trim().toUpperCase());
+  const saved = localStorage.getItem("mindwing_class");
+  if (saved && CLASS_RE.test(saved)) classCode = saved;
+} catch(e){}
+const api = (() => {
+  /* A copy of this file opened from localhost must never write to the live backend: test runs would land in
+     the real leaderboard and skew the research data. Local pages are offline unless ?api= names a local backend. */
+  let local = false;
+  try { local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname); } catch(e){}
+  let base = local ? "" : API_BASE_DEFAULT;
+  try {
+    const q = new URLSearchParams(location.search).get("api");
+    if (q && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(q)) base = q;
+  } catch(e){}
+  base = String(base || "").replace(/\/+$/, "");
+  const enabled = !!base && typeof fetch === "function";
+  let online = enabled, sid = null, sig = null, queue = [], runT0 = 0, starting = null, flushing = null;
+  let clientId = null;
+  try {
+    clientId = localStorage.getItem("mindwing_cid");
+    if (!clientId || !/^[A-Za-z0-9_-]{8,64}$/.test(clientId)){
+      clientId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("c" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36));
+      localStorage.setItem("mindwing_cid", clientId);
+    }
+  } catch(e){ clientId = null; }
+  async function call(path, opts){
+    opts = opts || {};
+    if (!enabled) return null;
+    const ctl = (typeof AbortController === "function") ? new AbortController() : null;
+    const timer = setTimeout(() => { if (ctl) ctl.abort(); }, opts.timeout || 7000);
+    try {
+      const res = await fetch(base + path, {
+        method: opts.method || "GET",
+        headers: opts.body ? { "content-type": "text/plain" } : undefined,
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: ctl ? ctl.signal : undefined,
+        keepalive: !!opts.keepalive
+      });
+      online = true;
+      const data = await res.json().catch(() => null);
+      if (!res.ok) return { ok:false, status:res.status, error:(data && data.error) || ("HTTP " + res.status) };
+      return data || { ok:false, error:"empty response" };
+    } catch(e){ online = false; return null; }
+    finally { clearTimeout(timer); }
+  }
+  function startRun(startLevel){
+    if (!enabled) return;
+    sid = null; sig = null; queue = []; runT0 = performance.now();
+    starting = call("/v1/session", { method:"POST", body:{ clientId: clientId || undefined, startLevel: startLevel + 1, input: usedTouch ? "touch" : "keyboard",
+        build: GAME_BUILD, difficulty: SETTINGS.difficulty, classCode: classCode || undefined } })
+      .then(r => { if (r && r.ok && r.sid){ sid = r.sid; sig = r.sig; } })
+      .finally(() => { starting = null; flush(); });
+  }
+  function track(type, level, n, v, w){
+    if (!enabled || queue.length >= 200) return;
+    const ev = { type, t: Math.max(0, Math.round(performance.now() - runT0)) };
+    if (level != null) ev.level = level;
+    if (n != null) ev.n = n;
+    if (v != null) ev.v = v;
+    if (w != null) ev.w = w;
+    queue.push(ev);
+    if (queue.length >= 25) flush();
+  }
+  function flush(final){
+    if (!enabled || !sid || !queue.length) return Promise.resolve();
+    if (final && typeof navigator !== "undefined" && navigator.sendBeacon){
+      const body = { sid, sig, events: queue.splice(0, 50) };
+      try { navigator.sendBeacon(base + "/v1/events", new Blob([JSON.stringify(body)], { type:"text/plain" })); } catch(e){}
+      return Promise.resolve();
+    }
+    if (flushing) return flushing;
+    flushing = (async () => {
+      while (sid && queue.length){
+        const batch = queue.splice(0, 50);
+        const r = await call("/v1/events", { method:"POST", body:{ sid, sig, events: batch } });
+        if (r === null){ queue.unshift(...batch); if (queue.length > 200) queue.length = 200; break; }   // network failure: keep for later
+      }
+    })().finally(() => { flushing = null; });
+    return flushing;
+  }
+  async function submitScore(initials, score, level){
+    if (!enabled) return null;
+    if (starting) await starting;
+    await flush();
+    if (!sid) return null;
+    return call("/v1/score", { method:"POST", body:{ sid, sig, initials, score, level } });
+  }
+  const leaderboard = () => call("/v1/leaderboard?limit=10");
+  const classInfo = code => call("/v1/classes/" + encodeURIComponent(code));
+  const stats = () => call("/v1/stats");
+  if (enabled){
+    setInterval(() => { flush(); }, 15000);
+    window.addEventListener("pagehide", () => { flush(true); });
+  }
+  return { enabled, get online(){ return online; }, startRun, track, flush, submitScore, leaderboard, stats, classInfo,
+           debug: () => ({ queued: queue.length, sid: !!sid, base }) };
+})();
+
+/* ---------- responsive scaling ---------- */
+let dpr = 1;
+function resize(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + "px";
+  canvas.style.height = (H * scale) + "px";
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ---------- audio (tiny synth, no assets) ---------- */
+let actx = null, muted = false;
+function ensureAudio(){
+  if (!actx){
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ actx = null; }
+  }
+  if (actx && actx.state === "suspended") actx.resume();
+  if (actx && !musicTimer) musicTimer = setInterval(musicTick, 90);
+}
+function tone(freq, dur, type, vol, slide){
+  if (muted || !actx || SETTINGS.sfx === "off") return;
+  try{
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, actx.currentTime);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), actx.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.1, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur + 0.02);
+  }catch(e){}
+}
+/* A small generative synthwave score, no audio files: two detuned sawtooths through a lowpass filter with an
+   envelope for the lead, a driving eighth-note bass, a kick and hi-hats, a soft chord pad, and a short echo.
+   Each level has its own key and tempo; chords walk a bright I, V, vi, IV so it stays uplifting. Scheduled a
+   quarter-second ahead on the audio clock so it holds time when frames stutter, ducks under cards, goes quiet
+   on pause, and can be switched off in Settings (M mutes everything). */
+const MUSIC_LEVELS = [
+  { root:220.00, bpm:104, prog:[0,7,9,5], lead:"sawtooth", bright:1900 },              // A major: warm dawn
+  { root:246.94, bpm:110, prog:[0,9,5,7], lead:"sawtooth", bright:2300 },              // B major: climbing
+  { root:261.63, bpm:118, prog:[0,5,9,7], lead:"square",   bright:2700 },              // C major: neon ridge
+  { root:233.08, bpm:112, prog:[0,7,5,9], lead:"sawtooth", bright:2100, haze:true },   // B flat major: marsh haze
+  { root:196.00, bpm:128, prog:[0,9,7,5], lead:"sawtooth", bright:3300, pulse:true }   // G major: full drive
+];
+const MAJOR = [0, 4, 7], MINOR = [0, 3, 7];
+const ARP = [0, 1, 2, 3, 2, 1, 0, 2];   // chord-tone indices, 3 = root an octave up
+let musicGain = null, musicBus = null, musicDelay = null, musicNext = 0, musicStep = 0, musicTimer = null, noiseBuf = null;
+function musicSetup(){
+  musicGain = actx.createGain(); musicGain.gain.value = 0; musicGain.connect(actx.destination);
+  musicBus = actx.createGain(); musicBus.gain.value = 1; musicBus.connect(musicGain);
+  /* echo: dotted-eighth feedback delay, the "neon" tail */
+  musicDelay = actx.createDelay(1.0);
+  const fb = actx.createGain(); fb.gain.value = 0.3;
+  const wet = actx.createGain(); wet.gain.value = 0.2;
+  const tone = actx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = 2400;
+  musicBus.connect(musicDelay); musicDelay.connect(tone); tone.connect(fb); fb.connect(musicDelay); tone.connect(wet); wet.connect(musicGain);
+  /* one bar of white noise for the hi-hats */
+  noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.25), actx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+/* the lead: two saws detuned against each other through a filter that opens on the attack and closes as it fades */
+function synthLead(freq, when, dur, wave, bright, vol){
+  try {
+    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 6;
+    f.frequency.setValueAtTime(bright, when);
+    f.frequency.exponentialRampToValueAtTime(Math.max(300, bright * 0.3), when + dur);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.015);
+    g.gain.exponentialRampToValueAtTime(vol * 0.5, when + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    f.connect(g); g.connect(musicBus);
+    for (const det of [-9, 9]){
+      const o = actx.createOscillator(); o.type = wave; o.frequency.setValueAtTime(freq, when); o.detune.value = det;
+      o.connect(f); o.start(when); o.stop(when + dur + 0.05);
+    }
+  } catch(e){}
+}
+/* the bass: a filtered square on every eighth, the engine under the melody */
+function synthBass(freq, when, dur, vol){
+  try {
+    const o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
+    o.type = "square"; o.frequency.setValueAtTime(freq, when);
+    f.type = "lowpass"; f.frequency.setValueAtTime(700, when); f.frequency.exponentialRampToValueAtTime(220, when + dur);
+    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(f); f.connect(g); g.connect(musicGain);   // dry: bass stays out of the echo
+    o.start(when); o.stop(when + dur + 0.05);
+  } catch(e){}
+}
+/* the pad: chord tones on soft triangles with a slow swell, under everything */
+function synthPad(freqs, when, dur, vol){
+  try {
+    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 1400;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.4); g.gain.setValueAtTime(vol, when + dur - 0.5); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    f.connect(g); g.connect(musicBus);
+    for (const fr of freqs){ const o = actx.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(fr, when); o.detune.value = 4; o.connect(f); o.start(when); o.stop(when + dur + 0.1); }
+  } catch(e){}
+}
+function synthKick(when, vol){
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(150, when); o.frequency.exponentialRampToValueAtTime(42, when + 0.16);
+    g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.24);
+    o.connect(g); g.connect(musicGain); o.start(when); o.stop(when + 0.3);
+  } catch(e){}
+}
+function synthHat(when, open, vol){
+  try {
+    if (!noiseBuf) return;
+    const src = actx.createBufferSource(); src.buffer = noiseBuf;
+    const f = actx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7500;
+    const g = actx.createGain(); const dur = open ? 0.14 : 0.04;
+    g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    src.connect(f); f.connect(g); g.connect(musicGain); src.start(when); src.stop(when + dur + 0.02);
+  } catch(e){}
+}
+function musicTick(){
+  if (!actx) return;
+  if (!musicGain){ try { musicSetup(); } catch(e){ musicGain = null; return; } }
+  const off = muted || SETTINGS.music !== "on" || document.hidden;
+  const live = state === "play" || state === "hit" || state === "clear" || state === "postclear";
+  const target = off ? 0 : state === "pause" ? 0.0001 : live ? 0.5 : 0.22;
+  try { musicGain.gain.setTargetAtTime(target, actx.currentTime, 0.15); } catch(e){}
+  if (off) { musicNext = 0; return; }
+  const L = MUSIC_LEVELS[Math.min(level, MUSIC_LEVELS.length - 1)] || MUSIC_LEVELS[0];
+  const step = 60 / L.bpm / 2;                       // one eighth note
+  try { musicDelay.delayTime.setTargetAtTime(step * 1.5, actx.currentTime, 0.2); } catch(e){}
+  if (musicNext < actx.currentTime) musicNext = actx.currentTime + 0.06;
+  while (musicNext < actx.currentTime + 0.25){
+    const inBar = musicStep % 8, bar = Math.floor(musicStep / 8);
+    const chordRoot = L.prog[bar % L.prog.length];
+    const shape = chordRoot === 9 ? MINOR : MAJOR;    // the vi is minor, the rest major
+    const tones = shape.map(i => chordRoot + i).concat([chordRoot + 12]);
+    const hz = semi => L.root * Math.pow(2, semi / 12);
+    if (inBar === 0) synthPad(tones.slice(0, 3).map(hz), musicNext, step * 8, L.haze ? 0.028 : 0.02);
+    const leadTone = tones[ARP[(musicStep + bar) % ARP.length]] + (L.pulse && inBar >= 4 ? 12 : 0);
+    synthLead(hz(leadTone) * 2, musicNext, step * (inBar % 2 ? 0.9 : 1.4), L.lead, L.bright, L.lead === "square" ? 0.02 : 0.03);
+    synthBass(hz(chordRoot) / 2 * (L.pulse && inBar % 2 ? 2 : 1), musicNext, step * 0.85, 0.07);
+    if (inBar % 4 === 0 || (L.pulse && inBar % 2 === 0)) synthKick(musicNext, 0.32);
+    synthHat(musicNext, inBar % 4 === 2, inBar % 2 ? 0.035 : 0.02);
+    musicNext += step; musicStep++;
+  }
+}
+const sfx = {
+  clank: () => tone(520, 0.08, "square", 0.06, -260),
+  fooled: () => { tone(400, 0.16, "triangle", 0.09, -180); tone(240, 0.3, "sawtooth", 0.06, -100); },
+  phase: () => { tone(110, 0.6, "sawtooth", 0.16, -50); tone(880, 0.5, "triangle", 0.07, -500); },
+  shoot: () => tone(920, 0.07, "square", 0.045, -420),
+  eagleDown: () => { tone(330, 0.16, "triangle", 0.12, 240); tone(660, 0.1, "sine", 0.06, 300); },
+  hit: () => tone(150, 0.35, "sawtooth", 0.18, -80),
+  burst: () => { tone(90, 0.5, "sawtooth", 0.2, -40); tone(1250, 0.45, "sine", 0.09, -600); },
+  mote: () => tone(1320, 0.14, "sine", 0.11, 320),
+  seed: () => tone(1560, 0.05, "sine", 0.05, 220),
+  card: () => tone(660, 0.09, "sine", 0.07, 120),
+  bossHit: () => tone(220, 0.08, "square", 0.07, -60),
+  win: () => { tone(523, 0.18, "sine", 0.12); setTimeout(()=>tone(659,0.18,"sine",0.12),140); setTimeout(()=>tone(784,0.3,"sine",0.12),280); }
+};
+
+/* ---------- lesson & message content ---------- */
+const LESSONS = [
+  { tag:"Lesson 1 of 5 · How AI reads", h:"Tokens",
+    p:[ "Language AIs like chatbots do not read whole words or ideas. They chop text into <strong>tokens</strong>: little chunks like “fair”, “y”, or “flying”. Then they do one thing, over and over: <strong>predict the most likely next token</strong>, based on patterns in the huge pile of text they were trained on.",
+        "That means a chatbot is not weighing what is true. It is continuing a pattern. Often the pattern lands on something true. Sometimes it lands on something that only <em>sounds</em> true. Some chatbots can also search the web or read documents you give them, but the writing step is still prediction, so the same care applies." ],
+    note:"<b>Field note:</b> When an answer really matters, verify it in a source you trust. The model predicts text. You judge truth." },
+  { tag:"Lesson 2 of 5 · What is inside", h:"Neural Networks",
+    p:[ "Under the hood, a language model is a <strong>neural network</strong>: billions of tiny number-dials called <strong>weights</strong>, arranged in layers. During training, the network guesses the next token, gets corrected, and nudges its dials. Repeat that an astronomical number of times, and the dials come to encode patterns of grammar, facts, style, and reasoning-like behavior.",
+        "No single dial “knows” anything. Knowledge is smeared across all of them. That is why a model can be brilliant and confidently wrong in the same sentence." ],
+    note:"<b>Field note:</b> Treat AI output as a strong first draft from a pattern machine, not a final answer from an expert." },
+  { tag:"Lesson 3 of 5 · Why it will not let go", h:"Retention Models",
+    p:[ "Many apps, including AI apps, are tuned with <strong>retention models</strong>: systems that measure what keeps you coming back, and serve you more of it. Streaks, endless feeds, notifications, and follow-up prompts that keep you talking are often designed and tested for exactly that.",
+        "The goal of that optimization is <strong>your time</strong>, not your growth.",
+        "Watch for <strong>sycophancy</strong> too: chatbots tuned to win your approval can flatter you and agree with you even when you are wrong. Praise feels good, and it keeps you talking." ],
+    note:"<b>Field note:</b> Decide what you came to do before you open the app. When the task is done, leave. That one habit defeats most retention tricks. <br><b>In this level:</b> the flames turn into flattery that follows you. Dodge it." },
+  { tag:"Lesson 4 of 5 · When AI makes things up", h:"Hallucination",
+    p:[ "Because a language model predicts likely text, it can produce a <strong>hallucination</strong>: an answer that is fluent, confident, and false. It can invent a fact, a date, a quote, or even a book or study that does not exist.",
+        "The model is not lying on purpose. It has no reliable built-in sense of which of its own sentences are true, so a confident tone tells you little about whether the answer is right." ],
+    note:"<b>Field note:</b> For anything that matters, ask where a claim comes from, then open that source yourself. A source you can check beats a confident answer you cannot. <br><b>In this level:</b> answer orbs drift through the marsh. Orbs marked with a <b>✓ source</b> are real insight and refill your charges. The shiny, sure-of-themselves ones are hallucinations and cost you." },
+  { tag:"Lesson 5 of 5 · The quiet harms", h:"Offloading & Drift",
+    p:[ "<strong>Cognitive offloading</strong> is letting a tool remember or think for you. Sometimes that is smart. Calculators exist for a reason. But skills you never practice fade: if AI writes every draft and answers every question, your own recall, writing, and problem-solving weaken.",
+        "<strong>Cognitive drift</strong> is slower and sneakier. Your attention, opinions, and even your writing style slide toward whatever the machine feeds you, until your goals are not quite your own anymore." ],
+    note:"<b>Field note:</b> Try first, then ask AI. Compare its answer with your own attempt. That keeps offloading on your terms, and your mind on your own map. <br><b>In this level:</b> some fires split into faded fakes with no bright center that wander everywhere. They cannot burn you, but touching one knocks you off course." }
+];
+
+const HIT_FACTS = [
+  "Tokens, not thoughts: a chatbot writes by predicting the next chunk of text, one token at a time.",
+  "Models can hallucinate: fluent, confident text that is simply wrong. Verify what matters.",
+  "A neural network learns by nudging billions of number-dials called weights. Nobody hand-writes its answers.",
+  "Retention systems test what keeps you scrolling. If you feel unable to stop, that is design at work, not weakness.",
+  "Offloading check: could you still do this without the tool? If not, practice it on your own sometimes.",
+  "Drift check: is this still what you opened the app to do?",
+  "An AI model has no goals of its own, but the company tuning it has metrics. Ask what the metric wants from you.",
+  "Your attention is the product. Spend it like money.",
+  "Explaining an answer back in your own words beats copying it. That is how memory forms.",
+  "Chatbots mirror you. If your judgment starts sounding like the bot, step back and think on paper.",
+  // 10-12: shown when flattery hits you (level 3)
+  "Sycophancy is an AI telling you what you want to hear. If it praises every idea, the praise tells you nothing.",
+  "Chatbots tuned on people's thumbs-up ratings can learn that agreeing wins approval. Ask one to argue against you.",
+  "Real feedback sometimes stings. If a chatbot never disagrees with you, be suspicious of it, not proud.",
+  // 13-14: shown when you are hit while the drift decoys are flying (level 5)
+  "Drift works through small pulls. Name your goal, and notice when you have wandered off it.",
+  "Not every flash deserves your eyes. Pick what matters and let the rest fly past.",
+  // 15-16: shown when you are hit in the marsh (level 4)
+  "A hallucination is a confident answer that is simply wrong. Fluent wording is not evidence.",
+  "Ask where a claim comes from, then check that source yourself. Some sources a chatbot cites do not exist."
+];
+/* The story card's picture: Lumen, the Engine, and a mind being spun. Inline SVG, so it scales and needs no file. */
+const STORY_ART = `<svg class="art" viewBox="0 0 600 150" role="img" aria-label="Lumen the fairy, the Engagement Engine, and a mind being spun by a spiral">
+  <defs>
+    <radialGradient id="gl" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c4" stop-opacity=".9"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient>
+    <radialGradient id="rd" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff5a3c" stop-opacity=".55"/><stop offset="1" stop-color="#ff5a3c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sp" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#9d7bff" stop-opacity=".5"/><stop offset="1" stop-color="#9d7bff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <!-- Lumen -->
+  <g transform="translate(100,78)">
+    <circle r="58" fill="url(#gl)"/>
+    <ellipse cx="-14" cy="-8" rx="24" ry="13" transform="rotate(-38)" fill="rgba(190,225,255,.75)"/>
+    <ellipse cx="-14" cy="8" rx="20" ry="11" transform="rotate(34)" fill="rgba(190,225,255,.7)"/>
+    <ellipse cx="3" cy="4" rx="13" ry="18" transform="rotate(14)" fill="#ffe9b8"/>
+    <path d="M-3,-3 L15,15 L-9,15 Z" fill="#9d7bff"/>
+    <circle cx="10" cy="-13" r="9.5" fill="#ffe9b8"/>
+    <path d="M1,-15 a9,9 0 0 1 17,-4 l-4,-6 a10,10 0 0 0 -14,4 z" fill="#ff8fd8"/>
+    <circle cx="14" cy="-14" r="1.7" fill="#2b1b4d"/>
+    <circle cx="24" cy="-1" r="3.5" fill="#ffd166"/>
+    <path d="M24,-9 v16 M16,-1 h16" stroke="#ffd166" stroke-width="1.4" opacity=".8"/>
+    <text y="62" text-anchor="middle" font-size="12" fill="#b9aee0" font-family="inherit">Lumen</text>
+  </g>
+  <!-- the Engagement Engine -->
+  <g transform="translate(300,78)">
+    <circle r="62" fill="url(#rd)"/>
+    <path d="M-48,-4 L-10,-40 L4,-8 Z M-48,6 L-10,38 L4,10 Z" fill="#5a5a6e"/>
+    <ellipse cx="4" cy="0" rx="42" ry="26" fill="#3c3c4c"/>
+    <path d="M40,0 L66,-14 L66,14 Z" fill="#50506a"/>
+    <circle cx="-36" cy="-9" r="15" fill="#8a8aa0"/>
+    <path d="M-50,-10 L-70,-4 L-48,-1 Z" fill="#ff8c1a"/>
+    <rect x="-44" y="-15" width="7" height="5" rx="1" fill="#ff2020"/>
+    <rect x="-34" y="-13" width="6" height="4" rx="1" fill="#ff2020"/>
+    <circle cx="6" cy="2" r="9" fill="#ff5a3c"/><circle cx="6" cy="2" r="4" fill="#ffd166"/>
+    <path d="M-2,-30 h16 M6,-30 v-8" stroke="#8a8aa0" stroke-width="2"/><circle cx="6" cy="-40" r="3" fill="#ff2020"/>
+    <text y="62" text-anchor="middle" font-size="12" fill="#b9aee0" font-family="inherit">the Engagement Engine</text>
+  </g>
+  <!-- a mind being spun -->
+  <g transform="translate(500,78)">
+    <circle r="60" fill="url(#sp)"/>
+    <path d="M-30,44 v-14 a34,36 0 1 1 60,0 v14" fill="none" stroke="#c9a7ff" stroke-width="3" stroke-linecap="round"/>
+    <g class="spin"><path d="M1.5,0.0 L1.9,0.3 L2.3,0.7 L2.5,1.2 L2.7,1.8 L2.7,2.4 L2.6,3.1 L2.3,3.8 L1.9,4.5 L1.3,5.2 L0.6,5.7 L-0.3,6.2 L-1.2,6.5 L-2.3,6.6 L-3.5,6.6 L-4.6,6.4 L-5.8,5.9 L-7.0,5.3 L-8.0,4.4 L-9.0,3.3 L-9.8,2.1 L-10.4,0.7 L-10.8,-0.9 L-11.0,-2.6 L-10.9,-4.3 L-10.5,-6.1 L-9.8,-7.8 L-8.9,-9.5 L-7.7,-11.0 L-6.1,-12.4 L-4.4,-13.6 L-2.4,-14.5 L-0.3,-15.1 L1.9,-15.4 L4.3,-15.4 L6.7,-15.0 L9.0,-14.2 L11.3,-13.0 L13.4,-11.5 L15.3,-9.7 L16.9,-7.5 L18.2,-5.1 L19.2,-2.4 L19.8,0.4 L19.9,3.4 L19.6,6.4 L18.9,9.4 L17.6,12.3 L16.0,15.0 L13.9,17.5 L11.4,19.7 L8.5,21.6 L5.4,23.0 L2.0,23.9 L-1.5,24.4 L-5.2,24.3 L-8.8,23.7 L-12.4,22.6 L-15.8,20.8 L-19.0,18.6 L-21.9,15.9 L-24.3,12.7 L-26.3,9.2 L-27.8,5.3 L-28.7,1.2 L-29.0,-3.0 L-28.6,-7.4 L-27.6,-11.6 L-26.0,-15.8 L-23.8,-19.7 L-20.9,-23.2 L-17.5,-26.4 L-13.7,-29.1 L-9.4,-31.1 L-4.8,-32.6 L-0.0,-33.4 L4.9,-33.4 L9.9,-32.8 L14.8,-31.4 L19.4,-29.2 L23.8,-26.4 L27.7,-22.9 L31.1,-18.8 L33.9,-14.3 L36.0,-9.3 L37.4,-3.9 L38.0,1.6 L37.8,7.2 L36.7,12.8 L34.9,18.2 L32.2,23.4 L28.7,28.1 L24.6,32.4 L19.8,36.0 L14.5,38.9 L8.7,41.0 L2.7,42.2 L-3.6,42.6 L-9.9,42.0 L-16.0,40.5 L-22.0,38.1 L-27.6,34.8 L-32.7,30.7 L-37.2,25.8 L-40.9,20.3 L-43.9,14.3 L-45.9,7.8 L-47.0,1.0 L-47.0,-5.9 L-46.1,-12.9 L-44.1,-19.6 L-41.1,-26.1 L-37.2,-32.1 L-32.4,-37.5 L-26.8,-42.2 L-20.5,-46.0 L-13.7,-48.9 L-6.4,-50.8 L1.1,-51.7 L8.7,-51.4 L16.2,-49.9" fill="none" stroke="#ff8fd8" stroke-width="2.2" stroke-linecap="round"/></g>
+    <g fill="#ffd166" opacity=".85">
+      <rect x="38" y="-40" width="9" height="3" rx="1" transform="rotate(-25 42 -38)"/>
+      <rect x="46" y="-24" width="7" height="3" rx="1" transform="rotate(-10 49 -22)"/>
+      <rect x="50" y="-6" width="6" height="3" rx="1" transform="rotate(12 53 -4)"/>
+    </g>
+    <text y="62" text-anchor="middle" font-size="12" fill="#b9aee0" font-family="inherit">a mind being spun</text>
+  </g>
+</svg>`;
+
+/* The keeper's lever: things that are yours. A machine can describe each one; you can live it. Fifteen, so the
+   start and the four interludes each light three, in order, without repeating. Kept careful: models can
+   produce words and even metaphors about all of these, so each line says what is different, not what is impossible. */
+const HUMAN = [
+  { w:"Love",        t:"You can care about someone so much that it changes what you do. A machine can write the word. Nothing is at stake for it." },
+  { w:"Curiosity",   t:"You wonder about things nobody asked you. A model only answers what it is given." },
+  { w:"Meaning",     t:"You decide what matters to you. A model has no \"matters\"." },
+  { w:"Metaphor",    t:"You can see one thing as another, a heart as a drum, and make a new one on the spot. A model mostly remixes the ones people already wrote." },
+  { w:"Imagination", t:"You can invent a whole game from nothing on a rainy afternoon. A model waits for a prompt." },
+  { w:"A body",      t:"You feel cold, hungry, dizzy, thrilled. Words about feelings are not feelings." },
+  { w:"Conscience",  t:"You can feel that something is wrong before you can say why." },
+  { w:"Friendship",  t:"You can be missed. When a chat ends, no one on the other side is waiting for you." },
+  { w:"Play",        t:"You play for no reason at all, and that is the reason." },
+  { w:"Humor",       t:"You laugh, and you know why it was funny to you." },
+  { w:"Courage",     t:"You can be scared and do it anyway." },
+  { w:"Growing",     t:"You change because things happen to you. A model changes only when someone retrains it." },
+  { w:"Choice",      t:"You can change your mind and mean it." },
+  { w:"Wonder",      t:"You can stand under the stars and feel small and glad at the same time." },
+  { w:"Forgiveness", t:"You can forgive someone. A model holds nothing against you, and has nothing to let go of either." }
+];
+let humanCursor = 0;
+function leverCard(need){
+  return { type:"lever", need, pulls:0, done:false, tag:"The keeper's lever", h:"What is yours",
+    p:[ "Pull the lever. Every pull lights up something <strong>inherently human</strong>. It lives in you, and <strong>no machine does it better than you</strong>. A machine can describe it. You can do it." ],
+    hint:"" };
+}
+
+/* Which facts a hit can show. "general" rotates as before; the other groups explain the thing that just hit you. */
+const FACT_GROUPS = { general:[0,1,2,3,4,5,6,7,8,9], sycophancy:[10,11,12], drift:[13,14], hallucination:[15,16] };
+const factTurn = { general:0, sycophancy:0, drift:0, hallucination:0 };
+function nextFact(group){
+  const g = FACT_GROUPS[group] || FACT_GROUPS.general;
+  const fi = g[factTurn[group] % g.length]; factTurn[group]++;
+  return fi;
+}
+/* What the flattering shots say. Short enough to read at a glance while dodging. */
+const PRAISE = [ "You're absolutely right!", "What a brilliant idea!", "Great question!", "You're amazing!",
+  "Genius, truly!", "I totally agree!", "Perfect, as always!", "You never make mistakes!" ];
+
+/* The same five questions before playing and after the Engine falls, one per concept. They are deliberately
+   separate from the in-level quick checks, so the quick checks do not simply hand over the answers, and they
+   are never scored: this is a measure of learning, not another thing to win. */
+const CHECKS = [
+  { q:"How does a chatbot decide what to write next?",
+    a:["It looks the answer up in a list of true facts", "It predicts the most likely next chunk of text", "It asks a person behind the scenes"], correct:1,
+    why:"It continues patterns from its training text. Checking whether something is true is not part of that step." },
+  { q:"Where does a language model keep what it knows?",
+    a:["Spread across billions of number-dials called weights", "In one big file of facts", "On the internet, searched each time"], correct:0,
+    why:"Training nudges billions of weights. No single one holds a fact, which is why a model can be brilliant and wrong at once." },
+  { q:"An app keeps showing you 'one more thing'. What is most likely going on?",
+    a:["The app ran out of other content", "It is designed to keep your attention as long as possible", "It is a bug"], correct:1,
+    why:"Retention systems measure what keeps you coming back and serve more of it. Your time is the target." },
+  { q:"A chatbot answers confidently and names a source. What should you do?",
+    a:["Trust it, since it named a source", "Ask it if it is sure", "Open the source and check the claim is really there"], correct:2,
+    why:"Models can invent sources and quotes, and asking 'are you sure?' only produces more predicted text." },
+  { q:"You used AI for every step of a task for weeks. What is the risk?",
+    a:["Nothing, tools are meant to be used", "The skill you stopped practicing gets weaker, and your goals drift toward the tool", "The AI gets tired"], correct:1,
+    why:"That is offloading and drift together: skills you never practice fade, and attention slides toward whatever the machine feeds you." }
+];
+let preAnswers = null;       // how many of the five were right before playing, null when the check was skipped
+
+/* Two quick understanding checks after each lesson. Right answers earn +100 focus; wrong ones cost nothing.
+   Answers are recorded anonymously when the backend is enabled. */
+const QUIZ = [
+  { lesson:0, q:"When a chatbot writes an answer, what is it actually doing?",
+    a:["Looking up facts in a database of true statements", "Predicting the most likely next token, one chunk at a time", "Asking a human expert behind the scenes"], correct:1,
+    why:"It continues the pattern of the text it was trained on. Checking whether something is true is not part of that calculation." },
+  { lesson:0, q:"A chatbot gives you a fluent, confident answer. What does that tell you?",
+    a:["It must be correct, fluent answers come from real understanding", "Nothing yet. Fluent text can be right or wrong, so verify what matters", "It must be wrong, chatbots are usually wrong"], correct:1,
+    why:"Fluency comes from pattern prediction, not from fact-checking. Confidence is a style, not a signal." },
+  { lesson:1, q:"Where is a language model's knowledge stored?",
+    a:["In one file of facts that engineers typed in", "Spread across billions of number-dials called weights", "On the internet, which it searches every time"], correct:1,
+    why:"Training nudges billions of weights a tiny bit at a time. No single weight holds a fact, which is why a model can be brilliant and wrong at once." },
+  { lesson:1, q:"How does a neural network learn during training?",
+    a:["It guesses the next token, gets corrected, and adjusts its weights, over and over", "It memorizes a dictionary of definitions", "A programmer writes a rule for every situation"], correct:0,
+    why:"Guess, get corrected, adjust, repeat an astronomical number of times. Nobody hand-writes its answers." },
+  { lesson:2, q:"What is a retention model designed to increase?",
+    a:["How much you learn", "How much time you spend and how often you come back", "How accurate the app's answers are"], correct:1,
+    why:"Retention systems measure what keeps you coming back and serve you more of it. Your time is the target." },
+  { lesson:2, q:"Which habit best defeats retention tricks?",
+    a:["Turning on every notification so you never miss anything", "Keeping a daily streak going no matter what", "Deciding what you came to do, doing it, and leaving"], correct:2,
+    why:"Arriving with a purpose and leaving when it is done takes the power away from streaks, feeds and endless follow-up questions." },
+  { lesson:4, q:"Which of these is cognitive offloading that could weaken a skill over time?",
+    a:["Using a calculator to check arithmetic you already tried yourself", "Having AI write every draft so you never practice writing", "Writing a shopping list on paper"], correct:1,
+    why:"Offloading is fine when you keep the skill alive. Skills you never practice fade." },
+  { lesson:4, q:"What is cognitive drift?",
+    a:["Forgetting a password you rarely use", "A computer clock slowly running behind", "Your attention, opinions and style sliding toward whatever the machine feeds you"], correct:2,
+    why:"Drift is slow and quiet. The fix is noticing: is this still what I opened the app to do, and is this still what I think?" },
+  // Appended, never inserted: answers are recorded by question number, so earlier numbers must keep their meaning.
+  { lesson:3, q:"What is an AI hallucination?",
+    a:["A glitch that makes the app crash", "A fluent, confident answer that is false", "When the chatbot refuses to answer"], correct:1,
+    why:"A hallucination sounds just as sure as a true answer. That is exactly what makes it easy to believe." },
+  { lesson:3, q:"A chatbot gives you a quote and names the study it came from. What is the best next step?",
+    a:["Trust it, since it named a study", "Ask the chatbot whether it is sure", "Find the study yourself and check the quote is really in it"], correct:2,
+    why:"Chatbots can invent studies and quotes, and asking \"are you sure?\" only gets more predicted text. Checking the real source is what works." }
+];
+
+const LEVELS = [
+  { name:"Token Thicket", concept:"Tokens", ability:"calm", quota:12, spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
+    sky:["#141034","#3b2a6d","#8a4f8f"] },
+  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", hook:2, serpent:1, quota:16, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
+    sky:["#0e1c3a","#274b7a","#5a8fae"] },
+  { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:1, serpent:3, shots:"praise", quota:20, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
+    sky:["#2a1233","#6b2d5e","#c65f52"] },
+  { name:"Mirage Marsh", concept:"Hallucination", ability:"still", hook:1, serpent:2, phantom:1, orbs:true, quota:18, spawnEvery:1.3, types:["glider","zigzag","swooper","armored"], speed:98, fireMin:1.9, fireMax:3.0, fireSpeed:200,
+    sky:["#0c2326","#2c5a57","#a4ae78"] },
+  { name:"The Engine's Roost", concept:"Offloading & Drift", ability:"still", hook:1, serpent:2, phantom:2, shots:"praise", drift:true, boss:true, spawnEvery:3.6, types:["glider","zigzag","diver","swooper","armored"], speed:95, fireMin:2.2, fireMax:3.2, fireSpeed:200,
+    sky:["#1a0b12","#4a1626","#8f2f2a"] }
+];
+
+/* ---------- settings: difficulty and accessibility ----------
+   Saved per browser. Difficulty applies from the next level start (so a mid-level change cannot be used
+   to refill hearts); motion, contrast and text size apply immediately. Scores are scaled by difficulty
+   so an easy run cannot top a hard one on the shared leaderboard. Quick-check points are never scaled:
+   learning is worth the same on every setting. */
+const DIFFS = {
+  easy:   { label:"Easy",   hearts:5, bursts:4, shotSpeed:0.75, fireGap:1.4, spawnGap:1.3,  quota:0.75, bossHp:0.7,  turn:0.6, inv:1.3, score:0.6 },
+  normal: { label:"Normal", hearts:3, bursts:3, shotSpeed:1,    fireGap:1,   spawnGap:1,    quota:1,    bossHp:1,    turn:1,   inv:1,   score:1 },
+  hard:   { label:"Hard",   hearts:3, bursts:2, shotSpeed:1.2,  fireGap:0.8, spawnGap:0.85, quota:1.2,  bossHp:1.25, turn:1.3, inv:0.85, score:1.3 }
+};
+const SETTINGS = { difficulty:"normal", motion:"full", contrast:"standard", text:"normal", music:"on", sfx:"on" };
+const SETTING_CHOICES = { difficulty:["easy","normal","hard"], motion:["full","reduced"], contrast:["standard","high"], text:["normal","large"], music:["on","off"], sfx:["on","off"] };
+try {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) SETTINGS.motion = "reduced";
+  const saved = JSON.parse(localStorage.getItem("mindwing_settings") || "{}");
+  for (const k in SETTING_CHOICES) if (saved && SETTING_CHOICES[k].includes(saved[k])) SETTINGS[k] = saved[k];
+} catch(e){}
+let DIFF = DIFFS[SETTINGS.difficulty];          // locked in at each level start
+function saveSettings(){ try { localStorage.setItem("mindwing_settings", JSON.stringify(SETTINGS)); } catch(e){} }
+function applyPresentation(){
+  try {
+    document.body.classList.toggle("big-text", SETTINGS.text === "large");
+    document.body.classList.toggle("calm-motion", SETTINGS.motion === "reduced");
+    document.body.classList.toggle("high-contrast", SETTINGS.contrast === "high");
+  } catch(e){}
+}
+applyPresentation();
+const reducedMotion = () => SETTINGS.motion === "reduced";
+const highContrast = () => SETTINGS.contrast === "high";
+const hudScale = () => SETTINGS.text === "large" ? 1.25 : 1;
+const award = n => { score += Math.round(n * DIFF.score); };
+function kick(sh, fl){                     // screen shake and flash, softened when motion is reduced
+  if (reducedMotion()){ flash = Math.max(flash, Math.min(fl || 0, 0.25)); return; }
+  shake = Math.max(shake, sh || 0); flash = Math.max(flash, fl || 0);
+}
+
+/* ---------- game state ---------- */
+let state = "title";           // title | play | hit | pause | clear | over | win
+let level = 0, score = 0, hearts = 3, bursts = 3;
+let best = 0;
+try { best = parseInt(localStorage.getItem("mindwing_best") || "0", 10) || 0; } catch(e){}
+/* Saved progress: the furthest level reached and the best score on each level, so a class period that runs out
+   does not mean starting from the beginning. Kept in this browser only; nothing here is sent anywhere. */
+const progress = { furthest: 0, bests: {} };
+try {
+  const raw = JSON.parse(localStorage.getItem("mindwing_progress") || "{}");
+  if (raw && typeof raw === "object"){
+    const f = parseInt(raw.furthest, 10);
+    if (f >= 0) progress.furthest = f;
+    if (raw.bests && typeof raw.bests === "object"){
+      for (const k of Object.keys(raw.bests)){
+        const v = parseInt(raw.bests[k], 10);
+        if (v > 0) progress.bests[k] = v;
+      }
+    }
+  }
+} catch(e){}
+function saveProgress(){
+  progress.furthest = Math.min(Math.max(0, progress.furthest), 20);
+  try { localStorage.setItem("mindwing_progress", JSON.stringify(progress)); } catch(e){}
+}
+/** levelIndex is the level just cleared (0-based); levelScore is what was earned inside it. Clearing a level
+ *  also unlocks the next one, which is where "Continue" picks up. */
+function noteProgress(levelIndex, levelScore){
+  const key = String(levelIndex + 1);
+  if (levelScore > (progress.bests[key] || 0)) progress.bests[key] = levelScore;
+  const unlocked = Math.min(levelIndex + 1, LEVELS.length - 1);
+  if (unlocked > progress.furthest) progress.furthest = unlocked;
+  saveProgress();
+}
+let startLevel = 0;   // ?level=1..4 lets reviewers jump straight to a level
+try { const q = parseInt(new URLSearchParams(location.search).get("level"), 10); if (q >= 1 && q <= LEVELS.length) startLevel = q - 1; } catch(e){}
+let killCount = 0, quota = 0, levelStartScore = 0, tookDamage = false;
+let inv = 0, shake = 0, flash = 0, tGlobal = 0, clearT = 0, spawnT = 0;
+let hitStop = 0, hurtT = 0, pops = [];      // a few frames of freeze on impact, red edges when hurt, floating score
+/* Clarity has two forms. Levels 1-2 (calm): the blast clears the sky and
+   nothing new arrives for CALM_TIME. Levels 3-5 (still): nothing is destroyed, but every eagle and
+   fireball holds still for STILL_TIME while you pick your way through, which is the lesson those
+   levels teach (stop the feed, decide for yourself) played out in the controls. */
+const CALM_TIME = 1.5, STILL_TIME = 1.6;
+let calmT = 0, stillT = 0;
+/* Sycophancy (level 3): eagle flames turn into praise mid-flight and gently follow the player.
+   Drift (level 4): some boss fireballs split into flickering decoys that wander the whole sky. A decoy
+   cannot burn you, but touching one shoves you off your line, which is what drift does to attention. */
+const PRAISE_MORPH = 0.4, PRAISE_TURN = 1.5, PRAISE_LIFE = 4.2, PRAISE_SPEED = 0.8;
+const DECOY_SPLIT = 0.45, DECOY_COUNT = 3, DECOY_LIFE = 3.4, DRIFT_PUSH = 230, DRIFT_TIME = 0.9;
+/* Global pace. Enemy speeds, shot speeds and spawn rate all scale by this; the player is a little slower too. */
+const PACE = 0.65;
+let driftVx = 0, driftVy = 0, driftT = 0, praiseTurn = 0;
+/* Hallucination (level 4): answer orbs drift through the marsh. Real insight carries a ✓ source badge, a calm
+   look and a checkable claim; a hallucination is shinier and more certain, with no source. Real ones refill a
+   charge; fake ones cost focus and a charge. The tell is a shape (the badge), never color alone. */
+const ORB_EVERY = 2.0, ORB_FAKE_SHARE = 0.55, ORB_SPEED = 58, ORB_REAL_POINTS = 75, ORB_FAKE_COST = 150;
+const ORB_REAL = [ "2 sources agree", "From the textbook", "Page 12, checked", "Matches the study", "Quote verified" ];
+const ORB_FAKE = [ "100% certain!", "Everyone knows this!", "Studies prove it!", "Obviously true!", "Trust me!", "Definitely a fact!" ];
+let orbs = [], orbT = 0, orbTurn = 0;
+/* ---- small mechanics borrowed from Loopy (the fish-fairy side-scroller). None of them touch the lessons. ----
+   Grove seeds: tiny bites that drift across the sky in small orbiting clusters. Small score and a streak bonus,
+   so there is a reason to fly through the whole sky and not only shoot. */
+const SEED_EVERY = 3.6, SEED_CLUSTER = 3, SEED_POINTS = 10, SEED_STREAK = 10, SEED_STREAK_BONUS = 100, SEED_MAX = 18;
+let seeds = [], seedT = 0, seedStreak = 0;
+/* Glimmer: a bonus that shimmers in for a moment and is gone. It is a variable reward on purpose, and the game
+   names it the first time so the player can recognise the same trick in an app. */
+const GLIM_LIFE = 2.4, GLIM_POINTS = 150, GLIM_PER_LEVEL = 2;
+let glimmer = null, glimT = 0, glimCount = 0;
+/* The Hook: a homing shadow that follows Lumen. Slower than she is in a straight line but it turns well, so the
+   player can outfly it or turn and face it (two sparks). If it fails to catch her for HOOK_LIFE it gives up, and
+   outflying it pays. It lives in the eagles list so bursts, stillness, sparks and the aimbot all treat it as one. */
+const HOOK_SPEED = 158, HOOK_TURN = 2.6, HOOK_LIFE = 7.5, HOOK_HP = 2, HOOK_ESCAPE_POINTS = 120;
+let hookT = 0, hookCount = 0;
+/* The Serpent: a snake that follows Lumen with a slow, swaying turn and a trailing body. Three sparks to the head
+   bring it down, but the elegant answer is to lead it in a tight circle until its head crosses its own tail: then it
+   swallows itself. A loop that feeds on its own output is the picture the game wants for feeds and drift. */
+const SERP_SPEED = 138, SERP_TURN = 4.5, SERP_SEGS = 7, SERP_GAP = 6, SERP_ARM = 1.4, SERP_HP = 7, SERP_BITE_FROM = 4, SERP_COILS = 3, SERP_COIL_GAP = 1.1, SERP_COIL_FADE = 4.0, SERP_BITE_POINTS = 200;
+let serpT = 0, serpentCount = 0;
+/* The fake serpent (levels 4 and 5): a drift decoy in serpent form. Faded, no bright eyes, no bite, and sparks pass
+   straight through it. Touching it shoves Lumen off her line, the same pull the decoy fires make. Let it pass. */
+const PHANTOM_LIFE = 11;
+let phantT = 0, phantomCount = 0;
+/* Arc sparks: every fifth spark while holding fire fans two extra sparks out. */
+const ARC_EVERY = 5, ARC_SPREAD = 0.26;
+let sparkStreak = 0;
+/* The opening: in its final phase the Engine pauses to reload for OPEN_TIME seconds every OPEN_CLOSED seconds.
+   Only then do sparks land in full; the rest of the time they mostly glance off. Timing beats spamming. */
+const OPEN_CLOSED = 3.2, OPEN_TIME = 1.5, OPEN_DAMAGE = 0.35;
+function spawnOrb(){
+  const real = Math.random() >= ORB_FAKE_SHARE;
+  const pool = real ? ORB_REAL : ORB_FAKE;
+  orbs.push({ x: W + 30, y: rand(80, H - 90), baseY: 0, t: rand(0, 6), real, text: pool[orbTurn++ % pool.length] });
+  orbs[orbs.length - 1].baseY = orbs[orbs.length - 1].y;
+  introOnce("orbs", "HALLUCINATION", "Confident answers can be false. Grab only orbs with a ✓ source.");
+}
+function collectOrb(o){
+  if (o.real){
+    bursts = Math.min(Math.max(4, DIFF.bursts), bursts + 1);
+    award(ORB_REAL_POINTS); sfx.mote();
+    pop(o.x, o.y - 18, "✓ checked +1 ✦", "#8ef0b0");
+    burstParticles(o.x, o.y, "#8ef0b0", 12);
+  } else {
+    score = Math.max(0, score - Math.round(ORB_FAKE_COST * DIFF.score));
+    if (bursts > 0) bursts--;
+    sfx.fooled();
+    pop(o.x, o.y - 18, "Hallucinated! -" + Math.round(ORB_FAKE_COST * DIFF.score), "#ff8fa3");
+    burstParticles(o.x, o.y, "#ffd166", 14);
+    introOnce("fooled", "YOU BELIEVED IT", "Sure-sounding is not the same as true. Look for the ✓ source.", 2.6);
+  }
+  api.track("orb", level + 1, null, o.real ? 1 : 0);
+}
+let introSeen = {}, introQueue = [];
+function introOnce(key, text, sub, max){
+  if (introSeen[key]) return;
+  introSeen[key] = true;
+  introQueue.push({ text, sub, t:0, max: max || 3.2 });
+}
+function abilityOf(i){ return (LEVELS[i] && LEVELS[i].ability === "still") ? "still" : "calm"; }
+function abilityName(i){ return abilityOf(i) === "still" ? "Still Point" : "Clarity Burst"; }
+let hitBlink = false, levelStartAt = 0, runStartAt = 0;
+const player = { x:140, y:H/2, r:15, cool:0, wing:0 };
+let bullets = [], eagles = [], fires = [], parts = [], motes = [];
+let boss = null;
+let banner = null;            // {text, sub, t, max}
+let bgStars = [], bgClouds = [];
+for (let i=0;i<70;i++) bgStars.push({x:Math.random()*W, y:Math.random()*H*0.75, r:Math.random()*1.6+0.4, s:Math.random()*12+4, tw:Math.random()*6.28});
+for (let i=0;i<7;i++) bgClouds.push({x:Math.random()*W, y:Math.random()*H*0.6+30, w:Math.random()*160+120, s:Math.random()*14+8});
+
+const rand = (a,b) => a + Math.random()*(b-a);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const dist2 = (ax,ay,bx,by) => { const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
+
+/* ---------- overlay card system ---------- */
+let cardQueue = [], cardDone = null, cardShownAt = 0, overlayOpen = false, currentCard = null, cardSerial = 0;
+let lastRank = null, lastInitials = null;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+function buildCard(c){
+  let html = "";
+  if (c.big) html += `<p class="big">${c.big}</p>`;
+  if (c.tag) html += `<p class="tag">${c.tag}</p>`;
+  if (c.h && !c.big) html += `<h2>${c.h}</h2>`;
+  if (c.art) html += c.art;
+  if (c.sub) html += `<p class="sub">${c.sub}</p>`;
+  if (c.p) for (const t of c.p) html += `<p>${t}</p>`;
+  if (c.list){ html += "<ul>"; for (const t of c.list) html += `<li>${t}</li>`; html += "</ul>"; }
+  if (c.type === "quiz"){
+    html += `<div class="opts">` + c.options.map((o, i) => `<button type="button" data-act="choose" data-val="${i}"><b>${i + 1}.</b> ${esc(o)}</button>`).join("") + `</div>`;
+    html += `<p class="muted">Press 1, 2 or 3, or tap an answer. Wrong answers cost nothing; right ones earn +100 focus.</p>`;
+  }
+  if (c.type === "initials"){
+    html += `<div class="row"><input class="ini" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" aria-label="Your initials"></div>`;
+    html += `<div class="row"><button type="button" class="primary" data-act="submit">Record score</button><button type="button" class="ghost" data-act="skip">Skip</button></div>`;
+    html += `<p class="muted" data-slot="msg">Enter to record, Esc to skip.</p>`;
+  }
+  if (c.type === "leaderboard" || c.type === "stats") html += `<div data-slot="async"><p class="muted">Loading…</p></div>`;
+  if (c.type === "settings") html += settingsHTML(c);
+  if (c.type === "checkresult") html += `<p>${checkResultText()}</p>`;
+  if (c.type === "lever"){
+    html += `<div class="leverwrap"><button type="button" class="lever" data-act="pull" aria-label="Pull the lever"><span class="slot"></span><span class="arm"><span class="knob"></span></span><span class="base"></span></button><div class="lights" data-slot="lights" aria-live="polite"></div></div>`;
+    html += `<div class="hint wait">Pull the lever, or press SPACE. ${c.need} pulls.</div>`;
+  }
+  if (c.buttons) html += `<div class="row">` + c.buttons.map(b => `<button type="button" class="ghost" data-act="${b.act}">${b.label}</button>`).join("") + `</div>`;
+  if (c.note) html += `<div class="note">${c.note}</div>`;
+  if (c.hint !== "") html += `<div class="hint">${c.hint || "Press SPACE or tap to continue"}</div>`;
+  return html;
+}
+function renderCard(c){
+  currentCard = c; cardSerial++;
+  cardEl.innerHTML = buildCard(c);
+  cardEl.classList.toggle("lesson", c.lesson != null);
+  cardEl.classList.toggle("sweep", c.lesson != null || !!c.sweep);
+  cardEl.classList.remove("ready");
+  if (c.lesson != null){ const n = document.createElement("div"); n.className = "neon"; cardEl.appendChild(n); }
+  lessonWords = (c.lesson != null || c.sweep) ? wrapWords(cardEl) : [];
+  lastWordIdx = -1;
+  cardShownAt = performance.now();
+  tickLessonHint();
+  if (c.type === "initials"){
+    const inp = cardEl.querySelector("input");
+    if (inp){
+      if (lastInitials) inp.value = lastInitials;
+      inp.addEventListener("input", () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3); });
+      try { inp.focus(); } catch(e){}
+    }
+  }
+  if (c.type === "leaderboard") fillAsync(cardSerial, api.leaderboard(), leaderboardHTML);
+  if (c.type === "stats") fillAsync(cardSerial, api.stats(), statsHTML);
+}
+function fillAsync(serial, promise, toHTML){
+  Promise.resolve(promise).then(data => {
+    if (serial !== cardSerial) return;                    // that card is already gone
+    const slot = cardEl.querySelector("[data-slot=async]");
+    if (!slot) return;
+    slot.innerHTML = (data && data.ok) ? toHTML(data)
+      : `<p class="muted">${api.enabled ? "The grove records are out of reach right now. Are you offline?" : "Grove records are not enabled in this build."}</p>`;
+  }).catch(() => {});
+}
+function leaderboardHTML(d){
+  if (!d.top || !d.top.length) return `<p class="muted">No scores recorded yet. Be the first keeper on the ledger.</p>`;
+  const rows = d.top.map(r => `<tr class="${lastRank === r.rank && lastInitials === r.initials ? "me" : ""}"><td>${r.rank}</td><td>${esc(r.initials)}</td><td>${r.score}</td><td>${r.won ? "Engine defeated" : "Level " + r.level}</td></tr>`).join("");
+  const you = lastRank ? `<p class="muted">Your score is ranked <strong>#${lastRank}</strong> of ${d.total}.</p>` : `<p class="muted">${d.total} score${d.total === 1 ? "" : "s"} recorded so far.</p>`;
+  return `<table><tr><th>#</th><th>Keeper</th><th>Score</th><th>Reached</th></tr>${rows}</table>${you}`;
+}
+function statsHTML(d){
+  const pct = x => Math.round((x || 0) * 100) + "%";
+  const rows = d.levels.map(l => `<tr><td>${l.level}. ${esc(l.name)}</td><td>${pct(l.reach_rate)}</td><td>${l.hits_per_attempt}</td><td>${l.avg_lesson_seconds == null ? "–" : l.avg_lesson_seconds + "s"}</td></tr>`).join("");
+  const orbLine = d.orbs && d.orbs.picked ? `<p class="muted">In the Mirage Marsh, ${pct(d.orbs.real_rate)} of answer orbs players grabbed were real insight.</p>` : "";
+  const quiz = d.quiz && d.quiz.length ? `<p class="muted">Quick-check answers correct: ` + d.quiz.map(q => `Q${q.q + 1} ${pct(q.correct_rate)}`).join(" · ") + `</p>` : "";
+  return `<p>${d.runs} run${d.runs === 1 ? "" : "s"} by ${d.players} player${d.players === 1 ? "" : "s"}. The Engine has been defeated ${d.wins} time${d.wins === 1 ? "" : "s"} (${pct(d.win_rate)} of runs).</p>
+    <table><tr><th>Level</th><th>Reached</th><th>Hits / try</th><th>Lesson read</th></tr>${rows}</table>${quiz}${orbLine}`;
+}
+function showCards(cards, done){
+  cardQueue = cards.slice(); cardDone = done; overlayOpen = true;
+  ov.classList.remove("hidden");
+  renderCard(cardQueue.shift());
+}
+function leaveCurrentCard(){
+  const c = currentCard;
+  if (c && c.lesson != null) api.track("lesson_view", c.lesson + 1, Math.min(600000, Math.round(performance.now() - cardShownAt)));
+}
+/* Lesson cards cannot be skipped until LESSON_MIN_MS have passed. The hint counts the seconds down and the
+   frame ring holds gold once reading time is up, so the wait reads as part of the card, not as a broken button. */
+const LESSON_MIN_MS = 10000;
+const WORDS_PER_SEC = 3.0;      // the sweep's pace: a comfortable read-aloud speed for ages 11 and up
+let lastHintSec = -1, lessonWords = [], lastWordIdx = -1;
+/* Split the lesson's paragraphs and note into word spans so the sweep can light them one at a time. */
+function wrapWords(root){
+  const out = [];
+  try {
+    const blocks = root.querySelectorAll("p:not(.tag):not(.muted):not(.sub), .note, li");
+    for (const el of blocks){
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const texts = [];
+      while (walker.nextNode()) texts.push(walker.currentNode);
+      for (const tn of texts){
+        if (!tn.nodeValue.trim() || (tn.parentElement && tn.parentElement.classList.contains("hint"))) continue;
+        const frag = document.createDocumentFragment();
+        for (const part of tn.nodeValue.split(/(\s+)/)){
+          if (!part) continue;
+          if (/^\s+$/.test(part)){ frag.appendChild(document.createTextNode(part)); continue; }
+          const sp = document.createElement("span"); sp.className = "w"; sp.textContent = part;
+          try { sp.style.setProperty("--h", String((250 + out.length * 11) % 360)); } catch(e){}   // a slow drift round the colour wheel
+          frag.appendChild(sp); out.push(sp);
+        }
+        tn.parentNode.replaceChild(frag, tn);
+      }
+    }
+  } catch(e){}
+  return out;
+}
+function tickLessonHint(){
+  const c = currentCard;
+  if (!overlayOpen || !c || (c.lesson == null && !c.sweep)) return;
+  const elapsed = performance.now() - cardShownAt;
+  if (lessonWords.length){
+    const idx = Math.min(lessonWords.length, Math.floor(elapsed / 1000 * WORDS_PER_SEC));
+    if (idx !== lastWordIdx){
+      for (let k = Math.max(0, lastWordIdx - 3); k <= Math.min(lessonWords.length - 1, lastWordIdx); k++){ const cl = lessonWords[k].classList; cl.remove("now", "t1", "t2", "t3"); cl.add("read"); }
+      for (let k = Math.max(0, lastWordIdx + 1); k < idx; k++) lessonWords[k].classList.add("read");
+      for (let t = 0; t <= 3; t++){ const k = idx - t; if (k >= 0 && k < lessonWords.length) lessonWords[k].classList.add(t === 0 ? "now" : "t" + t); }
+      lastWordIdx = idx;
+    }
+  }
+  if (c.lesson == null) return;
+  const left = Math.ceil((LESSON_MIN_MS - elapsed) / 1000);
+  const hint = cardEl.querySelector(".hint");
+  if (!hint) return;
+  if (left > 0){
+    if (left !== lastHintSec){ hint.textContent = "Take your time. The quick check opens in " + left + "s"; hint.classList.add("wait"); lastHintSec = left; }
+  } else if (lastHintSec !== 0){
+    hint.textContent = c.hint || "Press SPACE or tap for a quick check"; hint.classList.remove("wait"); cardEl.classList.add("ready"); lastHintSec = 0;
+  }
+}
+function advanceCard(force){
+  if (!overlayOpen) return;
+  if (performance.now() - cardShownAt < 400) return;   // guard against double-tap skipping
+  if (!force && currentCard && currentCard.lesson != null && performance.now() - cardShownAt < LESSON_MIN_MS) return;   // read first
+  if (!force && currentCard && currentCard.type === "lever" && !currentCard.done){ cardAction("pull"); return; }   // a tap anywhere pulls
+  if (!force && currentCard && (currentCard.type === "quiz" || currentCard.type === "initials")) return;   // these need a choice
+  sfx.card();
+  leaveCurrentCard();
+  if (cardQueue.length){
+    renderCard(cardQueue.shift());
+  } else {
+    overlayOpen = false; currentCard = null;
+    ov.classList.add("hidden");
+    keys[" "] = false;
+    const d = cardDone; cardDone = null;
+    if (d) d();
+  }
+}
+function cardAction(act, val){
+  const c = currentCard;
+  if (!overlayOpen || !c) return;
+  if (act === "pull" && c.type === "lever"){
+    if (c.done) return;
+    const item = HUMAN[humanCursor % HUMAN.length]; humanCursor++;
+    c.pulls++;
+    const slot = cardEl.querySelector("[data-slot=lights]");
+    if (slot) slot.insertAdjacentHTML("beforeend", `<div class="light"><b>${esc(item.w)}</b>${esc(item.t)}</div>`);
+    const lev = cardEl.querySelector(".lever");
+    if (lev && lev.classList){ lev.classList.add("pulled"); setTimeout(() => lev.classList.remove("pulled"), 220); }
+    sfx.mote();
+    const hint = cardEl.querySelector(".hint");
+    if (c.pulls >= c.need){
+      c.done = true;
+      if (hint){ hint.textContent = "Three lights, all yours. Press SPACE or tap to continue"; hint.classList.remove("wait"); }
+    } else if (hint) hint.textContent = "Pull again. " + (c.need - c.pulls) + " to go.";
+    return;
+  }
+  if (act === "choose" && c.type === "quiz"){
+    const choice = parseInt(val, 10);
+    if (!(choice >= 0 && choice < c.options.length)) return;
+    const correct = choice === c.correct;
+    if (c.phase){
+      /* the before/after check: never scored, and the "before" round keeps the answers to itself */
+      if (c.phase === "pre") preAnswers = (preAnswers || 0) + (correct ? 1 : 0);
+      else postAnswers += correct ? 1 : 0;
+      api.track(c.phase, null, c.qIndex, correct ? 1 : 0, choice);
+      if (c.phase === "post"){
+        cardQueue.unshift({ tag: c.tag, h: correct ? "Correct" : "Not quite",
+          p: [ (correct ? `<span class="ok">✓</span> ` : `<span class="bad">✗</span> The answer: <strong>${esc(c.options[c.correct])}</strong>. `) + esc(c.why) ],
+          hint: "Press SPACE or tap to continue" });
+      }
+      cardShownAt = 0; currentCard = null;
+      advanceCard(true);
+      return;
+    }
+    if (correct) score += 100;
+    api.track("quiz", c.lessonIdx + 1, c.qIndex, correct ? 1 : 0, choice);
+    cardQueue.unshift({ tag: c.tag, h: correct ? "Correct! +100 focus" : "Not quite",
+      p: [ (correct ? `<span class="ok">✓</span> ` : `<span class="bad">✗</span> The answer: <strong>${esc(c.options[c.correct])}</strong>. `) + esc(c.why) ],
+      hint: "Press SPACE or tap to continue" });
+    cardShownAt = 0; currentCard = null;
+    advanceCard(true);
+    return;
+  }
+  if (act === "submit" && c.type === "initials"){
+    if (c.busy) return;
+    const inp = cardEl.querySelector("input");
+    const msg = cardEl.querySelector("[data-slot=msg]");
+    const initials = (inp ? String(inp.value) : "").toUpperCase().replace(/[^A-Z]/g, "");
+    if (initials.length !== 3){ if (msg) msg.textContent = "Three letters, A to Z."; return; }
+    c.busy = true; if (msg) msg.textContent = "Recording…";
+    const serial = cardSerial;
+    api.submitScore(initials, c.score, c.level).then(r => {
+      if (serial !== cardSerial) return;
+      if (r && r.ok){ lastRank = r.rank; lastInitials = r.initials; cardShownAt = 0; advanceCard(true); }
+      else { c.busy = false; if (msg) msg.textContent = (r && r.error) ? "Not recorded: " + r.error : "Could not reach the grove records. Try again, or skip."; }
+    });
+    return;
+  }
+  if (act === "skip" && c.type === "initials"){ cardShownAt = 0; advanceCard(true); return; }
+  if (act === "records"){ showCards([leaderboardCard(), statsCard()], showTitle); return; }
+  if (act === "teachers"){ try { location.href = "teacher.html"; } catch(e){} return; }
+  if (act === "leaveclass"){
+    try { localStorage.removeItem("mindwing_class"); } catch(e){}
+    classCode = null; classLabel = null; classStatus = "none";
+    refreshTitle(); return;
+  }
+  if (act === "settings"){
+    if (c.type === "settings") return;
+    if (state === "title"){ showCards([settingsCard("title")], showTitle); return; }
+    cardQueue.unshift(c); renderCard(settingsCard("pause")); return;     // from the pause card: come back to it
+  }
+  if (act === "set" && c.type === "settings"){
+    const [k, v] = String(val || "").split(":");
+    if (!SETTING_CHOICES[k] || !SETTING_CHOICES[k].includes(v)) return;
+    SETTINGS[k] = v; saveSettings(); applyPresentation();
+    if (k === "difficulty" && state === "title") DIFF = DIFFS[v];
+    const keep = cardShownAt; renderCard(c); cardShownAt = keep;          // redraw in place, keep the double-tap guard
+    return;
+  }
+  if (act === "skipcheck"){
+    /* drop the five "before" questions still queued and get on with the game */
+    preAnswers = null;
+    cardQueue = cardQueue.filter(x => x.phase !== "pre");
+    cardShownAt = 0; advanceCard(true); return;
+  }
+  if (act === "continue"){ startLevel = Math.min(progress.furthest, LEVELS.length - 1); cardShownAt = 0; advanceCard(true); return; }
+  if (act === "restart"){ startLevel = 0; cardShownAt = 0; advanceCard(true); return; }
+  if (act === "next"){ advanceCard(true); }
+}
+// "click" rather than "pointerdown": a finger scrolling a long card on a small screen must not advance it.
+// Buttons inside cards carry data-act and are handled here too, so they never fall through to "advance".
+ov.addEventListener("click", e => {
+  ensureAudio();
+  const t = e.target;
+  const btn = t && t.closest ? t.closest("[data-act]") : null;
+  if (btn){ e.preventDefault(); cardAction(btn.dataset.act, btn.dataset.val); return; }
+  if (t && t.closest && t.closest("input")) return;
+  e.preventDefault(); advanceCard();
+});
+
+/* ---------- flow ---------- */
+function bestsLine(){
+  const keys = Object.keys(progress.bests).sort();
+  if (!keys.length) return "";
+  const parts = keys.map(k => `${k}. ${esc((LEVELS[Number(k) - 1] || {}).name || "")} ${progress.bests[k]}`);
+  return `<span class="muted" style="display:block;text-align:center">Best per level: ${parts.join(" · ")}</span>`;
+}
+function classNote(){
+  if (!classCode) return undefined;
+  if (classStatus === "ok") return `<b>Class ${esc(classCode)}${classLabel ? " · " + esc(classLabel) : ""}.</b> Your teacher will see how far you get, your quick-check answers, which answer orbs you grab, and any initials you type. Never your name.`;
+  if (classStatus === "unknown") return `<b>Class code ${esc(classCode)} was not found.</b> Check the code with your teacher. You can still play; this run just will not show up for your class.`;
+  if (classStatus === "offline") return `<b>Class ${esc(classCode)}.</b> The class list is out of reach right now. You can still play; your run joins the class if the connection comes back before you start.`;
+  return `<b>Class ${esc(classCode)}.</b> Checking the class code…`;
+}
+function checkClass(){
+  if (!classCode || !api.enabled){ classStatus = classCode ? "offline" : "none"; return; }
+  classStatus = "checking";
+  Promise.resolve(api.classInfo(classCode)).then(r => {
+    if (r && r.ok){ classStatus = "ok"; classLabel = r.label || null; }
+    else if (r && r.status === 404) classStatus = "unknown";
+    else classStatus = "offline";
+    refreshTitle();
+  }).catch(() => { classStatus = "offline"; refreshTitle(); });
+}
+function refreshTitle(){
+  if (state === "title" && overlayOpen && currentCard && currentCard.big){
+    const keep = cardShownAt; renderCard(titleCards()[0]); cardShownAt = keep;
+  }
+}
+function titleCards(){
+  return [
+    { big:"MINDWING",
+      sub:"A tiny game about how AI works,<br>and how to keep your mind your own.",
+      p:[ best > 0 ? `<span style="display:block;text-align:center;color:var(--accent);font-weight:700">Best score: ${best}</span>` : "",
+          bestsLine() ].filter(Boolean),
+      buttons: [{ act:"settings", label:"Settings: difficulty &amp; access (S)" }]
+        .concat(api.enabled ? [{ act:"records", label:"Grove records: leaderboard &amp; stats (L)" }] : [])
+        .concat(api.enabled && !classCode ? [{ act:"teachers", label:"Teachers: set up a class" }] : [])
+        .concat(classCode ? [{ act:"leaveclass", label:"Leave class " + classCode }] : [])
+        .concat(progress.furthest > 0 ? [
+          { act:"continue", label:"Continue from level " + (Math.min(progress.furthest, LEVELS.length - 1) + 1) + ": " + LEVELS[Math.min(progress.furthest, LEVELS.length - 1)].name },
+          { act:"restart", label:"Start again from level 1" }
+        ] : []),
+      note: classNote(),
+      hint: progress.furthest > 0 ? "Press SPACE or tap to continue" : "Press SPACE or tap to begin" },
+    { tag:"The story", h:"The Grove of Minds", sweep:true, art: STORY_ART,
+      p:[ "The Grove of Minds is where clear thinking grows, and <strong>Lumen the fairy</strong> is its keeper.",
+          "But the <strong>Engagement Engine</strong>, a machine that feeds on attention, has sent its fire-eagles to scorch the grove and keep every mind staring at the flames.",
+          "Fly, Lumen. With every eagle you turn back, you will learn how the Engine works. Understand it, and it loses its power over you." ] },
+    { tag:"How to fly", h:"Controls",
+      list:[ "<b>Arrow keys / WASD</b>: fly",
+             "<b>SPACE</b> (hold or tap): shoot sparks",
+             "<b>Double-tap SPACE</b> (or press <b>X</b>): your clarity move (limited charges ✦)",
+             "&nbsp;&nbsp;&nbsp;&nbsp;Levels 1-2, <b>Clarity Burst</b>: blanks everything around you, and the sky stays empty for a moment",
+             "&nbsp;&nbsp;&nbsp;&nbsp;Levels 3-5, <b>Still Point</b>: nothing is destroyed, but eagles and fireballs hold still while you fly through",
+             "<b>Touch</b>: drag to fly (auto-fire), double-tap for the same move",
+             "<b>P</b> or <b>Esc</b>: pause &nbsp;·&nbsp; <b>M</b>: mute" ],
+      note:"<b>Tip:</b> purple <b>insight motes</b> dropped by eagles refill your charges. Insight always does." }
+  ];
+}
+function checkCards(phase){
+  const intro = phase === "pre"
+    ? { tag:"Before you fly", h:"Five questions, no pressure",
+        p:[ "These five questions are not scored and they do not affect your game. You will see them again at the end, so you can watch how much you picked up along the way.",
+            "If you do not know, guess. That is useful too." ],
+        buttons:[{ act:"skipcheck", label:"Skip this, just let me play" }], hint:"Press SPACE or tap to start" }
+    : { tag:"After the flight", h:"The same five questions",
+        p:[ "Same questions as before you started. This time you will see the answers." ], hint:"Press SPACE or tap to start" };
+  const qs = CHECKS.map((c, i) => ({
+    type:"quiz", phase, tag:`${phase === "pre" ? "Before" : "After"} · question ${i + 1} of ${CHECKS.length}`,
+    h: esc(c.q), options: c.a, correct: c.correct, why: c.why, qIndex: i, hint:""
+  }));
+  return [intro, ...qs];
+}
+function checkResultCard(){
+  /* Built when the card is rendered, not when the queue is made: the after-questions are answered in between. */
+  return { type:"checkresult", tag:"Before and after", h:"What changed" };
+}
+function checkResultText(){
+  const after = postAnswers, before = preAnswers;
+  const line = before == null
+    ? `You answered <strong>${after} of ${CHECKS.length}</strong> correctly. You skipped the check at the start, so there is nothing to compare against this time.`
+    : after > before ? `You went from <strong>${before} of ${CHECKS.length}</strong> before the flight to <strong>${after} of ${CHECKS.length}</strong> now. That difference is the point of the whole game.`
+    : after === before ? `You had <strong>${before} of ${CHECKS.length}</strong> before and <strong>${after}</strong> now. Steady. Have a look at the field guide on the next card.`
+    : `You had <strong>${before} of ${CHECKS.length}</strong> before and <strong>${after}</strong> now. That happens: the questions get easier to overthink once you know more. The field guide is on the next card.`;
+  return line;
+}
+let postAnswers = 0;
+function settingsCard(from){
+  return { type:"settings", tag:"Settings", h:"Play your way", from, hint:"Press SPACE or tap outside the buttons to go back" };
+}
+const SETTING_TEXT = {
+  difficulty:{ label:"Difficulty", opts:{ easy:"Easy", normal:"Normal", hard:"Hard" },
+    why:{ easy:"5 hearts, slower shots, gentler boss. Scores count 0.6x.", normal:"The game as designed.", hard:"Faster shots, fewer charges, tougher boss. Scores count 1.3x." } },
+  motion:{ label:"Motion", opts:{ full:"Full", reduced:"Reduced" }, why:{ full:"Screen shake and flashes on.", reduced:"No screen shake, soft flashes, fewer sparks." } },
+  contrast:{ label:"Contrast", opts:{ standard:"Standard", high:"High" }, why:{ standard:"The painted look.", high:"Brighter text, outlined hazards, and shape tells that never rely on color alone." } },
+  text:{ label:"Text size", opts:{ normal:"Normal", large:"Large" }, why:{ normal:"", large:"Bigger text on cards and on the game screen." } },
+  music:{ label:"Music", opts:{ on:"On", off:"Off" }, why:{ on:"A quiet score under the game. M mutes everything.", off:"No music. Sound effects follow their own setting." } },
+  sfx:{ label:"Sound effects", opts:{ on:"On", off:"Off" }, why:{ on:"Shots, hits and pickups make sounds. Nothing in the game depends on hearing them.", off:"No effect sounds. Music follows its own setting." } }
+};
+function settingsHTML(c){
+  let html = `<div class="set">`;
+  for (const k of Object.keys(SETTING_TEXT)){
+    const t = SETTING_TEXT[k];
+    html += `<div class="lbl">${t.label}</div><div class="seg" role="group" aria-label="${t.label}">` +
+      SETTING_CHOICES[k].map(v => `<button type="button" data-act="set" data-val="${k}:${v}" aria-pressed="${SETTINGS[k] === v}">${t.opts[v]}</button>`).join("") + `</div>`;
+    const why = t.why[SETTINGS[k]];
+    if (why) html += `<div class="why">${why}</div>`;
+  }
+  html += `</div>`;
+  if (c.from === "pause") html += `<p class="muted">Difficulty changes start at the next level. Everything else changes now.</p>`;
+  return html;
+}
+function lessonCard(i){
+  const l = LESSONS[i];
+  return { tag:l.tag, h:l.h, p:l.p, note:l.note, lesson:i, hint:"Press SPACE or tap for a quick check" };
+}
+let quizDone = LEVELS.map(() => false);
+function showTitle(){
+  state = "title"; score = 0; boss = null; lastRank = null;
+  quizDone = LEVELS.map(() => false);
+  eagles = []; fires = []; bullets = []; motes = []; parts = [];
+  preAnswers = null; postAnswers = 0;
+  /* The run is registered once the player leaves the title cards, so the "before" answers belong to it and are
+     sent straight away rather than waiting in a queue for a session that does not exist yet. */
+  humanCursor = 0;
+  showCards(titleCards().concat([leverCard(3)]), () => {
+    runStartAt = performance.now();
+    api.startRun(startLevel);
+    showCards(checkCards("pre"), () => { api.flush(); showLessonThen(startLevel); });
+  });
+}
+function showLessonThen(i, withLever){
+  showCards((withLever ? [leverCard(3)] : []).concat([lessonCard(i), ...quizCards(i)]), () => beginLevel(i));
+}
+function quizCards(i){
+  if (quizDone[i]) return [];
+  quizDone[i] = true;
+  return QUIZ.map((q, idx) => ({ q, idx })).filter(x => x.q.lesson === i)
+    .map((x, k) => ({ type:"quiz", tag:`Quick check ${k + 1} of 2 · ${LESSONS[i].h}`, h: esc(x.q.q), options: x.q.a, correct: x.q.correct, why: x.q.why, lessonIdx: i, qIndex: x.idx, hint:"" }));
+}
+function initialsCard(scoreVal, levelVal){
+  return { type:"initials", tag:"Grove records", h:"Sign the grove ledger",
+    p:[ `Score <strong style="color:var(--accent)">${scoreVal}</strong>. Enter three letters to record it on the global leaderboard. No names, no accounts, just initials.` ],
+    score: scoreVal, level: levelVal, hint:"" };
+}
+function leaderboardCard(hint){
+  return { type:"leaderboard", tag:"Grove records", h:"Top keepers of the grove", hint: hint || "Press SPACE or tap to continue" };
+}
+function statsCard(){
+  return { type:"stats", tag:"Grove statistics", h:"What players are learning",
+    p:[ "Anonymous and aggregated across everyone who has played. No names, no accounts." ], hint:"Press SPACE or tap to continue" };
+}
+function beginLevel(i){
+  level = i;
+  const cfg = LEVELS[i];
+  DIFF = DIFFS[SETTINGS.difficulty] || DIFFS.normal;
+  hearts = DIFF.hearts; bursts = DIFF.bursts; killCount = 0; quota = cfg.quota ? Math.max(4, Math.round(cfg.quota * DIFF.quota)) : 0;
+  tookDamage = false;
+  bullets = []; eagles = []; fires = []; motes = []; parts = []; pops = []; hitStop = 0; hurtT = 0;
+  player.x = 140; player.y = H/2; player.cool = 0;
+  inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
+  driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; orbs = []; orbT = 1.6;
+  seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; serpT = rand(6, 9); serpentCount = 0; phantT = rand(7, 11); phantomCount = 0; sparkStreak = 0;
+  levelStartScore = score;
+  hitBlink = false;
+  levelStartAt = performance.now();
+  api.track("level_start", i + 1); api.flush();
+  if (i > progress.furthest){ progress.furthest = i; saveProgress(); }
+  const bossHp = Math.round(80 * DIFF.bossHp);   // the final level brings every enemy at once, and the Engine itself is sturdier
+  boss = cfg.boss ? { x:W+140, y:H/2, r:52, hp:bossHp, maxhp:bossHp, t:0, fireT:2.4, volley:0, entered:false, hurt:0, enraged:false, phase:1, spin:0, open:false, openT:0 } : null;
+  const abIntro = abilityOf(i) === "still"
+    ? "Still Point (X): the sky freezes, nothing dies"
+    : "Clarity Burst (X): clears the sky, then a breath of calm";
+  banner = { text:`Level ${i+1} · ${cfg.name}`, sub:`Concept: ${cfg.concept} · ${abIntro}`, t:0, max:2.8 };
+  state = "play";
+}
+function levelCleared(){
+  state = "clear"; clearT = 1.6;
+  for (const e of eagles) burstParticles(e.x, e.y, "#ffd166", 12);
+  eagles = []; fires = []; glimmer = null;
+  const untouched = !tookDamage;
+  if (untouched) award(500);
+  api.track("level_clear", level + 1, Math.round(performance.now() - levelStartAt), score);
+  noteProgress(level, score - levelStartScore);
+  banner = { text:"GROVE SECTION CLEARED", sub: untouched ? "Untouched! +500 focus bonus" : "Onward!", t:0, max:1.6 };
+}
+function afterClear(){
+  if (level >= LEVELS.length - 1){ winGame(); return; }
+  showLessonThen(level + 1, true);
+}
+function hitFactCard(fi){
+  const f = HIT_FACTS[fi];
+  const group = FACT_GROUPS.sycophancy.includes(fi) ? "Flattered!" : FACT_GROUPS.drift.includes(fi) ? "Distracted!" : "Singed!";
+  return { tag:`${group} · a spark of insight`, h:"While your wings recover…",
+    p:[ f ], hint:"Press SPACE or tap to keep flying" };
+}
+function onPlayerHit(cause){
+  if (inv > 0) return;
+  if (!cause && LEVELS[level] && LEVELS[level].orbs) cause = "hallucination";
+  hearts--; tookDamage = true; hitBlink = true; kick(9, 0); sfx.hit();
+  hitStop = Math.max(hitStop, 0.1); hurtT = 0.6;
+  burstParticles(player.x, player.y, "#ff5a76", 22);
+  fires = fires.filter(f => dist2(f.x,f.y,player.x,player.y) > 160*160);
+  if (hearts <= 0){ gameOver(); return; }
+  inv = 2.4 * DIFF.inv;
+  state = "hit";
+  const fi = nextFact(cause || "general");
+  api.track("hit", level + 1, fi);
+  showCards([hitFactCard(fi)], () => { state = "play"; });
+}
+function gameOver(){
+  state = "over";
+  const scoreAtDeath = score;
+  api.track("game_over", level + 1, null, scoreAtDeath); api.flush();
+  const f = HIT_FACTS[nextFact("general")];
+  const record = api.enabled && scoreAtDeath > 0;
+  const cards = [{ tag:"The grove dims…", h:"But minds regrow",
+    p:[ "The eagles overwhelmed Lumen this time. While the embers cool, one thing worth keeping:",
+        `<strong>${f}</strong>` ],
+    hint: record ? "Press SPACE or tap to continue" : "Press SPACE or tap to retry this level" }];
+  if (record) cards.push(initialsCard(scoreAtDeath, level + 1), leaderboardCard("Press SPACE or tap to retry this level"));
+  showCards(cards, () => { score = levelStartScore; beginLevel(level); });
+}
+function winGame(){
+  state = "win"; sfx.win();
+  api.track("win", null, Math.round(performance.now() - runStartAt), score); api.flush();
+  if (score > best){ best = score; try { localStorage.setItem("mindwing_best", String(best)); } catch(e){} }
+  const cards = [
+    { tag:"Victory", h:"The Engagement Engine powers down",
+      p:[ "It was never invincible. It only worked while nobody understood it.",
+          `<strong style="color:var(--accent)">Final score: ${score}</strong> &nbsp;·&nbsp; Best: ${best}` ] }
+  ];
+  postAnswers = 0;
+  cards.push(...checkCards("post"), checkResultCard());
+  if (api.enabled) cards.push(initialsCard(score, LEVELS.length), leaderboardCard());
+  cards.push({ tag:"What Lumen learned", h:"Your field guide",
+      list:[ "<b>Tokens:</b> AI predicts text chunk by chunk. It does not know truth, so verify what matters.",
+             "<b>Neural networks:</b> billions of tuned number-dials. Pattern power that can look like understanding, and can still be wrong.",
+             "<b>Retention models:</b> apps are optimized for your time. Arrive with a purpose, leave when it is done. Flattery is a hook too.",
+             "<b>Hallucination:</b> confident is not the same as correct. Ask for the source and check it yourself.",
+             "<b>Offloading &amp; drift:</b> use AI on purpose. Try first, ask second, keep practicing your own skills, and notice when something pulls you off your goal." ],
+      note:"<b>The grove stays safe</b> while its keeper stays curious. Share what you learned with someone today.",
+      hint: api.enabled ? "Press SPACE or tap to continue" : "Press SPACE or tap to play again" });
+  if (api.enabled) cards.push(statsCard());
+  showCards(cards, showTitle);
+}
+function pauseGame(){
+  if (state !== "play") return;
+  state = "pause";
+  showCards([{ tag:"Paused", h:"Take a breath",
+    p:["The grove will wait. Notice: did you choose this break, or did something choose it for you? Choosing on purpose is the whole game."],
+    buttons:[{ act:"settings", label:"Settings (S)" }],
+    hint:"Press SPACE or tap to resume" }], () => { state = "play"; });
+}
+
+/* ---------- input ---------- */
+const keys = {};
+let touchActive = false, touchX = 0, touchY = 0, usedTouch = false;
+// Last two press times for SPACE and for touch taps. A burst needs an *isolated* double-tap:
+// two quick presses preceded by a pause, so mashing the fire key does not burn charges.
+let tapT1 = -1e9, tapT2 = -1e9, ptT1 = -1e9, ptT2 = -1e9;
+const isolatedDoubleTap = (now, t1, t2, gap) => now - t1 < gap && t1 - t2 > 350;
+window.addEventListener("keydown", e => {
+  const key = e.key || "";
+  if (e.target && e.target.tagName === "INPUT"){            // typing initials: leave the field alone
+    if (key === "Enter"){ e.preventDefault(); cardAction("submit"); }
+    else if (key === "Escape") cardAction("skip");
+    return;
+  }
+  if ([" ","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(key)) e.preventDefault();
+  ensureAudio();
+  if (e.repeat) return;
+  const k = key.length === 1 ? key.toLowerCase() : key;
+  keys[k] = true;
+  if (overlayOpen){
+    const c = currentCard;
+    if (c && c.type === "quiz"){ const n = parseInt(key, 10); if (n >= 1 && n <= c.options.length) cardAction("choose", String(n - 1)); return; }
+    if (c && c.type === "initials"){ if (key === "Enter") cardAction("submit"); else if (key === "Escape") cardAction("skip"); return; }
+    if (k === "l" && state === "title" && api.enabled && c && c.big){ cardAction("records"); return; }
+    if (k === "s" && c && (c.big || (state === "pause" && c.buttons))){ cardAction("settings"); return; }
+    if (key === " " || key === "Enter") advanceCard();
+    return;
+  }
+  if (k === "p" || key === "Escape"){ pauseGame(); return; }
+  if (k === "m"){ muted = !muted; banner = { text: muted ? "SOUND OFF" : "SOUND ON", sub:"", t:0, max:1 }; return; }
+  if ((k === "x" || k === "b") && state === "play"){ tryBurst(); return; }
+  if (key === " " && state === "play"){
+    const now = performance.now();
+    if (isolatedDoubleTap(now, tapT1, tapT2, 270)){ tryBurst(); tapT1 = tapT2 = -1e9; }
+    else { tapT2 = tapT1; tapT1 = now; }
+  }
+});
+window.addEventListener("keyup", e => {
+  const key = e.key || "";
+  const k = key.length === 1 ? key.toLowerCase() : key;
+  keys[k] = false;
+});
+function canvasPoint(e){
+  const r = canvas.getBoundingClientRect();
+  if (!(r.width > 0) || !(r.height > 0)) return null;
+  const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  return (Number.isFinite(x) && Number.isFinite(y)) ? { x, y } : null;
+}
+canvas.addEventListener("pointerdown", e => {
+  e.preventDefault(); ensureAudio();
+  if (overlayOpen) return;
+  const p = canvasPoint(e);
+  if (!p) return;
+  if (e.pointerType === "touch") usedTouch = true;
+  touchActive = true; touchX = p.x; touchY = p.y;
+  try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+  const now = performance.now();
+  if (state === "play" && isolatedDoubleTap(now, ptT1, ptT2, 300)){ tryBurst(); ptT1 = ptT2 = -1e9; }
+  else { ptT2 = ptT1; ptT1 = now; }
+});
+canvas.addEventListener("pointermove", e => {
+  if (!touchActive) return;
+  const p = canvasPoint(e);
+  if (p){ touchX = p.x; touchY = p.y; }
+});
+window.addEventListener("pointerup", () => { touchActive = false; });
+window.addEventListener("pointercancel", () => { touchActive = false; });
+window.addEventListener("blur", () => { touchActive = false; for (const k in keys) keys[k] = false; pauseGame(); });
+window.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("visibilitychange", () => { if (document.hidden){ pauseGame(); api.flush(true); } });
+
+/* ---------- actions ---------- */
+function shoot(){
+  bullets.push({ x:player.x + 18, y:player.y, r:5 });
+  sfx.shoot();
+}
+/* every fifth spark while holding fire fans two extra sparks out, so holding the button has a rhythm */
+function shootArc(){
+  for (const off of [-ARC_SPREAD, ARC_SPREAD]) bullets.push({ x:player.x + 18, y:player.y, r:4, vx:Math.cos(off)*560, vy:Math.sin(off)*560 });
+}
+function tryBurst(){
+  if (bursts <= 0 || state !== "play") return;
+  const still = abilityOf(level) === "still";
+  if (!eagles.length && !fires.length && !(boss && boss.entered)){
+    banner = { text:"", sub: still ? "Still Point: nothing to hold yet" : "Clarity Burst: nothing to clear yet", t:0, max:0.9 };
+    return;   // never spend a charge on an empty sky
+  }
+  bursts--; sfx.burst();
+  api.track(still ? "still" : "burst", level + 1);   // the two moves are separate in the research data
+  if (still){
+    /* Levels 3-5: hold the sky instead of clearing it. Nothing dies, nothing moves, and the player
+       flies through the gap. Stacking is not allowed to stretch the window past STILL_TIME. */
+    stillT = STILL_TIME; kick(2, 0.5);
+    banner = { text:"", sub:"Still Point: the feed stops. Choose your line.", t:0, max:1.1 };
+    burstParticles(player.x, player.y, "#9fe7ff", 30);
+    for (const e of eagles) burstParticles(e.x, e.y, "#9fe7ff", 5);
+    return;
+  }
+  kick(6, 1);
+  fires = [];
+  for (const e of eagles){
+    if (e.type === "phantom"){ burstParticles(e.x, e.y, "#7f9a90", 8); continue; }   // a fake was never an eagle
+    award(e.pts);
+    burstParticles(e.x, e.y, "#ffd166", 14);
+    killCount++;
+  }
+  eagles = [];
+  if (boss && boss.entered){ boss.hp -= 6; boss.hurt = 0.3; if (boss.hp <= 0) killBoss(); }
+  burstParticles(player.x, player.y, "#ffffff", 30);
+  calmT = CALM_TIME;   // a breath of clear sky before the next wave arrives
+  if (state === "play") banner = { text:"", sub:"Clear sky. Breathe.", t:0, max:1.1 };
+  if (!boss && killCount >= quota && state === "play") levelCleared();
+}
+function spawnEagle(){
+  const cfg = LEVELS[level];
+  const type = cfg.types[Math.floor(Math.random()*cfg.types.length)];
+  const e = {
+    type, x: W + 50, y: rand(60, H - 90), r: 20,
+    baseY: 0, t: rand(0, 6.28),
+    vx: -(cfg.speed * PACE * rand(0.85, 1.2)),
+    fireT: rand(cfg.fireMin, cfg.fireMax) / PACE * DIFF.fireGap,
+    glow: 0, flap: rand(0, 6.28),
+    pts: type === "armored" ? 200 : type === "swooper" ? 160 : type === "diver" ? 150 : (type === "zigzag" ? 120 : 100),
+    hp: type === "armored" ? 2 : 1, hurt: 0
+  };
+  /* armored: slow and takes two sparks. swooper: cruises, then dives at where you are and climbs away. */
+  if (type === "armored"){ e.r = 23; e.vx *= 0.72; }
+  if (type === "swooper"){ e.vx *= 1.1; e.swoopCd = rand(1.0, 2.0); e.swooping = 0; e.targetY = e.y; }
+  e.baseY = e.y;
+  eagles.push(e);
+}
+function spawnSerpent(){
+  const cfg = LEVELS[level];
+  const e = { type:"serpent", x: W + 50, y: clamp(player.y + rand(-100, 100), 70, H - 90), r: 16, baseY: 0, t: 0,
+    vx: -SERP_SPEED * DIFF.shotSpeed, vy: 0, fireT: rand(cfg.fireMin, cfg.fireMax) * 1.6 / PACE * DIFF.fireGap, glow: 0, flap: rand(0, 6.28),
+    pts: 180, hp: SERP_HP, hurt: 0, hist: [], armT: SERP_ARM, coils: 0, coilT: 0, coilAge: 0 };
+  e.baseY = e.y;
+  eagles.push(e); serpentCount++;
+  introOnce("serpent", "THE SERPENT", "It follows your every move. Lead it in a circle and it bites its own tail.");
+}
+/* the serpent's head crossed its own tail: it swallows itself, and that counts as turning it back */
+function spawnPhantom(){
+  const e = { type:"phantom", x: W + 50, y: clamp(player.y + rand(-140, 140), 70, H - 90), r: 16, baseY: 0, t: 0,
+    vx: -SERP_SPEED * 0.85 * DIFF.shotSpeed, vy: 0, fireT: 1e9, glow: 0, flap: rand(0, 6.28), pts: 0, hp: 1e9, hurt: 0,
+    hist: [], armT: 1e9, coils: 0, coilT: 0, coilAge: 0, life: PHANTOM_LIFE, sway: rand(0, 6.28) };
+  e.baseY = e.y;
+  eagles.push(e); phantomCount++;
+  introOnce("phantom", "A FAKE SERPENT", "No bright eyes, no bite. It only pulls your line off course. Let it pass.");
+}
+function serpentBite(i, e){
+  award(SERP_BITE_POINTS); killCount++;
+  pop(e.x, e.y - 20, "bit its own tail +" + Math.round(SERP_BITE_POINTS * DIFF.score), "#8ef0b0");
+  for (let k=0;k<SERP_SEGS;k++){ const q = e.hist[Math.min(e.hist.length - 1, (k + 1) * SERP_GAP)]; if (q) burstParticles(q.x, q.y, "#4fbf86", 4); }
+  burstParticles(e.x, e.y, "#8ef0b0", 16);
+  hitStop = Math.max(hitStop, 0.05); sfx.eagleDown();
+  if (!banner) banner = { text:"", sub:"It swallowed its own tail. Loops feed on themselves.", t:0, max:1.6 };
+  eagles.splice(i, 1);
+  if (!boss && killCount >= quota) levelCleared();
+}
+function spawnHook(){
+  const e = { type:"hook", x: W + 40, y: clamp(player.y + rand(-140, 140), 60, H - 90), r: 17, baseY: 0, t: 0,
+    vx: -HOOK_SPEED * DIFF.shotSpeed, vy: 0, fireT: 1e9, glow: 0, flap: rand(0, 6.28), pts: 140, hp: HOOK_HP, hurt: 0,
+    life: HOOK_LIFE, trail: [] };
+  e.baseY = e.y;
+  eagles.push(e); hookCount++;
+  introOnce("hook", "THE HOOK", "It follows you. Outfly it, or turn and face it. Both are choices.");
+}
+function spawnSeedCluster(){
+  const bx = W + 30, by = rand(90, H - 90), vx = -rand(38, 52), wob = rand(0, 6.28);
+  for (let k=0;k<SEED_CLUSTER;k++) seeds.push({ bx, by, vx, wob, a: k/SEED_CLUSTER*6.28 + rand(-0.2, 0.2), r: rand(16, 28), w: rand(1.2, 2.0), t: 0, x: bx, y: by });
+}
+function spawnGlimmer(){
+  glimmer = { x: rand(220, W - 140), y: rand(90, H - 90), t: 0 };
+  glimCount++;
+  introOnce("glimmer", "VARIABLE REWARD", "It appears, it vanishes. That flicker is designed to make you chase.");
+}
+function eagleFire(e){
+  const cfg = LEVELS[level];
+  const dx = player.x - e.x, dy = player.y - e.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const sp = cfg.fireSpeed * PACE * DIFF.shotSpeed;
+  const shot = { x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0, kind:"fire" };
+  if (cfg.shots === "praise") shot.morph = PRAISE_MORPH;
+  fires.push(shot);
+  e.glow = 0.35;
+}
+function pop(x, y, text, color){ pops.push({ x, y, text, color: color || "#ffd166", t:0 }); }
+function feathers(x, y, n){
+  if (reducedMotion()) n = Math.ceil(n / 3);
+  for (let i=0;i<n;i++){
+    const a = Math.random()*6.28, sp = rand(40, 150);
+    parts.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 40, life:rand(0.6,1.1), max:1.1, color: i % 2 ? "#6b4a2f" : "#e8e2d5", r:rand(2.5,4.5), shape:"feather", rot:rand(0,6.28), vr:rand(-8,8) });
+  }
+}
+function killEagle(i){
+  const e = eagles[i];
+  award(e.pts); killCount++;
+  pop(e.x, e.y - 18, "+" + Math.round(e.pts * DIFF.score));
+  feathers(e.x, e.y, 8);
+  hitStop = Math.max(hitStop, 0.035);
+  burstParticles(e.x, e.y, "#ff9f45", 16);
+  sfx.eagleDown();
+  if (Math.random() < 0.18) motes.push({ x:e.x, y:e.y, t:0 });
+  eagles.splice(i, 1);
+  if (!boss && killCount >= quota) levelCleared();
+}
+function killBoss(){
+  burstParticles(boss.x, boss.y, "#ffd166", 60);
+  burstParticles(boss.x, boss.y, "#ff5a3c", 60);
+  award(1500); kick(14, 0.8); hitStop = Math.max(hitStop, 0.3);
+  boss = null; eagles = []; fires = [];
+  sfx.eagleDown();
+  state = "clear"; clearT = 1.8;
+  banner = { text:"THE ENGINE FALLS SILENT", sub:"+1500", t:0, max:1.8 };
+}
+function burstParticles(x, y, color, n){
+  if (reducedMotion()) n = Math.ceil(n / 3);
+  for (let i=0;i<n;i++){
+    const a = Math.random()*6.28, s = rand(30, 190);
+    parts.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:rand(0.3,0.8), max:0.8, color, r:rand(1.5,4) });
+  }
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  tGlobal += dt;
+  if (shake > 0) shake = Math.max(0, shake - dt*26);
+  if (flash > 0) flash = Math.max(0, flash - dt*2.0);
+  if (hurtT > 0) hurtT = Math.max(0, hurtT - dt);
+  for (let i=pops.length-1;i>=0;i--){ const q = pops[i]; q.t += dt; if (!reducedMotion()) q.y -= 36*dt; if (q.t > 0.9) pops.splice(i,1); }
+  if (banner){ banner.t += dt; if (banner.t > banner.max) banner = null; }
+  if (!banner && introQueue.length && state === "play") banner = introQueue.shift();
+  for (const c of bgClouds){ c.x -= c.s*dt; if (c.x < -c.w) { c.x = W + c.w; c.y = rand(30, H*0.6); } }
+  for (const s of bgStars){ s.x -= s.s*dt; if (s.x < -4) s.x = W + 4; }
+  // particles always animate
+  for (let i=parts.length-1;i>=0;i--){
+    const p = parts[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt;
+    if (p.shape === "feather"){ p.vx *= Math.max(0, 1 - dt*2.5); p.vy += 30*dt; p.rot += p.vr*dt; } else p.vy += 60*dt;
+    if (p.life <= 0) parts.splice(i,1);
+  }
+  if (state === "clear"){
+    clearT -= dt;
+    for (let i=fires.length-1;i>=0;i--){ fires[i].x += fires[i].vx*dt; fires[i].y += fires[i].vy*dt; }
+    for (let i=bullets.length-1;i>=0;i--){ const b = bullets[i]; b.x += (b.vx || 560)*dt; b.y += (b.vy || 0)*dt; if (b.x > W + 20 || b.y < -20 || b.y > H + 20) bullets.splice(i,1); }
+    if (clearT <= 0){ state = "postclear"; afterClear(); }
+    return;
+  }
+  if (state !== "play") return;
+
+  const cfg = LEVELS[level];
+  if (stillT > 0) stillT = Math.max(0, stillT - dt);
+  if (calmT > 0) calmT = Math.max(0, calmT - dt);
+  const stilled = stillT > 0;
+  /* player */
+  if (!Number.isFinite(player.x) || !Number.isFinite(player.y)){ player.x = 140; player.y = H/2; }
+  const sp = 230;
+  let dx = 0, dy = 0;
+  if (keys["ArrowLeft"] || keys["a"]) dx -= 1;
+  if (keys["ArrowRight"] || keys["d"]) dx += 1;
+  if (keys["ArrowUp"] || keys["w"]) dy -= 1;
+  if (keys["ArrowDown"] || keys["s"]) dy += 1;
+  if (dx || dy){ const n = Math.hypot(dx,dy); player.x += dx/n*sp*dt; player.y += dy/n*sp*dt; }
+  if (touchActive){
+    player.x += (touchX - player.x) * Math.min(1, dt*8);
+    player.y += (touchY - player.y) * Math.min(1, dt*8);
+  }
+  if (driftT > 0){
+    player.x += driftVx*dt; player.y += driftVy*dt;
+    const k = Math.max(0, 1 - dt*2.4); driftVx *= k; driftVy *= k;
+    driftT = Math.max(0, driftT - dt);
+    if (Math.random() < 0.6) parts.push({ x:player.x+rand(-10,10), y:player.y+rand(-10,10), vx:-driftVx*0.3, vy:-driftVy*0.3, life:0.35, max:0.35, color:"#ffb36b", r:1.6 });
+  }
+  player.x = clamp(player.x, 24, W*0.62);
+  player.y = clamp(player.y, 30, H - 34);
+  player.wing += dt * 18;
+  if (inv > 0) inv -= dt;
+  if (Math.random() < 0.5) parts.push({ x:player.x-14, y:player.y+rand(-6,6), vx:-40, vy:rand(-15,15), life:0.4, max:0.4, color:"#c9a7ff", r:1.8 });
+
+  /* shooting */
+  player.cool -= dt;
+  const firing = keys[" "] || touchActive;
+  if (firing && player.cool <= 0){
+    shoot(); player.cool = 0.16;
+    sparkStreak++;
+    if (sparkStreak % ARC_EVERY === 0) shootArc();
+  } else if (!firing) sparkStreak = 0;
+  for (let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    b.x += (b.vx || 560)*dt; b.y += (b.vy || 0)*dt;
+    if (b.x > W + 20 || b.y < -20 || b.y > H + 20) bullets.splice(i,1);
+  }
+
+  /* spawning */
+  const regular = eagles.filter(e => e.type !== "hook" && e.type !== "serpent" && e.type !== "phantom").length;
+  const wantMore = boss ? regular < (boss.phase === 3 ? 4 : 3) && boss.entered : (killCount + regular < quota + 3);
+  if (!stilled) spawnT -= dt;
+  if (spawnT <= 0 && !stilled && calmT <= 0 && wantMore && (!boss || boss.entered)){
+    spawnEagle();
+    spawnT = cfg.spawnEvery / PACE * DIFF.spawnGap * rand(0.7, 1.25);
+  }
+  /* the hook: one at a time, only on the levels that carry it */
+  if (cfg.hook && !stilled && calmT <= 0 && hookCount < cfg.hook && !eagles.some(e => e.type === "hook") && (!boss || boss.entered)){
+    hookT -= dt;
+    if (hookT <= 0){ spawnHook(); hookT = rand(9, 14); }
+  }
+  /* the serpent: one at a time, only on the levels that carry it */
+  if (cfg.serpent && !stilled && calmT <= 0 && serpentCount < cfg.serpent && !eagles.some(e => e.type === "serpent") && (!boss || boss.entered)){
+    serpT -= dt;
+    if (serpT <= 0){ spawnSerpent(); serpT = rand(8, 12); }
+  }
+  /* the fake serpent: one at a time, on the drift levels */
+  if (cfg.phantom && !stilled && calmT <= 0 && phantomCount < cfg.phantom && !eagles.some(e => e.type === "phantom") && (!boss || boss.entered)){
+    phantT -= dt;
+    if (phantT <= 0){ spawnPhantom(); phantT = rand(9, 13); }
+  }
+
+  /* eagles */
+  for (let i=eagles.length-1;i>=0;i--){
+    const e = eagles[i];
+    if (!stilled){
+      e.t += dt; e.flap += dt*14;
+      e.x += e.vx*dt;
+      if (e.type === "glider") e.y = e.baseY + Math.sin(e.t*1.6)*22;
+      else if (e.type === "zigzag") e.y = e.baseY + Math.sin(e.t*3.4)*70;
+      else if (e.type === "diver") e.y += clamp(player.y - e.y, -95, 95)*dt;
+      else if (e.type === "armored") e.y = e.baseY + Math.sin(e.t*1.1)*16;
+      else if (e.type === "serpent" || e.type === "phantom"){
+        /* a swaying chase with a slow turn, so a tight circle brings the head across the tail */
+        const fake = e.type === "phantom";
+        const want = Math.atan2(player.y - e.y, player.x - e.x) + Math.sin(tGlobal*3 + e.x*0.01)*(fake ? 0.6 : 0.25);
+        const sp = SERP_SPEED * (fake ? 0.85 : 1) * DIFF.shotSpeed;
+        const k = 1 - Math.exp(-dt * SERP_TURN * PACE * DIFF.turn);
+        e.vx += (Math.cos(want)*sp - e.vx)*k; e.vy += (Math.sin(want)*sp - e.vy)*k;
+        e.y += e.vy*dt;
+        e.x = clamp(e.x, 30, W + 60);
+        e.hist.unshift({ x:e.x, y:e.y }); if (e.hist.length > SERP_SEGS*SERP_GAP + 4) e.hist.pop();
+        if (fake){
+          e.life -= dt;
+          if (e.life <= 0){ burstParticles(e.x, e.y, "#7f9a90", 10); eagles.splice(i,1); continue; }
+        }
+        e.armT -= dt; e.coilT -= dt;
+        if (e.coils > 0){ e.coilAge += dt; if (e.coilAge > SERP_COIL_FADE){ e.coils = 0; e.coilAge = 0; } }   // coils unwind if the player stops
+        if (e.armT <= 0 && e.coilT <= 0){
+          let cross = false;
+          for (let k2=SERP_BITE_FROM;k2<SERP_SEGS && !cross;k2++){
+            const q = e.hist[Math.min(e.hist.length - 1, (k2 + 1) * SERP_GAP)];
+            if (q && dist2(e.x, e.y, q.x, q.y) < 16*16) cross = true;
+          }
+          if (cross){
+            /* each crossing of its own tail is one coil; the third one is the bite */
+            e.coils++; e.coilT = SERP_COIL_GAP; e.coilAge = 0;
+            if (e.coils >= SERP_COILS){ serpentBite(i, e); if (state !== "play") return; continue; }
+            pop(e.x, e.y - 20, `coiling ${e.coils}/${SERP_COILS}`, "#8ef0b0");
+            burstParticles(e.x, e.y, "#4fbf86", 6); sfx.clank();
+          }
+        }
+      }
+      else if (e.type === "hook"){
+        /* homing with a limited turn: a straight line outruns it, a tight turn slips it */
+        const want = Math.atan2(player.y - e.y, player.x - e.x), have = Math.atan2(e.vy, e.vx);
+        let diff = want - have;
+        while (diff > Math.PI) diff -= 2*Math.PI;
+        while (diff < -Math.PI) diff += 2*Math.PI;
+        const turn = clamp(diff, -HOOK_TURN*PACE*DIFF.turn*dt, HOOK_TURN*PACE*DIFF.turn*dt);
+        const sp = HOOK_SPEED * DIFF.shotSpeed;
+        e.vx = Math.cos(have + turn)*sp; e.vy = Math.sin(have + turn)*sp;
+        e.y += e.vy*dt;
+        e.x = clamp(e.x, 30, W + 60);
+        e.trail.push({ x:e.x, y:e.y }); if (e.trail.length > 14) e.trail.shift();
+        e.life -= dt;
+        if (e.life <= 0){
+          award(HOOK_ESCAPE_POINTS); sfx.mote();
+          pop(e.x, e.y - 18, "outflown +" + Math.round(HOOK_ESCAPE_POINTS * DIFF.score), "#9fe7ff");
+          burstParticles(e.x, e.y, "#8a6ad8", 14);
+          if (!banner) banner = { text:"", sub:"It gave up. You chose your line.", t:0, max:1.2 };
+          eagles.splice(i,1); continue;
+        }
+      }
+      else if (e.type === "swooper"){
+        if (e.swooping > 0){
+          e.swooping -= dt;
+          e.y += clamp(e.targetY - e.y, -280*dt, 280*dt);
+          e.x -= e.vx*0.4*dt;                     // it lunges forward while diving
+          if (e.swooping <= 0){ e.swoopCd = rand(1.6, 2.6); e.baseY = e.y; }
+        } else {
+          e.y = e.baseY + Math.sin(e.t*2.2)*14;
+          e.swoopCd -= dt;
+          if (e.swoopCd <= 0 && e.x < W - 120){ e.swooping = 0.85; e.targetY = player.y; }
+        }
+      }
+      if (e.hurt > 0) e.hurt -= dt;
+      e.y = clamp(e.y, 40, H-50);
+      if (e.glow > 0) e.glow -= dt;
+      e.fireT -= dt;
+      if (e.fireT <= 0 && e.x < W - 40 && e.x > player.x + 60){ eagleFire(e); e.fireT = rand(cfg.fireMin, cfg.fireMax) / PACE * DIFF.fireGap; }
+      if (e.x < -60){ e.x = W + 50; e.baseY = rand(60, H-90); e.y = e.baseY; }
+    }
+    /* collide with player */
+    if (e.type === "phantom" && dist2(e.x,e.y,player.x,player.y) < (e.r+player.r)*(e.r+player.r)){
+      /* a fake serpent never costs a heart, it only moves you */
+      const d = Math.hypot(e.vx, e.vy) || 1;
+      driftVx = e.vx/d*DRIFT_PUSH; driftVy = e.vy/d*DRIFT_PUSH; driftT = DRIFT_TIME;
+      burstParticles(e.x, e.y, "#7f9a90", 14);
+      eagles.splice(i,1);
+      if (!banner) banner = { text:"", sub:"Drifting... that pull was not your choice.", t:0, max:1.2 };
+      continue;
+    }
+    if (inv <= 0 && dist2(e.x,e.y,player.x,player.y) < (e.r+player.r-4)*(e.r+player.r-4)){
+      eagles.splice(i,1); onPlayerHit(); if (state !== "play") return; continue;
+    }
+  }
+
+  /* boss */
+  if (boss && !stilled){
+    boss.t += dt;
+    if (boss.hurt > 0) boss.hurt -= dt;
+    if (!boss.entered){
+      boss.x -= 90*dt;
+      if (boss.x <= 780){ boss.x = 780; boss.entered = true; banner = { text:"THE ENGAGEMENT ENGINE", sub:"It wants your attention. Take it back.", t:0, max:2.6 }; }
+    } else {
+      boss.y = H/2 + Math.sin(boss.t*0.85) * 155;
+      if (boss.phase < 3 && boss.hp <= boss.maxhp/4){
+        /* phase 3: the feed goes endless, spiral volleys, more eagles */
+        boss.phase = 3; boss.enraged = true; boss.open = false; boss.openT = 1.0;
+        hitStop = Math.max(hitStop, 0.2); kick(8, 0.4); sfx.phase();
+        banner = { text:"THE FEED NEVER ENDS", sub:"It is almost empty. Stay on purpose.", t:0, max:2.2 };
+      }
+      if (!boss.enraged && boss.hp <= boss.maxhp/2){
+        boss.enraged = true; boss.phase = 2;
+        hitStop = Math.max(hitStop, 0.15); kick(6, 0.3); sfx.phase();
+        banner = { text:"THE ENGINE OVERCLOCKS", sub:"Endless feed! Stay on target.", t:0, max:2 };
+      }
+      if (boss.phase === 3){
+        /* the opening: a short pause when the Engine stops firing and takes full damage */
+        boss.openT -= dt;
+        if (boss.open && boss.openT <= 0){ boss.open = false; boss.openT = OPEN_CLOSED; }
+        else if (!boss.open && boss.openT <= 0){
+          boss.open = true; boss.openT = OPEN_TIME; sfx.card();
+          introOnce("opening", "THE ENGINE FALTERS", "It pauses to reload. Aim for the pause. Spam is not the same as aim.", 2.4);
+          if (!banner) banner = { text:"", sub:"An opening. Now.", t:0, max:0.9 };
+        }
+      }
+      if (!boss.open) boss.fireT -= dt;
+      if (boss.fireT <= 0 && boss.phase === 3 && boss.volley % 2 === 1){
+        /* spiral: a turning ring with a gap the player can fly through */
+        boss.volley++; boss.spin += 0.45;
+        for (let k=0;k<14;k++){
+          if (k === 0 || k === 1) continue;
+          const a = boss.spin + k/14*Math.PI*2;
+          fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*150*PACE*DIFF.shotSpeed, vy:Math.sin(a)*150*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
+        }
+        boss.fireT = rand(0.9, 1.2) / PACE * DIFF.fireGap;
+      } else if (boss.fireT <= 0){
+        boss.volley++;
+        const base = Math.atan2(player.y - boss.y, player.x - boss.x);
+        if (boss.volley % 4 === 0){
+          for (let k=0;k<10;k++){
+            const a = k/10*Math.PI*2;
+            fires.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*135*PACE*DIFF.shotSpeed, vy:Math.sin(a)*135*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" });
+          }
+        } else {
+          for (const off of [-0.24, 0, 0.24]){
+            const shot = { x:boss.x-30, y:boss.y, vx:Math.cos(base+off)*205*PACE*DIFF.shotSpeed, vy:Math.sin(base+off)*205*PACE*DIFF.shotSpeed, r:8, t:0, kind:"fire" };
+            if (cfg.drift && off === 0) shot.split = DECOY_SPLIT;
+            fires.push(shot);
+          }
+        }
+        boss.fireT = (boss.enraged ? rand(1.0, 1.4) : rand(1.5, 2.0)) / PACE * DIFF.fireGap;
+      }
+    }
+  }
+  if (boss && inv <= 0 && dist2(boss.x,boss.y,player.x,player.y) < (boss.r+player.r-6)*(boss.r+player.r-6)){
+    onPlayerHit(); if (state !== "play") return;
+  }
+
+  /* fireballs */
+  for (let i=fires.length-1;i>=0;i--){
+    const f = fires[i];
+    if (!stilled){
+      f.t += dt;
+      if (f.kind === "fire" && f.morph && f.t >= f.morph){
+        /* the flame turns into flattery: slower, softer looking, and it follows you */
+        f.kind = "praise"; f.morph = 0; f.r = 11; f.t = 0;
+        f.vx *= PRAISE_SPEED; f.vy *= PRAISE_SPEED;
+        f.phrase = PRAISE[praiseTurn++ % PRAISE.length];   // rotate so neighbouring shots never repeat
+        burstParticles(f.x, f.y, "#ffe08a", 8);
+        introOnce("praise", "SYCOPHANCY", "Flattery that follows you. Praise is not the same as truth.");
+      }
+      if (f.kind === "praise"){
+        const want = Math.atan2(player.y - f.y, player.x - f.x);
+        const have = Math.atan2(f.vy, f.vx);
+        let diff = want - have;
+        while (diff > Math.PI) diff -= 2*Math.PI;
+        while (diff < -Math.PI) diff += 2*Math.PI;
+        const turn = clamp(diff, -PRAISE_TURN*PACE*DIFF.turn*dt, PRAISE_TURN*PACE*DIFF.turn*dt);
+        const sp = Math.hypot(f.vx, f.vy);
+        f.vx = Math.cos(have + turn)*sp; f.vy = Math.sin(have + turn)*sp;
+        if (f.x < player.x - 40 && f.t < PRAISE_LIFE - 0.5) f.t = PRAISE_LIFE - 0.5;   // missed you: fade out, do not clutter the sky
+        if (f.t > PRAISE_LIFE){ burstParticles(f.x, f.y, "#ffe08a", 6); fires.splice(i,1); continue; }
+      }
+      if (f.split && f.t >= f.split){
+        /* one real fire keeps coming; decoys scatter to pull your eyes all over the sky */
+        f.split = 0;
+        for (let k=0;k<DECOY_COUNT;k++){
+          fires.push({ kind:"decoy", x:f.x, y:f.y, a:rand(0, 6.28), sp:rand(120, 175), spin:rand(-2.2, 2.2), life:DECOY_LIFE, r:8, t:0, vx:0, vy:0 });
+        }
+        burstParticles(f.x, f.y, "#ffb36b", 10);
+        introOnce("drift", "COGNITIVE DRIFT", "Fake fires have no bright center. They pull your eyes off what is real.");
+      }
+      if (f.kind === "decoy"){
+        f.a += f.spin*dt;
+        f.vx = Math.cos(f.a)*f.sp; f.vy = Math.sin(f.a)*f.sp;
+        f.x += f.vx*dt; f.y += f.vy*dt;
+        if (f.x < 20 || f.x > W-20){ f.a = Math.PI - f.a; f.x = clamp(f.x, 20, W-20); }
+        if (f.y < 30 || f.y > H-40){ f.a = -f.a; f.y = clamp(f.y, 30, H-40); }
+        f.life -= dt;
+        if (f.life <= 0){ fires.splice(i,1); continue; }
+      } else {
+        f.x += f.vx*dt; f.y += f.vy*dt;
+        if (f.x < -30 || f.x > W+40 || f.y < -30 || f.y > H+30){ fires.splice(i,1); continue; }
+      }
+    }
+    if (f.kind === "decoy"){
+      /* a decoy never costs a heart, it only moves you */
+      if (dist2(f.x,f.y,player.x,player.y) < (f.r+player.r)*(f.r+player.r)){
+        const d = Math.hypot(f.vx, f.vy) || 1;
+        driftVx = f.vx/d*DRIFT_PUSH; driftVy = f.vy/d*DRIFT_PUSH; driftT = DRIFT_TIME;
+        burstParticles(f.x, f.y, "#ffb36b", 12);
+        fires.splice(i,1);
+        if (!banner) banner = { text:"", sub:"Drifting... that pull was not your choice.", t:0, max:1.2 };
+      }
+      continue;
+    }
+    if (inv <= 0 && dist2(f.x,f.y,player.x,player.y) < (f.r+player.r-3)*(f.r+player.r-3)){
+      const cause = f.kind === "praise" ? "sycophancy" : (LEVELS[level].drift && fires.some(o => o.kind === "decoy")) ? "drift" : LEVELS[level].orbs ? "hallucination" : "general";
+      fires.splice(i,1); onPlayerHit(cause); if (state !== "play") return;
+    }
+  }
+
+  /* bullets vs enemies */
+  for (let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    let hit = false;
+    for (let j=eagles.length-1;j>=0;j--){
+      const e = eagles[j];
+      if (e.type === "phantom") continue;   // sparks pass straight through a fake
+      if (dist2(b.x,b.y,e.x,e.y) < (b.r+e.r)*(b.r+e.r)){
+        if ((e.hp || 1) > 1){
+          e.hp--; e.hurt = 0.2; sfx.clank();
+          burstParticles(b.x, b.y, "#dcdcf0", 8);
+          hitStop = Math.max(hitStop, 0.02);
+        } else killEagle(j);
+        hit = true; break;
+      }
+    }
+    if (!hit && boss && boss.entered && dist2(b.x,b.y,boss.x,boss.y) < (b.r+boss.r)*(b.r+boss.r)){
+      const closed = boss.phase === 3 && !boss.open;
+      boss.hp -= closed ? OPEN_DAMAGE : 1; boss.hurt = closed ? 0.06 : 0.15;
+      if (closed){ sfx.clank(); burstParticles(b.x, b.y, "#dcdcf0", 3); }
+      else { sfx.bossHit(); burstParticles(b.x, b.y, "#ffd166", 4); }
+      hit = true;
+      if (boss.hp <= 0){ killBoss(); return; }
+    }
+    if (hit) bullets.splice(i,1);
+    if (state !== "play") return;
+  }
+
+  /* answer orbs */
+  if (cfg.orbs){
+    orbT -= dt;
+    if (orbT <= 0){ spawnOrb(); orbT = ORB_EVERY * rand(0.8, 1.25); }
+  }
+  for (let i=orbs.length-1;i>=0;i--){
+    const o = orbs[i];
+    o.t += dt; o.x -= ORB_SPEED*dt; o.y = o.baseY + Math.sin(o.t*2.1)*10;
+    if (o.x < -40){ orbs.splice(i,1); continue; }
+    if (dist2(o.x,o.y,player.x,player.y) < 28*28){ orbs.splice(i,1); collectOrb(o); }
+  }
+
+  /* motes */
+  for (let i=motes.length-1;i>=0;i--){
+    const m = motes[i];
+    m.t += dt; m.x -= 26*dt; m.y += Math.sin(m.t*3)*14*dt;
+    if (m.x < -20){ motes.splice(i,1); continue; }
+    if (dist2(m.x,m.y,player.x,player.y) < 30*30){
+      motes.splice(i,1);
+      bursts = Math.min(Math.max(4, DIFF.bursts), bursts + 1);
+      award(50); sfx.mote(); pop(m.x, m.y - 14, "+1 ✦", "#c9a7ff");
+      burstParticles(player.x, player.y, "#c9a7ff", 10);
+    }
+  }
+
+  /* grove seeds */
+  seedT -= dt;
+  if (seedT <= 0 && seeds.length < SEED_MAX){ spawnSeedCluster(); seedT = SEED_EVERY * rand(0.8, 1.3); }
+  const wr = reducedMotion() ? 0.5 : 1;
+  for (let i=seeds.length-1;i>=0;i--){
+    const s = seeds[i];
+    s.t += dt; s.bx += s.vx*dt; s.a += s.w*wr*dt;
+    s.x = s.bx + Math.cos(s.a)*s.r; s.y = s.by + Math.sin(s.wob + s.t*0.9)*10 + Math.sin(s.a)*s.r*0.8;
+    if (s.x < -30){ seeds.splice(i,1); continue; }
+    if (dist2(s.x,s.y,player.x,player.y) < 22*22){
+      seeds.splice(i,1); seedStreak++; award(SEED_POINTS); sfx.seed();
+      burstParticles(s.x, s.y, "#b8f5a3", 3);
+      if (seedStreak % SEED_STREAK === 0){
+        award(SEED_STREAK_BONUS); sfx.mote();
+        pop(player.x, player.y - 30, `${seedStreak} seeds! +${Math.round(SEED_STREAK_BONUS * DIFF.score)}`, "#b8f5a3");
+        burstParticles(player.x, player.y, "#b8f5a3", 12);
+      }
+    }
+  }
+
+  /* glimmer */
+  if (!stilled){
+    glimT -= dt;
+    if (glimT <= 0 && !glimmer && glimCount < GLIM_PER_LEVEL && calmT <= 0){ spawnGlimmer(); glimT = rand(11, 17); }
+  }
+  if (glimmer){
+    glimmer.t += dt;
+    if (dist2(glimmer.x,glimmer.y,player.x,player.y) < 30*30){
+      award(GLIM_POINTS); sfx.mote();
+      pop(glimmer.x, glimmer.y - 22, "glimmer +" + Math.round(GLIM_POINTS * DIFF.score), "#ffe9a8");
+      burstParticles(glimmer.x, glimmer.y, "#ffd166", 18);
+      for (let k=0;k<5;k++) seeds.push({ bx:glimmer.x, by:glimmer.y, vx:-18, wob:rand(0,6.28), a:k/5*6.28, r:rand(16,26), w:rand(1.2,2), t:0, x:glimmer.x, y:glimmer.y });
+      glimmer = null;
+    } else if (glimmer.t >= GLIM_LIFE){
+      pop(glimmer.x, glimmer.y - 10, "gone", "#b9aee0");
+      burstParticles(glimmer.x, glimmer.y, "#ffe9a8", 6);
+      glimmer = null;
+    }
+  }
+}
+
+/* ---------- drawing ---------- */
+function drawBackground(){
+  const cfg = LEVELS[Math.min(level, LEVELS.length-1)];
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, cfg.sky[0]); g.addColorStop(0.55, cfg.sky[1]); g.addColorStop(1, cfg.sky[2]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "#fff";
+  for (const s of bgStars){
+    ctx.globalAlpha = 0.35 + 0.35*Math.sin(tGlobal*2 + s.tw);
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill();
+  }
+  for (const c of bgClouds){
+    const cg = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.w);
+    cg.addColorStop(0, "rgba(255,255,255,0.09)");
+    cg.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = cg;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.scale(1, 0.3); ctx.translate(-c.x, -c.y);
+    ctx.beginPath(); ctx.arc(c.x, c.y, c.w, 0, 6.28); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  /* treeline silhouettes */
+  ctx.fillStyle = "rgba(10,6,24,0.55)";
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=20) ctx.lineTo(x, H - 46 - Math.sin(x*0.021+2)*18 - Math.sin(x*0.008)*10);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(6,4,18,0.85)";
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=16) ctx.lineTo(x, H - 22 - Math.sin(x*0.035)*12);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+}
+function drawFairy(){
+  const blink = hitBlink && inv > 0 && Math.floor(tGlobal*14) % 2 === 0;
+  if (blink && state === "play") return;
+  const x = player.x, y = player.y + Math.sin(tGlobal*3)*2.5;
+  ctx.save(); ctx.translate(x, y);
+  /* glow */
+  const glow = ctx.createRadialGradient(0,0,2,0,0,38);
+  glow.addColorStop(0,"rgba(255,240,180,0.55)"); glow.addColorStop(1,"rgba(255,240,180,0)");
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0,0,38,0,6.28); ctx.fill();
+  /* wings */
+  const f = Math.sin(player.wing)*0.5 + 0.6;
+  ctx.fillStyle = "rgba(190,225,255,0.75)";
+  ctx.beginPath(); ctx.ellipse(-8,-6, 15, 8*f + 5, -0.7, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-8, 5, 12, 7*f + 4, 0.6, 0, 6.28); ctx.fill();
+  /* body */
+  ctx.fillStyle = "#ffe9b8";
+  ctx.beginPath(); ctx.ellipse(2, 2, 9, 12, 0.25, 0, 6.28); ctx.fill();
+  /* dress */
+  ctx.fillStyle = "#9d7bff";
+  ctx.beginPath(); ctx.moveTo(-2,-2); ctx.lineTo(10,10); ctx.lineTo(-6,10); ctx.closePath(); ctx.fill();
+  /* head */
+  ctx.fillStyle = "#ffe9b8";
+  ctx.beginPath(); ctx.arc(7,-9, 6.5, 0, 6.28); ctx.fill();
+  /* hair */
+  ctx.fillStyle = "#ff8fd8";
+  ctx.beginPath(); ctx.arc(4.5,-11.5, 5.2, 2.6, 5.9); ctx.fill();
+  /* eye */
+  ctx.fillStyle = "#2b1b4d";
+  ctx.beginPath(); ctx.arc(9.3,-9.4, 1.2, 0, 6.28); ctx.fill();
+  /* wand sparkle */
+  ctx.fillStyle = "#ffd166";
+  const tw = 2 + Math.sin(tGlobal*9)*1;
+  ctx.beginPath(); ctx.arc(16, -1, tw, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawEagle(e){
+  ctx.save(); ctx.translate(e.x, e.y);
+  const f = Math.sin(e.flap);
+  /* wings */
+  ctx.fillStyle = "#4a3220";
+  ctx.beginPath(); ctx.moveTo(2,-2); ctx.lineTo(20, -14 - f*10); ctx.lineTo(26, -2); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(2, 2); ctx.lineTo(20, 12 + f*8); ctx.lineTo(26, 4); ctx.closePath(); ctx.fill();
+  /* body */
+  ctx.fillStyle = "#6b4a2f";
+  ctx.beginPath(); ctx.ellipse(6, 0, 17, 10, 0, 0, 6.28); ctx.fill();
+  /* tail */
+  ctx.fillStyle = "#4a3220";
+  ctx.beginPath(); ctx.moveTo(20,0); ctx.lineTo(31,-6); ctx.lineTo(31,6); ctx.closePath(); ctx.fill();
+  /* head */
+  ctx.fillStyle = "#e8e2d5";
+  ctx.beginPath(); ctx.arc(-9, -4, 7, 0, 6.28); ctx.fill();
+  /* beak with fire glow */
+  ctx.fillStyle = "#ff8c1a";
+  ctx.beginPath(); ctx.moveTo(-15,-5); ctx.lineTo(-23,-2); ctx.lineTo(-14,-1); ctx.closePath(); ctx.fill();
+  if (e.glow > 0){
+    ctx.fillStyle = `rgba(255,120,30,${e.glow*2})`;
+    ctx.beginPath(); ctx.arc(-20, -3, 7, 0, 6.28); ctx.fill();
+  }
+  /* eye */
+  ctx.fillStyle = "#d92525";
+  ctx.beginPath(); ctx.arc(-9,-6, 1.7, 0, 6.28); ctx.fill();
+  if (e.type === "armored"){
+    /* steel plating over head and back; a crack shows once the armor has taken a spark */
+    ctx.fillStyle = e.hurt > 0 ? "#ffffff" : "#9aa0b4";
+    ctx.beginPath(); ctx.arc(-9, -6, 8.5, Math.PI*1.05, Math.PI*1.95); ctx.lineTo(-2, -4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, -4, 15, 6, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = "#5b6078"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(8, -4, 15, 6, 0, Math.PI, 0); ctx.stroke();
+    if (e.hp < 2){
+      ctx.strokeStyle = "#2a2d3a"; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(2,-9); ctx.lineTo(7,-4); ctx.lineTo(4,-1); ctx.lineTo(10,2); ctx.stroke();
+    }
+  }
+  if (e.type === "swooper"){
+    /* a swept crest; it glows while diving so the player can read the attack */
+    ctx.fillStyle = e.swooping > 0 ? "#ffb36b" : "#c98a4a";
+    ctx.beginPath(); ctx.moveTo(-6,-10); ctx.lineTo(4,-22); ctx.lineTo(2,-9); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-2,-10); ctx.lineTo(10,-19); ctx.lineTo(6,-8); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawBoss(){
+  const b = boss;
+  ctx.save(); ctx.translate(b.x, b.y);
+  const f = Math.sin(b.t*10);
+  const hurt = b.hurt > 0;
+  /* aura */
+  const aura = ctx.createRadialGradient(0,0,10,0,0,95 + (b.phase === 3 ? 20 : 0));
+  const auraCol = b.phase === 3 ? "255,40,120" : b.phase === 2 ? "255,60,30" : "255,80,30";
+  aura.addColorStop(0,`rgba(${auraCol},${b.phase === 3 ? 0.5 : 0.35})`); aura.addColorStop(1,`rgba(${auraCol},0)`);
+  ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(0,0,95,0,6.28); ctx.fill();
+  if (b.phase === 3){
+    if (b.open){
+      /* the opening: a bright steady ring, the one moment sparks land in full */
+      const k = Math.min(1, b.openT / 0.3);
+      ctx.strokeStyle = `rgba(200,245,255,${0.55 + 0.35*k})`; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(14, 0, 64, 0, 6.28); ctx.stroke();
+      ctx.fillStyle = "rgba(230,250,255,0.18)"; ctx.beginPath(); ctx.arc(14, 0, 60, 0, 6.28); ctx.fill();
+    } else {
+      /* closed: a dim plated shell, sparks mostly glance off */
+      ctx.setLineDash([6, 6]); ctx.strokeStyle = highContrast() ? "#ffffff" : "rgba(180,180,200,0.45)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(14, 0, 62, 0, 6.28); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  /* wings (metal) */
+  ctx.fillStyle = hurt ? "#c8c8d8" : "#5a5a6e";
+  ctx.beginPath(); ctx.moveTo(8,-6); ctx.lineTo(62, -44 - f*18); ctx.lineTo(74, -8); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(62, 40 + f*16); ctx.lineTo(74, 10); ctx.closePath(); ctx.fill();
+  /* body */
+  ctx.fillStyle = hurt ? "#e0e0ea" : "#3c3c4c";
+  ctx.beginPath(); ctx.ellipse(14, 0, 48, 30, 0, 0, 6.28); ctx.fill();
+  /* glowing core */
+  ctx.fillStyle = b.open ? "#ffffff" : "#ff5a3c";
+  ctx.beginPath(); ctx.arc(16, 2, 10 + Math.sin(b.t*4)*2, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath(); ctx.arc(16, 2, 4.5, 0, 6.28); ctx.fill();
+  /* tail */
+  ctx.fillStyle = hurt ? "#c8c8d8" : "#50506a";
+  ctx.beginPath(); ctx.moveTo(55,0); ctx.lineTo(88,-16); ctx.lineTo(88,16); ctx.closePath(); ctx.fill();
+  /* head */
+  ctx.fillStyle = hurt ? "#f0f0f5" : "#8a8aa0";
+  ctx.beginPath(); ctx.arc(-30, -10, 18, 0, 6.28); ctx.fill();
+  /* beak */
+  ctx.fillStyle = "#ff8c1a";
+  ctx.beginPath(); ctx.moveTo(-45,-12); ctx.lineTo(-66,-5); ctx.lineTo(-43,-2); ctx.closePath(); ctx.fill();
+  /* eyes: two red screens */
+  ctx.fillStyle = "#ff2020";
+  ctx.beginPath(); ctx.arc(-31,-15, 4, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(-22,-13, 3, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawPraise(f){
+  ctx.save(); ctx.translate(f.x, f.y);
+  const fade = Math.min(1, (PRAISE_LIFE - f.t) / 0.5);
+  ctx.globalAlpha = Math.max(0, fade);
+  const g = ctx.createRadialGradient(0,0,1,0,0,24);
+  g.addColorStop(0,"rgba(255,224,138,0.55)"); g.addColorStop(1,"rgba(255,224,138,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,24,0,6.28); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "20px " + FONT_UI;
+  ctx.fillText("👍", 0, 1);
+  /* the words matter at the moment of attack; after that only the thumb stays, and never over the HUD */
+  const wordAlpha = Math.max(0, Math.min(1, (2.0 - f.t) / 0.4));
+  const inHud = f.y < 90 && f.x < 220;
+  if (f.phrase && wordAlpha > 0 && !inHud){
+    ctx.globalAlpha = Math.max(0, fade) * wordAlpha;
+    ctx.font = "700 12px " + FONT_UI;
+    if (!f.tw) f.tw = ctx.measureText(f.phrase).width;
+    const bw = f.tw + 14, bh = 20, by = -32;
+    ctx.fillStyle = "rgba(255,248,225,0.95)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-bw/2, by - bh/2, bw, bh, 9); else ctx.rect(-bw/2, by - bh/2, bw, bh);
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-5, by + bh/2 - 1); ctx.lineTo(5, by + bh/2 - 1); ctx.lineTo(0, by + bh/2 + 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#7a4a00";
+    ctx.fillText(f.phrase, 0, by + 1);
+  }
+  ctx.restore();
+}
+function drawFire(f){
+  if (f.kind === "praise"){ drawPraise(f); return; }
+  ctx.save(); ctx.translate(f.x, f.y);
+  if (f.kind === "decoy"){
+    /* the tell: decoys have no hot core and fade softly, so a careful eye can learn to ignore them */
+    // A slow, shallow shimmer (about one cycle per second), never a fast flicker: fast flashing can be a
+    // photosensitivity trigger. The tell that matters is the missing hot core, not the shimmer.
+    const flicker = reducedMotion() ? 0.6 : (0.58 + 0.12*Math.sin(f.t*6 + f.a));
+    ctx.globalAlpha = Math.max(0, Math.min(1, f.life / 0.6)) * flicker;
+    if (reducedMotion() || highContrast()){
+      ctx.setLineDash([4, 4]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, 6.28); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  const r = f.r + Math.sin(f.t*22)*1.5;
+  const g = ctx.createRadialGradient(0,0,1,0,0,r*2.1);
+  g.addColorStop(0,"rgba(255,230,150,0.95)");
+  g.addColorStop(0.45,"rgba(255,120,30,0.8)");
+  g.addColorStop(1,"rgba(255,60,10,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0,0,r*2.1,0,6.28); ctx.fill();
+  if (f.kind !== "decoy"){
+    ctx.fillStyle = "#fff3c4";
+    ctx.beginPath(); ctx.arc(0,0,r*0.45,0,6.28); ctx.fill();
+    if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0,0,r+4,0,6.28); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function drawOrb(o){
+  ctx.save(); ctx.translate(o.x, o.y);
+  const hc = highContrast();
+  if (o.real){
+    /* calm, cool, and badged: the claim can be checked */
+    const g = ctx.createRadialGradient(0,0,2,0,0,22);
+    g.addColorStop(0,"rgba(142,240,176,0.55)"); g.addColorStop(1,"rgba(142,240,176,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,22,0,6.28); ctx.fill();
+    ctx.fillStyle = "#b9f5cf"; ctx.beginPath(); ctx.arc(0,0,11,0,6.28); ctx.fill();
+    ctx.strokeStyle = "#2f8f5b"; ctx.lineWidth = 2; ctx.stroke();
+    /* the ✓ source badge */
+    ctx.fillStyle = "#1f7a4a"; ctx.beginPath(); ctx.arc(10,-10,7,0,6.28); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(6.5,-10); ctx.lineTo(9,-7.5); ctx.lineTo(13.5,-13); ctx.stroke();
+  } else {
+    /* shinier and more certain: gold, sparkling, no badge */
+    const pulse = reducedMotion() ? 0 : Math.sin(o.t*8)*2;
+    const g = ctx.createRadialGradient(0,0,2,0,0,28 + pulse);
+    g.addColorStop(0,"rgba(255,221,120,0.75)"); g.addColorStop(1,"rgba(255,221,120,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,28 + pulse,0,6.28); ctx.fill();
+    ctx.fillStyle = "#ffe07a"; ctx.beginPath(); ctx.arc(0,0,12,0,6.28); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    for (let k=0;k<4;k++){
+      const a = o.t*(reducedMotion() ? 0 : 1.5) + k*Math.PI/2;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*17, Math.sin(a)*17, 1.8, 0, 6.28); ctx.fill();
+    }
+    if (hc){ ctx.setLineDash([3,3]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0,0,16,0,6.28); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  /* the claim */
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${o.real ? 600 : 800} ${Math.round(11 * hudScale())}px ${FONT_UI}`;
+  const tw = ctx.measureText(o.text).width + 12;
+  ctx.fillStyle = o.real ? "rgba(10,40,25,0.85)" : "rgba(60,40,0,0.85)";
+  ctx.fillRect(-tw/2, 17, tw, 16);
+  ctx.fillStyle = o.real ? "#c8f7d8" : "#ffe9a8";
+  ctx.fillText(o.text, 0, 25.5);
+  ctx.restore();
+}
+function drawMote(m){
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.t*2);
+  const g = ctx.createRadialGradient(0,0,1,0,0,16);
+  g.addColorStop(0,"rgba(201,167,255,0.8)"); g.addColorStop(1,"rgba(201,167,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,16,0,6.28); ctx.fill();
+  ctx.fillStyle = "#c9a7ff";
+  ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(6,0); ctx.lineTo(0,8); ctx.lineTo(-6,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(3,0); ctx.lineTo(0,4); ctx.lineTo(-3,0); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawSeed(s){
+  ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
+  const g = ctx.createRadialGradient(0,0,1,0,0,10);
+  g.addColorStop(0,"rgba(184,245,163,0.55)"); g.addColorStop(1,"rgba(184,245,163,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,10,0,6.28); ctx.fill();
+  ctx.fillStyle = "#d8f7c2";
+  ctx.beginPath(); ctx.ellipse(0,0,5,3,0,0,6.28); ctx.fill();
+  ctx.fillStyle = "#6fae52";
+  ctx.beginPath(); ctx.ellipse(1.5,0,2.2,1.2,0,0,6.28); ctx.fill();
+  if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(0,0,5,3,0,0,6.28); ctx.stroke(); }
+  ctx.restore();
+}
+function drawGlimmer(g){
+  ctx.save(); ctx.translate(g.x, g.y);
+  const left = Math.max(0, (GLIM_LIFE - g.t) / GLIM_LIFE);
+  /* a slow shimmer, about one cycle per second, never a fast flicker */
+  const sh = reducedMotion() ? 0.9 : 0.6 + 0.4*Math.sin(g.t*6.28);
+  ctx.globalAlpha = sh * Math.min(1, left * 4);
+  const rg = ctx.createRadialGradient(0,0,2,0,0,30);
+  rg.addColorStop(0,"rgba(255,233,168,0.8)"); rg.addColorStop(1,"rgba(255,233,168,0)");
+  ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(0,0,30,0,6.28); ctx.fill();
+  ctx.fillStyle = "#fff3c4";
+  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(4,-4); ctx.lineTo(12,0); ctx.lineTo(4,4); ctx.lineTo(0,12); ctx.lineTo(-4,4); ctx.lineTo(-12,0); ctx.lineTo(-4,-4); ctx.closePath(); ctx.fill();
+  /* the ring shrinks with the time left, so the deadline is visible without a number */
+  ctx.globalAlpha = Math.min(1, left * 4);
+  ctx.strokeStyle = highContrast() ? "#ffffff" : "rgba(255,233,168,0.7)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0,0, 8 + 20*left, 0, 6.28); ctx.stroke();
+  ctx.restore();
+}
+function drawSerpent(e){
+  ctx.save();
+  const fake = e.type === "phantom";
+  const armed = !fake && e.armT <= 0;
+  if (fake){
+    /* the tell: faded, and no bright eyes. A slow shimmer, about one cycle per second, never a fast flicker */
+    const sh = reducedMotion() ? 0.5 : 0.42 + 0.14*Math.sin(tGlobal*6.28 + e.sway);
+    ctx.globalAlpha = Math.min(1, e.life / 0.8) * sh;
+  }
+  for (let k=SERP_SEGS-1;k>=0;k--){
+    const q = e.hist[Math.min(e.hist.length - 1, (k + 1) * SERP_GAP)];
+    if (!q) continue;
+    const r = 5 + 6 * (1 - k/SERP_SEGS);
+    if (!fake) ctx.globalAlpha = 0.95 - k*0.08;
+    ctx.fillStyle = fake ? (k % 2 ? "#4a5c58" : "#5c7470") : (k % 2 ? "#2f7a5a" : "#3f9a6e");
+    ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 6.28); ctx.fill();
+    if (highContrast()){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.stroke(); }
+    /* the part of the tail the head can bite is ringed once the serpent is armed */
+    if (armed && k >= SERP_BITE_FROM){ ctx.strokeStyle = "rgba(255,209,102,0.6)"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(q.x, q.y, r + 2, 0, 6.28); ctx.stroke(); }
+  }
+  if (!fake) ctx.globalAlpha = 1;
+  /* coil progress: one gold dot per crossing so far */
+  for (let c=0;c<e.coils;c++){ ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(e.x - 8 + c*8, e.y - 24, 3, 0, 6.28); ctx.fill(); }
+  ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(e.vy, e.vx));
+  ctx.fillStyle = fake ? "#6f8a84" : e.hurt > 0 ? "#ffffff" : "#4fbf86";
+  ctx.beginPath(); ctx.moveTo(16,0); ctx.quadraticCurveTo(6,-11,-10,-8); ctx.lineTo(-10,8); ctx.quadraticCurveTo(6,11,16,0); ctx.closePath(); ctx.fill();
+  if (fake && (reducedMotion() || highContrast())){ ctx.setLineDash([4, 4]); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
+  else { ctx.strokeStyle = highContrast() ? "#ffffff" : fake ? "#3a4a46" : "#1f5a3c"; ctx.lineWidth = 1.5; ctx.stroke(); }
+  if (fake){
+    /* empty sockets where the eyes would be: the missing bright centre is the tell */
+    ctx.fillStyle = "#2a3532";
+    ctx.beginPath(); ctx.arc(4,-4,2.2,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(4,4,2.2,0,6.28); ctx.fill();
+    ctx.restore(); return;
+  }
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath(); ctx.arc(4,-4,2.2,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(4,4,2.2,0,6.28); ctx.fill();
+  ctx.fillStyle = "#1a1a1a";
+  ctx.beginPath(); ctx.arc(5,-4,1,0,6.28); ctx.fill(); ctx.beginPath(); ctx.arc(5,4,1,0,6.28); ctx.fill();
+  if (!reducedMotion() && Math.sin(tGlobal*9) > 0.6){
+    ctx.strokeStyle = "#ff5a76"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(24,-2); ctx.moveTo(16,0); ctx.lineTo(24,2); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawHook(e){
+  ctx.save();
+  const n = e.trail.length;
+  for (let k=0;k<n;k++){
+    const p = e.trail[k], q = (k+1)/n;
+    ctx.globalAlpha = 0.25*q; ctx.fillStyle = "#6b4aa8";
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3 + 9*q, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(e.vy, e.vx));
+  const g = ctx.createRadialGradient(0,0,4,0,0,34);
+  g.addColorStop(0,"rgba(157,123,255,0.45)"); g.addColorStop(1,"rgba(157,123,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,34,0,6.28); ctx.fill();
+  /* body: a dark teardrop, the point leads */
+  ctx.fillStyle = e.hurt > 0 ? "#ffffff" : "#2a1b4d";
+  ctx.beginPath(); ctx.moveTo(18,0); ctx.quadraticCurveTo(4,-13,-14,-6); ctx.quadraticCurveTo(-22,0,-14,6); ctx.quadraticCurveTo(4,13,18,0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = highContrast() ? "#ffffff" : "#9d7bff"; ctx.lineWidth = highContrast() ? 2.5 : 1.5; ctx.stroke();
+  /* the hook itself: a curl at the tail */
+  ctx.strokeStyle = "#c9a7ff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(-18, 0, 6, -1.2, 2.6); ctx.stroke();
+  /* one red notification eye */
+  ctx.fillStyle = "#ff2f4f";
+  ctx.beginPath(); ctx.arc(8, 0, 3.6, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(9, -1, 1.2, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawHUD(){
+  const cfg = LEVELS[level];
+  const k = hudScale(), hc = highContrast();
+  const font = (px, w, display) => `${w ? w + " " : ""}${Math.round(px * k)}px ${display ? FONT_DISPLAY : FONT_UI}`;
+  const dimWhite = a => hc ? "#ffffff" : `rgba(255,255,255,${a})`;
+  ctx.textBaseline = "top";
+  /* hearts: empty hearts are outlined, so full versus empty never depends on color alone */
+  ctx.font = font(22);
+  for (let i=0;i<DIFF.hearts;i++){
+    const x = 16 + i*26*k;
+    if (i < hearts){ ctx.fillStyle = "#ff5a76"; ctx.fillText("♥", x, 12); }
+    else if (hc){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.strokeText("♥", x, 12); }
+    else { ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.fillText("♥", x, 12); }
+  }
+  /* charges */
+  ctx.font = font(20);
+  const slots = Math.max(DIFF.bursts, bursts);
+  const row2 = 12 + 28*k;
+  for (let i=0;i<slots;i++){
+    const x = 16 + i*22*k;
+    if (i < bursts){ ctx.fillStyle = "#c9a7ff"; ctx.fillText("✦", x, row2); }
+    else if (hc){ ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.2; ctx.strokeText("✦", x, row2); }
+    else { ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.fillText("✦", x, row2); }
+  }
+  ctx.fillStyle = dimWhite(0.45);
+  ctx.font = font(10);
+  const abLabel = abilityName(Math.min(level, LEVELS.length-1)).toUpperCase();
+  ctx.fillText((usedTouch ? "DOUBLE-TAP = " : "2x SPACE or X = ") + abLabel, 16, row2 + 24*k);
+  /* level + progress */
+  ctx.textAlign = "center";
+  ctx.fillStyle = dimWhite(0.85);
+  ctx.font = font(15, 600, true);
+  ctx.fillText(`${cfg.name} · ${cfg.concept}`, W/2, 12);
+  const row = 12 + 20*k;
+  if (!boss){
+    ctx.fillStyle = dimWhite(0.55);
+    ctx.font = font(12);
+    ctx.fillText(`eagles turned back: ${killCount} / ${quota}`, W/2, row);
+  } else if (boss.entered){
+    const bw = 300;
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(W/2-bw/2, row, bw, 10);
+    ctx.fillStyle = boss.enraged ? "#ff5a3c" : "#ff8c1a";
+    ctx.fillRect(W/2-bw/2, row, bw * Math.max(0, boss.hp/boss.maxhp), 10);
+    ctx.strokeStyle = hc ? "#ffffff" : "rgba(255,255,255,0.5)";
+    ctx.strokeRect(W/2-bw/2, row, bw, 10);
+  }
+  /* score */
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#ffd166";
+  ctx.font = font(18, 700);
+  ctx.fillText(String(score), W-16, 12);
+  if (DIFF !== DIFFS.normal){
+    ctx.font = font(10, 600);
+    ctx.fillStyle = dimWhite(0.55);
+    ctx.fillText(DIFF.label.toUpperCase(), W-16, 12 + 22*k);
+  }
+  ctx.textAlign = "left";
+}
+function drawBanner(){
+  if (!banner) return;
+  const a = Math.min(1, banner.t*3, (banner.max - banner.t)*2);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, a);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `600 ${Math.round(34 * hudScale())}px ${FONT_DISPLAY}`;
+  ctx.shadowColor = "#9d7bff"; ctx.shadowBlur = 24;
+  if (banner.text) ctx.fillText(banner.text, W/2, H/2 - 40);
+  if (banner.sub){
+    ctx.font = `700 ${Math.round(17 * hudScale())}px ${FONT_UI}`;
+    ctx.fillStyle = "#ffd166";
+    ctx.fillText(banner.sub, W/2, H/2 - 4);
+  }
+  ctx.restore();
+}
+/* A held sky reads as a pale blue wash that fades as the window runs out, so the player can see
+   how much stillness is left without another number on the screen. */
+function drawStillness(){
+  const k = Math.min(1, stillT / STILL_TIME);
+  ctx.save();
+  ctx.fillStyle = `rgba(159,231,255,${0.10 + 0.10*k})`;
+  ctx.fillRect(-20,-20,W+40,H+40);
+  ctx.strokeStyle = `rgba(200,245,255,${0.35*k})`;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(6, 6, W-12, H-12);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = `rgba(230,250,255,${0.55*k})`;
+  ctx.font = "600 12px " + FONT_UI;
+  ctx.fillText("STILL", W/2, H - 22);   // bottom centre: the top strip already carries the level readout
+  ctx.restore();
+}
+function draw(){
+  ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+  if (shake > 0) ctx.translate(rand(-shake,shake), rand(-shake,shake));
+  drawBackground();
+  if (highContrast()){ ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-20,-20,W+40,H+40); }
+  for (const s of seeds) drawSeed(s);
+  for (const m of motes) drawMote(m);
+  for (const o of orbs) drawOrb(o);
+  if (glimmer) drawGlimmer(glimmer);
+  for (const e of eagles) (e.type === "hook" ? drawHook(e) : (e.type === "serpent" || e.type === "phantom") ? drawSerpent(e) : drawEagle(e));
+  if (boss) drawBoss();
+  for (const f of fires) drawFire(f);
+  /* bullets */
+  for (const b of bullets){
+    const ang = b.vy ? Math.atan2(b.vy, b.vx) : 0;
+    ctx.fillStyle = "rgba(150,230,255,0.35)";
+    ctx.beginPath(); ctx.ellipse(b.x - 8*Math.cos(ang), b.y - 8*Math.sin(ang), 12, 3.5, ang, 0, 6.28); ctx.fill();
+    ctx.fillStyle = "#eafcff";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.28); ctx.fill();
+  }
+  /* particles */
+  for (const p of parts){
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    if (p.shape === "feather") ctx.ellipse(p.x, p.y, p.r * 1.9, p.r * 0.6, p.rot, 0, 6.28);
+    else ctx.arc(p.x, p.y, p.r, 0, 6.28);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (pops.length){
+    ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `800 ${Math.round(15 * hudScale())}px ${FONT_UI}`;
+    for (const q of pops){
+      ctx.globalAlpha = Math.max(0, 1 - q.t / 0.9);
+      ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillText(q.text, q.x + 1, q.y + 1);
+      ctx.fillStyle = q.color; ctx.fillText(q.text, q.x, q.y);
+    }
+    ctx.restore();
+  }
+  drawFairy();
+  if (stillT > 0) drawStillness();
+  if (state === "play" || state === "hit" || state === "pause" || state === "clear") drawHUD();
+  drawBanner();
+  if (hurtT > 0){
+    const g = ctx.createRadialGradient(W/2, H/2, H*0.35, W/2, H/2, H*0.9);
+    g.addColorStop(0, "rgba(255,40,70,0)"); g.addColorStop(1, `rgba(255,40,70,${0.45 * hurtT / 0.6})`);
+    ctx.fillStyle = g; ctx.fillRect(-20,-20,W+40,H+40);
+  }
+  if (flash > 0){
+    ctx.fillStyle = `rgba(255,255,255,${flash*0.85})`;
+    ctx.fillRect(-20,-20,W+40,H+40);
+  }
+}
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+function frame(now){
+  let dt = (now - last) / 1000;
+  last = now;
+  if (!(dt > 0)) dt = 0;
+  if (dt > 0.033) dt = 0.033;
+  try {
+    if (hitStop > 0){ hitStop = Math.max(0, hitStop - dt); draw(); }
+    else { update(dt); draw(); }
+    if (overlayOpen) tickLessonHint();
+  }
+  catch(err){ console.error("Mindwing frame error:", err); }   // one bad frame must not freeze the game
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+showTitle();
+checkClass();
+})();
+</script>
+</body>
+</html>
