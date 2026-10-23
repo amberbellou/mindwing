@@ -21,26 +21,44 @@
   @font-face{font-family:'Nunito';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/Nunito-normal-400-900.woff2) format('woff2');}
   html,body{margin:0;padding:0;height:100%;background:#0b0820;overflow:hidden;
     font-family:"Nunito","Avenir Next","Trebuchet MS","Segoe UI",Verdana,sans-serif;}
-  #card .big,#card .tag,#card h2{font-family:"Fredoka","Nunito","Avenir Next",sans-serif;font-weight:600;}
+  #card .big,#card .tag,#card h2{font-family:"Fredoka","Nunito","Avenir Next",sans-serif;font-weight:700;}
+  /* thicker letters for easier reading: body text 600, bold words 900 */
+  #card{font-weight:600;}
+  #card strong,#card b{font-weight:900;}
   #card h2{letter-spacing:.5px;}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0820;}
   canvas{display:block;touch-action:none;-webkit-touch-callout:none;}
   #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:rgba(8,6,22,.80);z-index:10;padding:18px;box-sizing:border-box;touch-action:pan-y;}
+    background:rgba(8,6,22,.66);-webkit-backdrop-filter:blur(3px) saturate(1.25);backdrop-filter:blur(3px) saturate(1.25);z-index:10;padding:18px;box-sizing:border-box;touch-action:pan-y;}
   #ov.hidden{display:none;}
-  #card{max-width:660px;width:100%;max-height:92vh;overflow-y:auto;background:var(--card-bg);
-    border:1px solid #3a2f6e;border-radius:18px;padding:28px 32px;color:var(--ink);
-    box-shadow:0 0 60px rgba(157,123,255,.25), inset 0 0 40px rgba(157,123,255,.05);
+  /* the card is painted too: color washes in the corners, paper grain, a few gold sparkles,
+     and a gold-pink-violet-cyan frame, all on the original deep purple */
+  #card{--grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --spark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 60'%3E%3Cg fill='%23ffd166'%3E%3Cpath d='M60 6l2.6 8.4 8.4 2.6-8.4 2.6L60 28l-2.6-8.4-8.4-2.6 8.4-2.6z' opacity='.75'/%3E%3Cpath d='M40 30l1.5 4.5 4.5 1.5-4.5 1.5L40 42l-1.5-4.5-4.5-1.5 4.5-1.5z' fill='%23ff8fd8' opacity='.6'/%3E%3Cpath d='M74 36l1 3 3 1-3 1-1 3-1-3-3-1 3-1z' fill='%235ce1e6' opacity='.6'/%3E%3C/g%3E%3C/svg%3E");
+    max-width:660px;width:100%;max-height:92vh;overflow-y:auto;
+    background:
+      var(--spark) right 14px top 12px / 84px auto no-repeat padding-box,
+      radial-gradient(120% 75% at 100% 0%, rgba(255,143,216,.17), transparent 55%) padding-box,
+      radial-gradient(90% 70% at 0% 100%, rgba(92,225,230,.13), transparent 55%) padding-box,
+      radial-gradient(70% 55% at 8% 0%, rgba(255,209,102,.11), transparent 60%) padding-box,
+      var(--grain) padding-box,
+      linear-gradient(160deg,#1f1747,#171233 55%,#130e2d) padding-box,
+      linear-gradient(135deg,rgba(255,209,102,.8),rgba(255,143,216,.65) 35%,rgba(157,123,255,.75) 65%,rgba(92,225,230,.6)) border-box;
+    border:2px solid transparent;border-radius:18px;padding:28px 32px;color:var(--ink);
+    box-shadow:0 0 60px rgba(157,123,255,.30), 0 0 120px rgba(255,143,216,.12);
     line-height:1.55;-webkit-user-select:none;user-select:none;cursor:pointer;}
-  #card .big{font-size:clamp(28px,9vw,52px);font-weight:800;letter-spacing:2px;margin:0 0 4px 0;
+  #card .big{font-size:clamp(28px,9vw,52px);letter-spacing:2px;margin:0 0 4px 0;
     background:linear-gradient(90deg,#ffd166,#ff8fd8,#9d7bff);
     -webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;}
   #card .tag{color:var(--accent);font-size:13px;font-weight:700;text-transform:uppercase;
-    letter-spacing:2.5px;margin:0 0 6px 0;}
+    letter-spacing:2.5px;margin:0 0 6px 0;width:fit-content;
+    background:linear-gradient(90deg,#ffd166,#ffb3a1 55%,#ff8fd8);-webkit-background-clip:text;background-clip:text;color:transparent;}
   #card h2{margin:0 0 14px 0;font-size:26px;color:var(--ink);}
+  #card h2::after{content:"";display:block;width:72px;height:4px;border-radius:4px;margin-top:8px;
+    background:linear-gradient(90deg,#ffd166,#ff8fd8,#9d7bff,#5ce1e6);}
   #card p{margin:0 0 12px 0;font-size:16px;color:var(--dim);}
   #card p strong{color:var(--ink);}
-  #card .note{background:rgba(157,123,255,.12);border-left:3px solid var(--accent2);
+  #card .note{background:linear-gradient(100deg,rgba(157,123,255,.20),rgba(255,143,216,.08) 70%,rgba(92,225,230,.06));border-left:3px solid var(--accent2);
     border-radius:0 10px 10px 0;padding:10px 14px;margin:16px 0 4px 0;font-size:15px;color:var(--ink);}
   #card .note b{color:var(--accent2);}
   #card .sub{text-align:center;color:var(--dim);font-size:17px;margin-bottom:10px;}
@@ -51,10 +69,11 @@
     letter-spacing:1px;animation:pulse 1.4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
   #card .opts{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px 0;}
-  #card button{font:inherit;font-size:15px;line-height:1.35;text-align:left;background:rgba(157,123,255,.14);color:var(--ink);
+  #card button{font:inherit;font-size:15px;line-height:1.35;text-align:left;background:linear-gradient(100deg,rgba(157,123,255,.20),rgba(157,123,255,.08));color:var(--ink);
     border:1px solid #4a3d8a;border-radius:10px;padding:10px 14px;cursor:pointer;}
-  #card button:hover,#card button:focus{background:rgba(157,123,255,.3);outline:none;border-color:var(--accent2);}
-  #card button.primary{background:var(--accent2);color:#12092b;font-weight:700;text-align:center;}
+  #card button:hover,#card button:focus{background:linear-gradient(100deg,rgba(157,123,255,.38),rgba(255,143,216,.18));outline:none;border-color:#ff8fd8;box-shadow:0 0 14px rgba(255,143,216,.3);}
+  #card button.primary{background:linear-gradient(135deg,#ffd166,#ffa3c8 45%,#b49bff);color:#12092b;font-weight:700;text-align:center;border-color:transparent;box-shadow:0 0 16px rgba(255,209,102,.3);}
+  #card button.primary:hover,#card button.primary:focus{background:linear-gradient(135deg,#ffe08f,#ffb8d6 45%,#c6b2ff);}
   #card button.ghost{background:transparent;text-align:center;color:var(--dim);}
   #card .row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:8px;}
   #card input.ini{font:inherit;font-size:28px;letter-spacing:10px;text-transform:uppercase;width:120px;text-align:center;
@@ -82,7 +101,7 @@
   /* lesson cards: a light runs around the frame while the reading time counts down, then holds gold */
   @property --neon { syntax:'<angle>'; inherits:false; initial-value:0deg; }
   #card.lesson{position:relative;}
-  #card.lesson .neon{position:absolute;inset:0;border-radius:18px;padding:3px;pointer-events:none;
+  #card.lesson .neon{position:absolute;inset:0;border-radius:16px;padding:3px;pointer-events:none;
     background:conic-gradient(from var(--neon),transparent 0 58%,#9d7bff 72%,#ffd166 84%,#ff8fd8 92%,transparent 100%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
     animation:neon-spin 2.6s linear infinite;filter:drop-shadow(0 0 6px rgba(157,123,255,.8));}
@@ -94,40 +113,130 @@
   #card .art .spin{transform-origin:0 0;animation:spin 9s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   body.calm-motion #card .art .spin{animation:none;}
-  /* the reading sweep: a neon underline walks word by word through the lesson at a comfortable pace */
-  /* each word carries its own hue (--h), drifting through the neon palette along the text; the current word glows
-     in its hue and the three words before it keep a fading afterglow, so the light moves like a comet */
-  #card.sweep .w{--h:270;border-bottom:2px solid transparent;border-radius:4px;padding:0 2px;margin:0 -1px;transition:color .18s,text-shadow .25s,border-color .25s,background-color .25s;}
-  #card.sweep .w.read{color:var(--ink);}
-  #card.sweep .w.now{color:#ffffff;background:hsl(var(--h) 90% 65% / .22);border-bottom-color:hsl(var(--h) 100% 72%);
-    text-shadow:0 0 8px hsl(var(--h) 100% 72% / .95),0 0 18px hsl(var(--h) 100% 62% / .6);}
-  #card.sweep .w.t1{color:#ffffff;border-bottom-color:hsl(var(--h) 100% 72% / .65);text-shadow:0 0 8px hsl(var(--h) 100% 72% / .6);}
-  #card.sweep .w.t2{border-bottom-color:hsl(var(--h) 100% 72% / .4);text-shadow:0 0 6px hsl(var(--h) 100% 72% / .35);}
-  #card.sweep .w.t3{border-bottom-color:hsl(var(--h) 100% 72% / .2);}
+  /* the color wave: every word shifts color at once through three colors, gold, pink and violet, and the wave rolls
+     left to right through the text. Each word runs the same loop, offset by its place in the text (--i).
+     The reading timer is separate; this is only color. */
+  #card.sweep .w{--i:0;animation:wordwave 5s linear infinite;animation-delay:calc(var(--i) * 0.18s - 700s);}
+  @keyframes wordwave{
+    0%{color:#ffe08a} 33%{color:#ffb3dd} 67%{color:#cdb8ff} 100%{color:#ffe08a}}
+  #card.sweep strong .w,#card.sweep b .w{text-shadow:0 0 10px rgba(255,255,255,.18);}
+  body.calm-motion #card.sweep .w{animation:none;}
+  body.high-contrast #card.sweep .w{animation:none;}
   body.high-contrast #card.sweep .w.now{background:#ffe14d;color:#07051a;text-shadow:none;border-bottom-color:#ffffff;}
   body.high-contrast #card.sweep .w.t1,body.high-contrast #card.sweep .w.t2,body.high-contrast #card.sweep .w.t3{text-shadow:none;border-bottom-color:transparent;color:var(--ink);}
   body.calm-motion #card.sweep .w{transition:none;}
+  /* margin art: a grove of trees and lamps along the bottom, a garland of lights along the top, and
+     climbing vines with minds and friendly machines up both sides. It frames the cards and fills the bars
+     around the game, so the screen is never just dark purple. */
+  :root{--decor-b:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22360%22 height=%22170%22 viewBox=%220 0 360 170%22%3E%3Cdefs%3E%3CradialGradient id=%22g%22%3E%3Cstop offset=%220%22 stop-color=%22%23ffd166%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ffd166%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22p%22%3E%3Cstop offset=%220%22 stop-color=%22%23ff8fd8%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ff8fd8%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22c%22%3E%3Cstop offset=%220%22 stop-color=%22%235ce1e6%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%235ce1e6%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22v%22%3E%3Cstop offset=%220%22 stop-color=%22%23c9a7ff%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23c9a7ff%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d=%22M0,170 L0,148 Q90,132 180,146 T360,146 L360,170 Z%22 fill=%22%231a1240%22/%3E%3Cpath d=%22M0,148 Q90,132 180,146 T360,146%22 stroke=%22%23ffd166%22 stroke-opacity=%22.3%22 stroke-width=%221.5%22 fill=%22none%22/%3E%3Cg transform=%22translate(40 150) scale(1.0)%22%3E%3Cpath d=%22M-4,0 L-3,-50 Q0,-56 3,-50 L4,0 Z%22 fill=%22%232a1d55%22/%3E%3Ccircle cx=%220%22 cy=%22-62%22 r=%2226%22 fill=%22%233b2a6d%22/%3E%3Ccircle cx=%22-18%22 cy=%22-48%22 r=%2217%22 fill=%22%2335266a%22/%3E%3Ccircle cx=%2218%22 cy=%22-50%22 r=%2218%22 fill=%22%2335266a%22/%3E%3Cpath d=%22M-24,-74 A26,26 0 0 1 20,-80%22 stroke=%22%23ffd166%22 stroke-opacity=%22.55%22 stroke-width=%222%22 fill=%22none%22/%3E%3Ccircle cx=%22-12%22 cy=%22-66%22 r=%228%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-12%22 cy=%22-66%22 r=%222.4%22 fill=%22%23ffe9a8%22/%3E%3Ccircle cx=%228%22 cy=%22-72%22 r=%228%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%228%22 cy=%22-72%22 r=%222.4%22 fill=%22%23ffc8ef%22/%3E%3Ccircle cx=%2216%22 cy=%22-52%22 r=%228%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2216%22 cy=%22-52%22 r=%222.4%22 fill=%22%23c9f4ff%22/%3E%3Ccircle cx=%22-20%22 cy=%22-46%22 r=%228%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-20%22 cy=%22-46%22 r=%222.4%22 fill=%22%23ffe9a8%22/%3E%3Ccircle cx=%222%22 cy=%22-50%22 r=%228%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%222%22 cy=%22-50%22 r=%222.4%22 fill=%22%23ffc8ef%22/%3E%3C/g%3E%3Cg transform=%22translate(118 148) scale(0.85)%22%3E%3Crect x=%22-3%22 y=%22-14%22 width=%226%22 height=%2214%22 fill=%22%232a1d55%22/%3E%3Cpath d=%22M0,-92 L20,-56 L11,-56 L28,-30 L16,-30 L34,-10 L-34,-10 L-16,-30 L-28,-30 L-11,-56 L-20,-56 Z%22 fill=%22%232f2160%22/%3E%3Cpath d=%22M0,-92 L20,-56 M11,-56 L28,-30 M16,-30 L34,-10%22 stroke=%22%23ff8fd8%22 stroke-opacity=%22.45%22 stroke-width=%221.6%22 fill=%22none%22/%3E%3Cpath d=%22M-14,-50 Q0,-42 14,-52 M-22,-26 Q0,-16 22,-28%22 stroke=%22%234a3d8a%22 stroke-width=%221%22 fill=%22none%22/%3E%3Ccircle cx=%22-10%22 cy=%22-50%22 r=%227%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-10%22 cy=%22-50%22 r=%222.2%22 fill=%22%23ffe9a8%22/%3E%3Ccircle cx=%224%22 cy=%22-46%22 r=%227%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%224%22 cy=%22-46%22 r=%222.2%22 fill=%22%23ffc8ef%22/%3E%3Ccircle cx=%2214%22 cy=%22-52%22 r=%227%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2214%22 cy=%22-52%22 r=%222.2%22 fill=%22%23c9f4ff%22/%3E%3Ccircle cx=%22-18%22 cy=%22-26%22 r=%227%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-18%22 cy=%22-26%22 r=%222.2%22 fill=%22%23e6d9ff%22/%3E%3Ccircle cx=%22-4%22 cy=%22-21%22 r=%227%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-4%22 cy=%22-21%22 r=%222.2%22 fill=%22%23ffe9a8%22/%3E%3Ccircle cx=%2210%22 cy=%22-22%22 r=%227%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2210%22 cy=%22-22%22 r=%222.2%22 fill=%22%23ffc8ef%22/%3E%3Ccircle cx=%2222%22 cy=%22-28%22 r=%227%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2222%22 cy=%22-28%22 r=%222.2%22 fill=%22%23c9f4ff%22/%3E%3Ccircle cx=%220%22 cy=%22-86%22 r=%227%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%220%22 cy=%22-86%22 r=%222.2%22 fill=%22%23e6d9ff%22/%3E%3C/g%3E%3Cpath d=%22M168,146 L168,94%22 stroke=%22%234a3d8a%22 stroke-width=%222.5%22/%3E%3Cpath d=%22M162,94 L174,94 L172,84 L164,84 Z%22 fill=%22%233a2d70%22/%3E%3Ccircle cx=%22168%22 cy=%2290%22 r=%2216%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22168%22 cy=%2290%22 r=%223.6%22 fill=%22%23ffe9a8%22/%3E%3Cg transform=%22translate(222 112) scale(0.8)%22%3E%3Ccircle cx=%220%22 cy=%22-6%22 r=%2240%22 fill=%22url(%23v)%22 opacity=%22.35%22/%3E%3Cpath d=%22M-22,30 L-22,16 C-34,8 -36,-14 -26,-28 C-16,-42 6,-44 18,-34 C26,-28 28,-18 26,-10 L32,0 L26,3 L26,10 C26,16 20,18 14,17 L12,30 Z%22 fill=%22%232c2058%22 stroke=%22%23c9a7ff%22 stroke-width=%222.2%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%22-2%22 cy=%22-14%22 r=%2214%22 fill=%22url(%23g)%22/%3E%3Cpath d=%22M-2,-26 l3,8 8,3 -8,3 -3,8 -3,-8 -8,-3 8,-3z%22 fill=%22%23ffe9a8%22/%3E%3Cpath d=%22M-14,-4 Q-6,4 4,-2%22 stroke=%22%23ff8fd8%22 stroke-width=%221.5%22 fill=%22none%22 stroke-opacity=%22.7%22/%3E%3C/g%3E%3Cg transform=%22translate(285 146) scale(1.0)%22%3E%3Crect x=%22-16%22 y=%22-34%22 width=%2232%22 height=%2230%22 rx=%227%22 fill=%22%233a2d70%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.6%22 stroke-width=%221.6%22/%3E%3Crect x=%22-11%22 y=%22-29%22 width=%2222%22 height=%2213%22 rx=%223%22 fill=%22%230e0a24%22/%3E%3Ccircle cx=%22-5%22 cy=%22-22.5%22 r=%222.3%22 fill=%22%235ce1e6%22/%3E%3Ccircle cx=%225%22 cy=%22-22.5%22 r=%222.3%22 fill=%22%235ce1e6%22/%3E%3Crect x=%22-7%22 y=%22-12%22 width=%2214%22 height=%223%22 rx=%221.5%22 fill=%22%23ffd166%22 opacity=%22.8%22/%3E%3Cpath d=%22M0,-34 L0,-44%22 stroke=%22%23c9a7ff%22 stroke-width=%222%22/%3E%3Ccircle cx=%220%22 cy=%22-46%22 r=%2210%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%220%22 cy=%22-46%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Crect x=%22-12%22 y=%22-4%22 width=%228%22 height=%225%22 rx=%222%22 fill=%22%232a1d55%22/%3E%3Crect x=%224%22 y=%22-4%22 width=%228%22 height=%225%22 rx=%222%22 fill=%22%232a1d55%22/%3E%3C/g%3E%3Cg transform=%22translate(330 118)%22%3E%3Ccircle r=%2213%22 fill=%22none%22 stroke=%22%234a3d8a%22 stroke-width=%225.9%22 stroke-dasharray=%225.5 4.7%22/%3E%3Ccircle r=%2210.1%22 fill=%22%234a3d8a%22/%3E%3Ccircle r=%2210.1%22 fill=%22none%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.6%22 stroke-width=%221.5%22/%3E%3Ccircle r=%223.6%22 fill=%22%231a1238%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.7%22 stroke-width=%221.2%22/%3E%3C/g%3E%3Cg transform=%22translate(345 150) scale(0.6)%22%3E%3Cpath d=%22M-4,0 L-3,-50 Q0,-56 3,-50 L4,0 Z%22 fill=%22%232a1d55%22/%3E%3Ccircle cx=%220%22 cy=%22-62%22 r=%2226%22 fill=%22%233b2a6d%22/%3E%3Ccircle cx=%22-18%22 cy=%22-48%22 r=%2217%22 fill=%22%2335266a%22/%3E%3Ccircle cx=%2218%22 cy=%22-50%22 r=%2218%22 fill=%22%2335266a%22/%3E%3Cpath d=%22M-24,-74 A26,26 0 0 1 20,-80%22 stroke=%22%23ffd166%22 stroke-opacity=%22.55%22 stroke-width=%222%22 fill=%22none%22/%3E%3Ccircle cx=%22-12%22 cy=%22-66%22 r=%228%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-12%22 cy=%22-66%22 r=%222.4%22 fill=%22%23ffc8ef%22/%3E%3Ccircle cx=%228%22 cy=%22-72%22 r=%228%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%228%22 cy=%22-72%22 r=%222.4%22 fill=%22%23e6d9ff%22/%3E%3Ccircle cx=%2216%22 cy=%22-52%22 r=%228%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2216%22 cy=%22-52%22 r=%222.4%22 fill=%22%23ffc8ef%22/%3E%3Ccircle cx=%22-20%22 cy=%22-46%22 r=%228%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22-20%22 cy=%22-46%22 r=%222.4%22 fill=%22%23e6d9ff%22/%3E%3Ccircle cx=%222%22 cy=%22-50%22 r=%228%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%222%22 cy=%22-50%22 r=%222.4%22 fill=%22%23ffc8ef%22/%3E%3C/g%3E%3C/svg%3E");--decor-t:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22330%22 height=%2290%22 viewBox=%220 0 330 90%22%3E%3Cdefs%3E%3CradialGradient id=%22g%22%3E%3Cstop offset=%220%22 stop-color=%22%23ffd166%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ffd166%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22p%22%3E%3Cstop offset=%220%22 stop-color=%22%23ff8fd8%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ff8fd8%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22c%22%3E%3Cstop offset=%220%22 stop-color=%22%235ce1e6%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%235ce1e6%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22v%22%3E%3Cstop offset=%220%22 stop-color=%22%23c9a7ff%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23c9a7ff%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d=%22M-5,6 Q80,52 165,8 Q250,52 335,6%22 stroke=%22%234a3d8a%22 stroke-width=%222%22 fill=%22none%22/%3E%3Cellipse cx=%2230%22 cy=%2222%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(30 30 22)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%2262%22 cy=%2231%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-20 62 31)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%22110%22 cy=%2228%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(25 110 28)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%22140%22 cy=%2218%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-35 140 18)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%22190%22 cy=%2220%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(30 190 20)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%22222%22 cy=%2230%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-25 222 30)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%22270%22 cy=%2229%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(25 270 29)%22 fill=%22%235b4aa0%22/%3E%3Cellipse cx=%22305%22 cy=%2217%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-30 305 17)%22 fill=%22%235b4aa0%22/%3E%3Cpath d=%22M18,11 L18,15%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%2218%22 cy=%2218%22 r=%2212%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2218%22 cy=%2218%22 r=%223.4%22 fill=%22%23ffe9a8%22/%3E%3Cpath d=%22M48,23 L48,27%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%2248%22 cy=%2230%22 r=%2212%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2248%22 cy=%2230%22 r=%223.4%22 fill=%22%23ffc8ef%22/%3E%3Cpath d=%22M80,26 L80,30%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%2280%22 cy=%2233%22 r=%2212%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2280%22 cy=%2233%22 r=%223.4%22 fill=%22%23c9f4ff%22/%3E%3Cpath d=%22M122,21 L122,25%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22122%22 cy=%2228%22 r=%2212%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22122%22 cy=%2228%22 r=%223.4%22 fill=%22%23e6d9ff%22/%3E%3Cpath d=%22M150,9 L150,13%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22150%22 cy=%2216%22 r=%2212%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22150%22 cy=%2216%22 r=%223.4%22 fill=%22%23ffe9a8%22/%3E%3Cpath d=%22M180,11 L180,15%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22180%22 cy=%2218%22 r=%2212%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22180%22 cy=%2218%22 r=%223.4%22 fill=%22%23ffc8ef%22/%3E%3Cpath d=%22M208,23 L208,27%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22208%22 cy=%2230%22 r=%2212%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22208%22 cy=%2230%22 r=%223.4%22 fill=%22%23c9f4ff%22/%3E%3Cpath d=%22M240,26 L240,30%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22240%22 cy=%2233%22 r=%2212%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22240%22 cy=%2233%22 r=%223.4%22 fill=%22%23e6d9ff%22/%3E%3Cpath d=%22M282,21 L282,25%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22282%22 cy=%2228%22 r=%2212%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22282%22 cy=%2228%22 r=%223.4%22 fill=%22%23ffe9a8%22/%3E%3Cpath d=%22M312,9 L312,13%22 stroke=%22%234a3d8a%22 stroke-width=%221.5%22/%3E%3Ccircle cx=%22312%22 cy=%2216%22 r=%2212%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%22312%22 cy=%2216%22 r=%223.4%22 fill=%22%23ffc8ef%22/%3E%3Cpath d=%22M100,34 L100,56%22 stroke=%22%234a3d8a%22 stroke-width=%221%22/%3E%3Cpath d=%22M100,55 l2.4,5.6 5.6,2.4 -5.6,2.4 -2.4,5.6 -2.4,-5.6 -5.6,-2.4 5.6,-2.4z%22 fill=%22%23ffd166%22 opacity=%22.85%22/%3E%3Cpath d=%22M260,38 L260,60%22 stroke=%22%234a3d8a%22 stroke-width=%221%22/%3E%3Cpath d=%22M260,59 l2.4,5.6 5.6,2.4 -5.6,2.4 -2.4,5.6 -2.4,-5.6 -5.6,-2.4 5.6,-2.4z%22 fill=%22%23ffd166%22 opacity=%22.85%22/%3E%3C/svg%3E");--decor-l:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22420%22 viewBox=%220 0 120 420%22%3E%3Cdefs%3E%3CradialGradient id=%22g%22%3E%3Cstop offset=%220%22 stop-color=%22%23ffd166%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ffd166%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22p%22%3E%3Cstop offset=%220%22 stop-color=%22%23ff8fd8%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ff8fd8%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22c%22%3E%3Cstop offset=%220%22 stop-color=%22%235ce1e6%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%235ce1e6%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22v%22%3E%3Cstop offset=%220%22 stop-color=%22%23c9a7ff%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23c9a7ff%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d=%22M14,0 C30,40 0,80 16,120 C32,160 2,200 16,240 C30,280 4,320 14,360 C24,380 8,392 14,420%22 stroke=%22%233b2a6d%22 stroke-width=%223%22 fill=%22none%22/%3E%3Cellipse cx=%2230%22 cy=%2236%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 30 36)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2222%22 cy=%2230%22 r=%2211%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2222%22 cy=%2230%22 r=%223%22 fill=%22%23ffe9a8%22/%3E%3Cellipse cx=%2218%22 cy=%22101%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(40 18 101)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2210%22 cy=%2295%22 r=%2211%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2210%22 cy=%2295%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Cellipse cx=%2232%22 cy=%22156%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 32 156)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2224%22 cy=%22150%22 r=%2211%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2224%22 cy=%22150%22 r=%223%22 fill=%22%23c9f4ff%22/%3E%3Cellipse cx=%2217%22 cy=%22221%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(40 17 221)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%229%22 cy=%22215%22 r=%2211%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%229%22 cy=%22215%22 r=%223%22 fill=%22%23e6d9ff%22/%3E%3Cellipse cx=%2230%22 cy=%22281%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 30 281)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2222%22 cy=%22275%22 r=%2211%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2222%22 cy=%22275%22 r=%223%22 fill=%22%23ffe9a8%22/%3E%3Cellipse cx=%2220%22 cy=%22341%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(40 20 341)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2212%22 cy=%22335%22 r=%2211%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2212%22 cy=%22335%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Cellipse cx=%2228%22 cy=%22391%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 28 391)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2220%22 cy=%22385%22 r=%2211%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2220%22 cy=%22385%22 r=%223%22 fill=%22%23c9f4ff%22/%3E%3Cg transform=%22translate(62 60)%22%3E%3Ccircle r=%2218%22 fill=%22none%22 stroke=%22%234a3d8a%22 stroke-width=%228.1%22 stroke-dasharray=%227.6 6.5%22/%3E%3Ccircle r=%2214.0%22 fill=%22%234a3d8a%22/%3E%3Ccircle r=%2214.0%22 fill=%22none%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.6%22 stroke-width=%221.5%22/%3E%3Ccircle r=%225.0%22 fill=%22%231a1238%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.7%22 stroke-width=%221.2%22/%3E%3C/g%3E%3Cg transform=%22translate(86 86)%22%3E%3Ccircle r=%2211%22 fill=%22none%22 stroke=%22%233a2d70%22 stroke-width=%225.0%22 stroke-dasharray=%224.6 4.0%22/%3E%3Ccircle r=%228.6%22 fill=%22%233a2d70%22/%3E%3Ccircle r=%228.6%22 fill=%22none%22 stroke=%22%23ff8fd8%22 stroke-opacity=%22.6%22 stroke-width=%221.5%22/%3E%3Ccircle r=%223.1%22 fill=%22%231a1238%22 stroke=%22%23ff8fd8%22 stroke-opacity=%22.7%22 stroke-width=%221.2%22/%3E%3C/g%3E%3Cg transform=%22translate(64 190) scale(0.75)%22%3E%3Ccircle cx=%220%22 cy=%22-6%22 r=%2240%22 fill=%22url(%23v)%22 opacity=%22.35%22/%3E%3Cpath d=%22M-22,30 L-22,16 C-34,8 -36,-14 -26,-28 C-16,-42 6,-44 18,-34 C26,-28 28,-18 26,-10 L32,0 L26,3 L26,10 C26,16 20,18 14,17 L12,30 Z%22 fill=%22%232c2058%22 stroke=%22%23c9a7ff%22 stroke-width=%222.2%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%22-2%22 cy=%22-14%22 r=%2214%22 fill=%22url(%23g)%22/%3E%3Cpath d=%22M-2,-26 l3,8 8,3 -8,3 -3,8 -3,-8 -8,-3 8,-3z%22 fill=%22%23ffe9a8%22/%3E%3Cpath d=%22M-14,-4 Q-6,4 4,-2%22 stroke=%22%23ff8fd8%22 stroke-width=%221.5%22 fill=%22none%22 stroke-opacity=%22.7%22/%3E%3C/g%3E%3Cg transform=%22translate(64 330) scale(0.9)%22%3E%3Crect x=%22-16%22 y=%22-34%22 width=%2232%22 height=%2230%22 rx=%227%22 fill=%22%233a2d70%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.6%22 stroke-width=%221.6%22/%3E%3Crect x=%22-11%22 y=%22-29%22 width=%2222%22 height=%2213%22 rx=%223%22 fill=%22%230e0a24%22/%3E%3Ccircle cx=%22-5%22 cy=%22-22.5%22 r=%222.3%22 fill=%22%235ce1e6%22/%3E%3Ccircle cx=%225%22 cy=%22-22.5%22 r=%222.3%22 fill=%22%235ce1e6%22/%3E%3Crect x=%22-7%22 y=%22-12%22 width=%2214%22 height=%223%22 rx=%221.5%22 fill=%22%23ffd166%22 opacity=%22.8%22/%3E%3Cpath d=%22M0,-34 L0,-44%22 stroke=%22%23c9a7ff%22 stroke-width=%222%22/%3E%3Ccircle cx=%220%22 cy=%22-46%22 r=%2210%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%220%22 cy=%22-46%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Crect x=%22-12%22 y=%22-4%22 width=%228%22 height=%225%22 rx=%222%22 fill=%22%232a1d55%22/%3E%3Crect x=%224%22 y=%22-4%22 width=%228%22 height=%225%22 rx=%222%22 fill=%22%232a1d55%22/%3E%3C/g%3E%3C/svg%3E");--decor-r:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22420%22 viewBox=%220 0 120 420%22%3E%3Cdefs%3E%3CradialGradient id=%22g%22%3E%3Cstop offset=%220%22 stop-color=%22%23ffd166%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ffd166%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22p%22%3E%3Cstop offset=%220%22 stop-color=%22%23ff8fd8%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ff8fd8%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22c%22%3E%3Cstop offset=%220%22 stop-color=%22%235ce1e6%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%235ce1e6%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3CradialGradient id=%22v%22%3E%3Cstop offset=%220%22 stop-color=%22%23c9a7ff%22 stop-opacity=%22.9%22/%3E%3Cstop offset=%221%22 stop-color=%22%23c9a7ff%22 stop-opacity=%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cg transform=%22translate(120 0) scale(-1 1)%22%3E%3Cpath d=%22M14,0 C30,40 0,80 16,120 C32,160 2,200 16,240 C30,280 4,320 14,360 C24,380 8,392 14,420%22 stroke=%22%233b2a6d%22 stroke-width=%223%22 fill=%22none%22/%3E%3Cellipse cx=%2230%22 cy=%2236%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 30 36)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2222%22 cy=%2230%22 r=%2211%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2222%22 cy=%2230%22 r=%223%22 fill=%22%23ffe9a8%22/%3E%3Cellipse cx=%2218%22 cy=%22101%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(40 18 101)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2210%22 cy=%2295%22 r=%2211%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2210%22 cy=%2295%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Cellipse cx=%2232%22 cy=%22156%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 32 156)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2224%22 cy=%22150%22 r=%2211%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2224%22 cy=%22150%22 r=%223%22 fill=%22%23c9f4ff%22/%3E%3Cellipse cx=%2217%22 cy=%22221%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(40 17 221)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%229%22 cy=%22215%22 r=%2211%22 fill=%22url(%23v)%22 opacity=%22.55%22/%3E%3Ccircle cx=%229%22 cy=%22215%22 r=%223%22 fill=%22%23e6d9ff%22/%3E%3Cellipse cx=%2230%22 cy=%22281%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 30 281)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2222%22 cy=%22275%22 r=%2211%22 fill=%22url(%23g)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2222%22 cy=%22275%22 r=%223%22 fill=%22%23ffe9a8%22/%3E%3Cellipse cx=%2220%22 cy=%22341%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(40 20 341)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2212%22 cy=%22335%22 r=%2211%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2212%22 cy=%22335%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Cellipse cx=%2228%22 cy=%22391%22 rx=%226%22 ry=%222.6%22 transform=%22rotate(-40 28 391)%22 fill=%22%235b4aa0%22/%3E%3Ccircle cx=%2220%22 cy=%22385%22 r=%2211%22 fill=%22url(%23c)%22 opacity=%22.55%22/%3E%3Ccircle cx=%2220%22 cy=%22385%22 r=%223%22 fill=%22%23c9f4ff%22/%3E%3Cg transform=%22translate(62 60)%22%3E%3Ccircle r=%2218%22 fill=%22none%22 stroke=%22%234a3d8a%22 stroke-width=%228.1%22 stroke-dasharray=%227.6 6.5%22/%3E%3Ccircle r=%2214.0%22 fill=%22%234a3d8a%22/%3E%3Ccircle r=%2214.0%22 fill=%22none%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.6%22 stroke-width=%221.5%22/%3E%3Ccircle r=%225.0%22 fill=%22%231a1238%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.7%22 stroke-width=%221.2%22/%3E%3C/g%3E%3Cg transform=%22translate(86 86)%22%3E%3Ccircle r=%2211%22 fill=%22none%22 stroke=%22%233a2d70%22 stroke-width=%225.0%22 stroke-dasharray=%224.6 4.0%22/%3E%3Ccircle r=%228.6%22 fill=%22%233a2d70%22/%3E%3Ccircle r=%228.6%22 fill=%22none%22 stroke=%22%23ff8fd8%22 stroke-opacity=%22.6%22 stroke-width=%221.5%22/%3E%3Ccircle r=%223.1%22 fill=%22%231a1238%22 stroke=%22%23ff8fd8%22 stroke-opacity=%22.7%22 stroke-width=%221.2%22/%3E%3C/g%3E%3Cg transform=%22translate(64 190) scale(0.75)%22%3E%3Ccircle cx=%220%22 cy=%22-6%22 r=%2240%22 fill=%22url(%23v)%22 opacity=%22.35%22/%3E%3Cpath d=%22M-22,30 L-22,16 C-34,8 -36,-14 -26,-28 C-16,-42 6,-44 18,-34 C26,-28 28,-18 26,-10 L32,0 L26,3 L26,10 C26,16 20,18 14,17 L12,30 Z%22 fill=%22%232c2058%22 stroke=%22%23c9a7ff%22 stroke-width=%222.2%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%22-2%22 cy=%22-14%22 r=%2214%22 fill=%22url(%23g)%22/%3E%3Cpath d=%22M-2,-26 l3,8 8,3 -8,3 -3,8 -3,-8 -8,-3 8,-3z%22 fill=%22%23ffe9a8%22/%3E%3Cpath d=%22M-14,-4 Q-6,4 4,-2%22 stroke=%22%23ff8fd8%22 stroke-width=%221.5%22 fill=%22none%22 stroke-opacity=%22.7%22/%3E%3C/g%3E%3Cg transform=%22translate(64 330) scale(0.9)%22%3E%3Crect x=%22-16%22 y=%22-34%22 width=%2232%22 height=%2230%22 rx=%227%22 fill=%22%233a2d70%22 stroke=%22%235ce1e6%22 stroke-opacity=%22.6%22 stroke-width=%221.6%22/%3E%3Crect x=%22-11%22 y=%22-29%22 width=%2222%22 height=%2213%22 rx=%223%22 fill=%22%230e0a24%22/%3E%3Ccircle cx=%22-5%22 cy=%22-22.5%22 r=%222.3%22 fill=%22%235ce1e6%22/%3E%3Ccircle cx=%225%22 cy=%22-22.5%22 r=%222.3%22 fill=%22%235ce1e6%22/%3E%3Crect x=%22-7%22 y=%22-12%22 width=%2214%22 height=%223%22 rx=%221.5%22 fill=%22%23ffd166%22 opacity=%22.8%22/%3E%3Cpath d=%22M0,-34 L0,-44%22 stroke=%22%23c9a7ff%22 stroke-width=%222%22/%3E%3Ccircle cx=%220%22 cy=%22-46%22 r=%2210%22 fill=%22url(%23p)%22 opacity=%22.55%22/%3E%3Ccircle cx=%220%22 cy=%22-46%22 r=%223%22 fill=%22%23ffc8ef%22/%3E%3Crect x=%22-12%22 y=%22-4%22 width=%228%22 height=%225%22 rx=%222%22 fill=%22%232a1d55%22/%3E%3Crect x=%224%22 y=%22-4%22 width=%228%22 height=%225%22 rx=%222%22 fill=%22%232a1d55%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
+  #wrap,#ov{background-image:var(--decor-t),var(--decor-b),var(--decor-l),var(--decor-r);
+    background-repeat:repeat-x,repeat-x,repeat-y,repeat-y;
+    background-position:center top,center bottom,left 0 top 74px,right 0 top 74px;
+    background-size:auto 90px,auto 170px,120px auto,120px auto;}
+  @media (max-width:520px),(max-height:540px){
+    #wrap,#ov{background-size:auto 56px,auto 104px,74px auto,74px auto;background-position:center top,center bottom,left 0 top 40px,right 0 top 40px;}
+  }
+  body.high-contrast #wrap,body.high-contrast #ov{background-image:none;}
+  /* little fairies (Lumen and plant fairies) flutter around behind the card on lever and question screens */
+  #card{position:relative;z-index:1;}
+  #fairies{position:fixed;inset:0;pointer-events:none;z-index:0;display:none;overflow:hidden;}
+  #ov.fairies #fairies{display:block;}
+  #fairies .fy{position:absolute;width:58px;height:58px;animation:fy-fly 13s ease-in-out infinite alternate;}
+  #fairies .bob{width:100%;height:100%;animation:fy-bob 1.6s ease-in-out infinite alternate;}
+  #fairies svg{position:relative;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 8px rgba(255,233,168,.75)) drop-shadow(0 0 18px rgba(255,209,102,.35));}
+  /* a soft halo of light around each fairy, breathing slowly; Lumen fairies glow gold, plant fairies glow mint-pink */
+  #fairies .bob{position:relative;}
+  #fairies .bob::before{content:"";position:absolute;inset:-70%;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,240,190,.55) 0%,rgba(255,209,102,.28) 30%,rgba(255,143,216,.12) 55%,transparent 72%);
+    animation:fy-halo 2.4s ease-in-out infinite alternate;}
+  #fairies .fy2 .bob::before,#fairies .fy3 .bob::before,#fairies .fy5 .bob::before{
+    background:radial-gradient(circle,rgba(220,255,235,.5) 0%,rgba(126,226,168,.25) 30%,rgba(255,143,216,.14) 55%,transparent 72%);}
+  #fairies .fy3 .bob::before{animation-delay:-.8s;} #fairies .fy4 .bob::before{animation-delay:-1.6s;}
+  @keyframes fy-halo{from{transform:scale(.85);opacity:.75}to{transform:scale(1.1);opacity:1}}
+  body.calm-motion #fairies .bob::before{animation:none;}
+  #fairies .wing{transform-box:fill-box;transform-origin:100% 50%;animation:fy-flap .22s ease-in-out infinite alternate;}
+  #fairies .w2{animation-delay:-.11s;}
+  #fairies .fy1{left:6%;top:12%;--dx:14vw;--dy:8vh;animation-duration:11s;}
+  #fairies .fy2{right:8%;top:8%;--dx:-12vw;--dy:12vh;animation-duration:14s;}
+  #fairies .fy3{left:4%;bottom:12%;--dx:16vw;--dy:-10vh;animation-duration:12s;}
+  #fairies .fy4{right:5%;bottom:16%;--dx:-14vw;--dy:-8vh;animation-duration:15s;width:46px;height:46px;}
+  #fairies .fy5{left:44%;top:3%;--dx:10vw;--dy:4vh;animation-duration:10s;width:44px;height:44px;}
+  @keyframes fy-fly{0%{transform:translate(0,0)}35%{transform:translate(calc(var(--dx)*.6),calc(var(--dy)*-.5))}70%{transform:translate(calc(var(--dx)*.3),var(--dy))}100%{transform:translate(var(--dx),calc(var(--dy)*.4))}}
+  @keyframes fy-bob{from{transform:translateY(-4px) rotate(-4deg)}to{transform:translateY(4px) rotate(4deg)}}
+  @keyframes fy-flap{from{transform:scaleY(1)}to{transform:scaleY(.45)}}
+  @media (max-width:520px){ #fairies .fy{width:40px;height:40px;} #fairies .fy4,#fairies .fy5{width:34px;height:34px;} }
+  body.calm-motion #fairies .fy,body.calm-motion #fairies .bob,body.calm-motion #fairies .wing{animation:none;}
+  body.high-contrast #fairies{display:none !important;}
+  /* the robot piper cutscene: about five seconds, any tap skips it; calm motion shows the last frame */
+  #card.cutscene{max-width:760px;}
+  #card .piper{max-width:none;border-radius:14px;}
+  #card .piper *{transform-box:fill-box;}
+  #card .piper .kid,#card .piper .kturn,#card .piper .kbob,#card .piper .pn,#card .piper .rface,#card .piper .rgears,#card .piper .rheart,
+  #card .piper .rscreen,#card .piper .pbubble,#card .piper .plumen,#card .piper .pflash,#card .piper .pcap1,#card .piper .pcap2,
+  #card .piper .rhalo,#card .piper .rhalo2,#card .piper .win,#card .piper .pdim{animation-duration:5s;animation-timing-function:ease-in-out;animation-fill-mode:both;}
+  #card .piper .kid{animation-name:pp-walk;}
+  #card .piper .kid2{animation-delay:.25s;} #card .piper .kid3{animation-delay:.5s;}
+  #card .piper .kturn{transform-origin:50% 50%;animation-name:pp-turn;}
+  #card .piper .kid2 .kturn{animation-delay:.25s;} #card .piper .kid3 .kturn{animation-delay:.5s;}
+  #card .piper .kbob{animation:pp-bob .45s ease-in-out infinite alternate;}
+  @keyframes pp-walk{0%{transform:translate(0,0);opacity:0}6%{opacity:1}55%{transform:translate(var(--d),0)}66%{transform:translate(var(--d),0)}94%{transform:translate(0,0);opacity:1}100%{transform:translate(0,0);opacity:0}}
+  @keyframes pp-turn{0%,63%{transform:scaleX(1)}66%,100%{transform:scaleX(-1)}}
+  @keyframes pp-bob{from{transform:translateY(0)}to{transform:translateY(-2.5px)}}
+  #card .piper .pn{animation-name:pp-note;animation-duration:1.8s;animation-iteration-count:2;}
+  #card .piper .pn2{animation-delay:.45s;} #card .piper .pn3{animation-delay:.9s;} #card .piper .pn4{animation-delay:1.35s;}
+  @keyframes pp-note{0%{transform:translate(0,0);opacity:0}15%{opacity:1}100%{transform:translate(-230px,40px);opacity:0}}
+  #card .piper .rheart{transform-origin:50% 50%;animation-name:pp-heart;}
+  @keyframes pp-heart{0%,8%,16%,24%,32%,40%,48%,56%{transform:scale(1);opacity:1}4%,12%,20%,28%,36%,44%,52%{transform:scale(1.18)}62%,100%{opacity:0}}
+  #card .piper .rscreen,#card .piper .rgears,#card .piper .rhalo2{animation-name:pp-reveal;}
+  #card .piper .rface,#card .piper .rhalo{animation-name:pp-hide;}
+  @keyframes pp-reveal{0%,60%{opacity:0}66%,100%{opacity:1}}
+  @keyframes pp-hide{0%,60%{opacity:1}66%,100%{opacity:0}}
+  #card .piper .pbubble{animation-name:pp-bubble;}
+  @keyframes pp-bubble{0%,8%{opacity:0}14%,50%{opacity:1}56%,100%{opacity:0}}
+  #card .piper .plumen{animation-name:pp-lumen;}
+  @keyframes pp-lumen{0%,50%{transform:translate(-380px,-60px);opacity:0}54%{opacity:1}62%,100%{transform:translate(0,0);opacity:1}}
+  #card .piper .pflash{animation-name:pp-flash;}
+  @keyframes pp-flash{0%,60%{opacity:0}63%{opacity:.9}74%,100%{opacity:0}}
+  #card .piper .pcap1{animation-name:pp-cap1;} #card .piper .pcap2{animation-name:pp-cap2;}
+  @keyframes pp-cap1{0%,4%{opacity:0}10%,56%{opacity:1}60%,100%{opacity:0}}
+  @keyframes pp-cap2{0%,62%{opacity:0}68%,100%{opacity:1}}
+  #card .piper .win{animation-name:pp-win;}
+  #card .piper .pdim{animation-name:pp-dim;}
+  @keyframes pp-dim{0%,6%{opacity:0}20%,58%{opacity:.45}66%,100%{opacity:0}}
+  @keyframes pp-win{0%,20%{opacity:1}30%,90%{opacity:.25}100%{opacity:1}}
+  body.calm-motion #card .piper *{animation-duration:1ms !important;animation-delay:0s !important;animation-iteration-count:1 !important;}
   /* the keeper's lever: a big handle to pull, and the lights it switches on */
   #card .leverwrap{display:flex;gap:18px;align-items:flex-start;margin:6px 0 4px 0;}
   #card .lever{flex:0 0 auto;width:74px;height:120px;position:relative;background:transparent;border:0;padding:0;cursor:pointer;}
-  #card .lever .base{position:absolute;left:12px;right:12px;bottom:6px;height:22px;border-radius:8px;background:#2a2350;border:1px solid #4a3d8a;}
-  #card .lever .slot{position:absolute;left:33px;top:10px;width:8px;height:92px;border-radius:4px;background:#0e0a24;border:1px solid #4a3d8a;}
-  #card .lever .arm{position:absolute;left:34px;bottom:24px;width:6px;height:78px;border-radius:3px;background:linear-gradient(#c9a7ff,#9d7bff);transform-origin:50% 100%;transition:transform .18s ease;}
+  #card .lever .base{position:absolute;left:10px;right:10px;bottom:6px;height:22px;border-radius:9px;background:linear-gradient(#3a2d70,#221a4a);border:1px solid #ffd166;box-shadow:0 0 12px rgba(255,209,102,.35), inset 0 2px 0 rgba(255,255,255,.12);}
+  #card .lever .slot{position:absolute;left:33px;top:10px;width:8px;height:92px;border-radius:4px;background:#0e0a24;border:1px solid #6a55b8;box-shadow:0 0 10px rgba(157,123,255,.5);}
+  #card .lever .arm{position:absolute;left:34px;bottom:24px;width:6px;height:78px;border-radius:3px;background:linear-gradient(#ffd166,#ff8fd8 45%,#9d7bff 80%,#5ce1e6);box-shadow:0 0 8px rgba(255,143,216,.55);transform-origin:50% 100%;transition:transform .18s ease;}
   #card .lever .knob{position:absolute;left:-10px;top:-14px;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe9a8,#ffd166 55%,#b8862e);box-shadow:0 0 14px rgba(255,209,102,.6);}
   #card .lever.pulled .arm{transform:rotate(38deg);}
   #card .lever:focus{outline:2px solid var(--accent2);outline-offset:4px;border-radius:12px;}
   #card .lights{flex:1;display:flex;flex-direction:column;gap:8px;min-height:120px;}
-  #card .light{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.45);border-radius:10px;padding:8px 12px;color:var(--ink);font-size:15px;
-    box-shadow:0 0 18px rgba(255,209,102,.25);animation:lightup .5s ease-out;}
-  #card .light b{color:var(--accent);font-size:17px;margin-right:6px;}
+  /* every light the lever switches on gets its own color */
+  #card .light{--c:255,209,102;background:linear-gradient(100deg,rgba(var(--c),.20),rgba(var(--c),.06) 65%,rgba(var(--c),.02));
+    border:1px solid rgba(var(--c),.6);border-radius:12px;padding:8px 12px 8px 16px;color:var(--ink);font-size:15px;
+    box-shadow:0 0 20px rgba(var(--c),.25), inset 5px 0 0 rgba(var(--c),.9);animation:lightup .5s ease-out;}
+  #card .light:nth-child(5n+2){--c:255,143,216;}
+  #card .light:nth-child(5n+3){--c:92,225,230;}
+  #card .light:nth-child(5n+4){--c:201,167,255;}
+  #card .light:nth-child(5n+5){--c:255,170,140;}
+  #card .light b{color:rgb(var(--c));font-size:17px;margin-right:6px;text-shadow:0 0 10px rgba(var(--c),.6);}
   @keyframes lightup{from{opacity:0;transform:translateY(6px);box-shadow:0 0 0 rgba(255,209,102,0);}to{opacity:1;transform:none;}}
   body.calm-motion #card .light{animation:none;}
   body.calm-motion #card .lever .arm{transition:none;}
   body.high-contrast{--ink:#ffffff;--dim:#e6e0ff;--accent:#ffe14d;--card-bg:#07051a;}
-  body.high-contrast #card{border:2px solid #ffffff;}
+  body.high-contrast #card{border:2px solid #ffffff;background:var(--card-bg);box-shadow:none;}
+  body.high-contrast #ov{background:rgba(8,6,22,.9);-webkit-backdrop-filter:none;backdrop-filter:none;}
+  body.high-contrast #card .tag{background:none;color:var(--accent);}
+  body.high-contrast #card .light{background:#07051a;box-shadow:none;border:2px solid rgb(var(--c));}
+  body.high-contrast #card .light b{text-shadow:none;}
+  body.high-contrast #card button.primary{background:var(--accent);box-shadow:none;}
   body.high-contrast #card button{border-width:2px;border-color:#cfc4ff;}
   @media (max-width:520px){
-    #card{padding:20px 18px;border-radius:14px;}
+    #card{padding:20px 18px;border-radius:14px;--spark:none;}
     #card h2{font-size:22px;}
     #card p, #card ul{font-size:15px;}
   }
@@ -145,7 +254,60 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="960" height="540"></canvas></div>
-<div id="ov" class="hidden"><div id="card" role="dialog" aria-live="polite"></div></div>
+<div id="ov" class="hidden"><div id="fairies" aria-hidden="true"><svg width="0" height="0" style="position:absolute"><defs><radialGradient id="fyglow"><stop offset="0" stop-color="#fff3c4" stop-opacity=".55"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient><radialGradient id="fyleaf"><stop offset="0" stop-color="#c8ffe0" stop-opacity=".45"/><stop offset="1" stop-color="#c8ffe0" stop-opacity="0"/></radialGradient></defs></svg><div class="fy fy1"><div class="bob"><svg viewBox="-34 -34 68 68">
+  <circle r="30" fill="url(#fyglow)"/>
+  <g class="wing"><ellipse cx="-12" cy="-8" rx="17" ry="9" transform="rotate(-38)" fill="rgba(190,225,255,.85)"/></g>
+  <g class="wing w2"><ellipse cx="-12" cy="7" rx="14" ry="8" transform="rotate(34)" fill="rgba(170,215,255,.75)"/></g>
+  <ellipse cx="3" cy="4" rx="8" ry="11" transform="rotate(14)" fill="#ffe9b8"/>
+  <path d="M-2,0 L11,12 L-6,12 Z" fill="#9d7bff"/>
+  <circle cx="8" cy="-10" r="6.5" fill="#ffe9b8"/>
+  <path d="M2,-12 a6.5,6.5 0 0 1 12,-3 l-3,-4 a7,7 0 0 0 -10,3 z" fill="#ff8fd8"/>
+  <circle cx="11" cy="-10" r="1.2" fill="#2a1d55"/>
+  <path d="M16,-2 l1.3,3.2 3.2,1.3 -3.2,1.3 -1.3,3.2 -1.3,-3.2 -3.2,-1.3 3.2,-1.3z" fill="#ffd166"/>
+</svg></div></div><div class="fy fy2"><div class="bob"><svg viewBox="-34 -34 68 68">
+  <circle r="30" fill="url(#fyleaf)"/>
+  <g class="wing"><path d="M0,-2 C-10,-26 -30,-22 -24,-6 C-20,2 -8,2 0,-2 Z" fill="rgba(126,226,168,.85)"/><path d="M0,-2 C-10,-12 -18,-14 -22,-10" stroke="rgba(30,90,60,.5)" stroke-width="1" fill="none"/></g>
+  <g class="wing w2"><path d="M0,2 C-12,18 -28,16 -22,4 C-18,-2 -8,-1 0,2 Z" fill="rgba(160,240,190,.75)"/></g>
+  <ellipse cx="3" cy="4" rx="7.5" ry="10.5" transform="rotate(14)" fill="#ffe9b8"/>
+  <path d="M-4,1 C2,-2 10,4 12,13 C6,10 0,16 -6,12 C-4,8 -6,5 -4,1 Z" fill="#ff8fa3"/>
+  <circle cx="8" cy="-10" r="6.5" fill="#ffe9b8"/>
+  <g fill="#ff8fd8"><circle cx="3" cy="-17" r="3"/><circle cx="8" cy="-19" r="3"/><circle cx="13" cy="-17" r="3"/><circle cx="5" cy="-13.5" r="2.4"/><circle cx="11.5" cy="-13.5" r="2.4"/></g>
+  <circle cx="8" cy="-16" r="2" fill="#ffd166"/>
+  <circle cx="11" cy="-9" r="1.2" fill="#2a1d55"/>
+  <circle cx="9.5" cy="-6.5" r="1.4" fill="rgba(255,143,216,.55)"/>
+</svg></div></div><div class="fy fy3"><div class="bob"><svg viewBox="-34 -34 68 68">
+  <circle r="30" fill="url(#fyleaf)"/>
+  <g class="wing"><path d="M0,-2 C-10,-26 -30,-22 -24,-6 C-20,2 -8,2 0,-2 Z" fill="rgba(126,226,168,.85)"/><path d="M0,-2 C-10,-12 -18,-14 -22,-10" stroke="rgba(30,90,60,.5)" stroke-width="1" fill="none"/></g>
+  <g class="wing w2"><path d="M0,2 C-12,18 -28,16 -22,4 C-18,-2 -8,-1 0,2 Z" fill="rgba(160,240,190,.75)"/></g>
+  <ellipse cx="3" cy="4" rx="7.5" ry="10.5" transform="rotate(14)" fill="#ffe9b8"/>
+  <path d="M-4,1 C2,-2 10,4 12,13 C6,10 0,16 -6,12 C-4,8 -6,5 -4,1 Z" fill="#c9a7ff"/>
+  <circle cx="8" cy="-10" r="6.5" fill="#ffe9b8"/>
+  <g fill="#ffd166"><circle cx="3" cy="-17" r="3"/><circle cx="8" cy="-19" r="3"/><circle cx="13" cy="-17" r="3"/><circle cx="5" cy="-13.5" r="2.4"/><circle cx="11.5" cy="-13.5" r="2.4"/></g>
+  <circle cx="8" cy="-16" r="2" fill="#ffd166"/>
+  <circle cx="11" cy="-9" r="1.2" fill="#2a1d55"/>
+  <circle cx="9.5" cy="-6.5" r="1.4" fill="rgba(255,143,216,.55)"/>
+</svg></div></div><div class="fy fy4"><div class="bob"><svg viewBox="-34 -34 68 68">
+  <circle r="30" fill="url(#fyglow)"/>
+  <g class="wing"><ellipse cx="-12" cy="-8" rx="17" ry="9" transform="rotate(-38)" fill="rgba(190,225,255,.85)"/></g>
+  <g class="wing w2"><ellipse cx="-12" cy="7" rx="14" ry="8" transform="rotate(34)" fill="rgba(170,215,255,.75)"/></g>
+  <ellipse cx="3" cy="4" rx="8" ry="11" transform="rotate(14)" fill="#ffe9b8"/>
+  <path d="M-2,0 L11,12 L-6,12 Z" fill="#9d7bff"/>
+  <circle cx="8" cy="-10" r="6.5" fill="#ffe9b8"/>
+  <path d="M2,-12 a6.5,6.5 0 0 1 12,-3 l-3,-4 a7,7 0 0 0 -10,3 z" fill="#ff8fd8"/>
+  <circle cx="11" cy="-10" r="1.2" fill="#2a1d55"/>
+  <path d="M16,-2 l1.3,3.2 3.2,1.3 -3.2,1.3 -1.3,3.2 -1.3,-3.2 -3.2,-1.3 3.2,-1.3z" fill="#ffd166"/>
+</svg></div></div><div class="fy fy5"><div class="bob"><svg viewBox="-34 -34 68 68">
+  <circle r="30" fill="url(#fyleaf)"/>
+  <g class="wing"><path d="M0,-2 C-10,-26 -30,-22 -24,-6 C-20,2 -8,2 0,-2 Z" fill="rgba(126,226,168,.85)"/><path d="M0,-2 C-10,-12 -18,-14 -22,-10" stroke="rgba(30,90,60,.5)" stroke-width="1" fill="none"/></g>
+  <g class="wing w2"><path d="M0,2 C-12,18 -28,16 -22,4 C-18,-2 -8,-1 0,2 Z" fill="rgba(160,240,190,.75)"/></g>
+  <ellipse cx="3" cy="4" rx="7.5" ry="10.5" transform="rotate(14)" fill="#ffe9b8"/>
+  <path d="M-4,1 C2,-2 10,4 12,13 C6,10 0,16 -6,12 C-4,8 -6,5 -4,1 Z" fill="#5ce1e6"/>
+  <circle cx="8" cy="-10" r="6.5" fill="#ffe9b8"/>
+  <g fill="#ffb3a1"><circle cx="3" cy="-17" r="3"/><circle cx="8" cy="-19" r="3"/><circle cx="13" cy="-17" r="3"/><circle cx="5" cy="-13.5" r="2.4"/><circle cx="11.5" cy="-13.5" r="2.4"/></g>
+  <circle cx="8" cy="-16" r="2" fill="#ffd166"/>
+  <circle cx="11" cy="-9" r="1.2" fill="#2a1d55"/>
+  <circle cx="9.5" cy="-6.5" r="1.4" fill="rgba(255,143,216,.55)"/>
+</svg></div></div></div><div id="card" role="dialog" aria-live="polite"></div></div>
 <script>
 (() => {
 "use strict";
@@ -308,20 +470,32 @@ function tone(freq, dur, type, vol, slide){
     o.start(); o.stop(actx.currentTime + dur + 0.02);
   }catch(e){}
 }
-/* A small generative synthwave score, no audio files: two detuned sawtooths through a lowpass filter with an
-   envelope for the lead, a driving eighth-note bass, a kick and hi-hats, a soft chord pad, and a short echo.
-   Each level has its own key and tempo; chords walk a bright I, V, vi, IV so it stays uplifting. Scheduled a
-   quarter-second ahead on the audio clock so it holds time when frames stutter, ducks under cards, goes quiet
-   on pause, and can be switched off in Settings (M mutes everything). */
+/* A small generative score, no audio files, with an Algerian sound: the melody moves in the Hijaz mode
+   (the flattened second heard across rai, chaabi and Andalusian music), played on a breathy flute voice with
+   vibrato and little slides into each note, in the spirit of the gasba. A plucked string voice, like a mandole,
+   arpeggiates the chords, and a darbuka keeps a dum-tek rhythm. A soft pad, a bass and a short echo keep the
+   dreamy feel. Each level has its own key, tempo and phrases. Scheduled a quarter-second ahead on the audio
+   clock so it holds time when frames stutter, ducks under cards, goes quiet on pause, and can be switched off
+   in Settings (M mutes everything). */
 const MUSIC_LEVELS = [
-  { root:220.00, bpm:104, prog:[0,7,9,5], lead:"sawtooth", bright:1900 },              // A major: warm dawn
-  { root:246.94, bpm:110, prog:[0,9,5,7], lead:"sawtooth", bright:2300 },              // B major: climbing
-  { root:261.63, bpm:118, prog:[0,5,9,7], lead:"square",   bright:2700 },              // C major: neon ridge
-  { root:233.08, bpm:112, prog:[0,7,5,9], lead:"sawtooth", bright:2100, haze:true },   // B flat major: marsh haze
-  { root:196.00, bpm:128, prog:[0,9,7,5], lead:"sawtooth", bright:3300, pulse:true }   // G major: full drive
+  { root:220.00, bpm:100, prog:[0,1,10,0],  motifs:[0,1,0,2] },            // A Hijaz: dawn in the thicket
+  { root:246.94, bpm:106, prog:[0,10,1,0],  motifs:[1,3,0,2] },            // B Hijaz: climbing
+  { root:261.63, bpm:112, prog:[0,5,1,0],   motifs:[2,0,3,1] },            // C Hijaz: the ridge
+  { root:233.08, bpm:104, prog:[0,1,5,10],  motifs:[3,1,2,0], haze:true }, // B flat Hijaz: marsh haze
+  { root:196.00, bpm:124, prog:[0,1,10,1],  motifs:[0,3,1,2], pulse:true } // G Hijaz: full drive
 ];
-const MAJOR = [0, 4, 7], MINOR = [0, 3, 7];
+const HIJAZ = [0, 1, 4, 5, 7, 8, 10];               // 1, flat 2, 3, 4, 5, flat 6, flat 7
+const CHORD_SHAPE = { 0:[0,4,7], 1:[0,4,7], 5:[0,3,7], 10:[0,3,7] };
+/* melodic phrases, one bar of eighth notes each: numbers are steps of the Hijaz scale (7 = the octave),
+   null is a rest, and a held note carries over the rest after it */
+const MOTIFS = [
+  [4, null, 3, 2, 1, 2, 1, 0],
+  [0, 1, 2, 3, 4, null, 3, 2],
+  [5, 4, 3, 4, 2, 1, 0, null],
+  [7, null, 5, 4, 3, 2, 1, 2]
+];
 const ARP = [0, 1, 2, 3, 2, 1, 0, 2];   // chord-tone indices, 3 = root an octave up
+const DARBUKA = ["D", "T", null, "T", "D", null, "T", "k"];   // dum, tek, light ka
 let musicGain = null, musicBus = null, musicDelay = null, musicNext = 0, musicStep = 0, musicTimer = null, noiseBuf = null;
 function musicSetup(){
   musicGain = actx.createGain(); musicGain.gain.value = 0; musicGain.connect(actx.destination);
@@ -394,6 +568,65 @@ function synthHat(when, open, vol){
     src.connect(f); f.connect(g); g.connect(musicGain); src.start(when); src.stop(when + dur + 0.02);
   } catch(e){}
 }
+/* the flute: a sine with a touch of triangle, slow vibrato, a breath of noise, and a slide up into the note */
+function synthFlute(freq, when, dur, vol){
+  try {
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.05);
+    g.gain.setValueAtTime(vol, when + Math.max(0.06, dur - 0.12));
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    g.connect(musicBus);
+    const lfo = actx.createOscillator(), lg = actx.createGain();
+    lfo.frequency.value = 5.2; lg.gain.value = freq * 0.012;
+    lfo.connect(lg); lfo.start(when); lfo.stop(when + dur + 0.05);
+    for (const [type, amt] of [["sine", 1], ["triangle", 0.35]]){
+      const o = actx.createOscillator(), og = actx.createGain(); o.type = type;
+      o.frequency.setValueAtTime(freq * 0.944, when);              // start a semitone low and slide up
+      o.frequency.exponentialRampToValueAtTime(freq, when + 0.07);
+      lg.connect(o.frequency);
+      og.gain.value = amt; o.connect(og); og.connect(g); o.start(when); o.stop(when + dur + 0.05);
+    }
+    if (noiseBuf){
+      const n = actx.createBufferSource(); n.buffer = noiseBuf;
+      const bf = actx.createBiquadFilter(); bf.type = "bandpass"; bf.frequency.value = freq * 2; bf.Q.value = 1.2;
+      const ng = actx.createGain(); ng.gain.setValueAtTime(vol * 0.5, when); ng.gain.exponentialRampToValueAtTime(0.0001, when + Math.min(dur, 0.25));
+      n.connect(bf); bf.connect(ng); ng.connect(g); n.start(when); n.stop(when + Math.min(dur, 0.25) + 0.02);
+    }
+  } catch(e){}
+}
+/* the plucked string: a bright attack that decays fast through a closing filter */
+function synthPluck(freq, when, vol){
+  try {
+    const o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
+    o.type = "sawtooth"; o.frequency.setValueAtTime(freq, when);
+    f.type = "lowpass"; f.Q.value = 3; f.frequency.setValueAtTime(3200, when); f.frequency.exponentialRampToValueAtTime(500, when + 0.25);
+    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.32);
+    o.connect(f); f.connect(g); g.connect(musicBus); o.start(when); o.stop(when + 0.36);
+  } catch(e){}
+}
+/* the darbuka: a deep "dum" in the middle of the drum and a sharp "tek" at the rim */
+function synthDum(when, vol){
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(190, when); o.frequency.exponentialRampToValueAtTime(78, when + 0.12);
+    g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.3);
+    o.connect(g); g.connect(musicGain); o.start(when); o.stop(when + 0.34);
+  } catch(e){}
+}
+function synthTek(when, vol){
+  try {
+    if (!noiseBuf) return;
+    const src = actx.createBufferSource(); src.buffer = noiseBuf;
+    const f = actx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3800; f.Q.value = 2.5;
+    const g = actx.createGain(); g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    src.connect(f); f.connect(g); g.connect(musicGain); src.start(when); src.stop(when + 0.07);
+    const o = actx.createOscillator(), og = actx.createGain();
+    o.type = "triangle"; o.frequency.setValueAtTime(1050, when);
+    og.gain.setValueAtTime(vol * 0.5, when); og.gain.exponentialRampToValueAtTime(0.0001, when + 0.03);
+    o.connect(og); og.connect(musicGain); o.start(when); o.stop(when + 0.05);
+  } catch(e){}
+}
 function musicTick(){
   if (!actx) return;
   if (!musicGain){ try { musicSetup(); } catch(e){ musicGain = null; return; } }
@@ -409,15 +642,26 @@ function musicTick(){
   while (musicNext < actx.currentTime + 0.25){
     const inBar = musicStep % 8, bar = Math.floor(musicStep / 8);
     const chordRoot = L.prog[bar % L.prog.length];
-    const shape = chordRoot === 9 ? MINOR : MAJOR;    // the vi is minor, the rest major
-    const tones = shape.map(i => chordRoot + i).concat([chordRoot + 12]);
+    const tones = (CHORD_SHAPE[chordRoot] || [0,4,7]).map(i => chordRoot + i).concat([chordRoot + 12]);
     const hz = semi => L.root * Math.pow(2, semi / 12);
-    if (inBar === 0) synthPad(tones.slice(0, 3).map(hz), musicNext, step * 8, L.haze ? 0.028 : 0.02);
-    const leadTone = tones[ARP[(musicStep + bar) % ARP.length]] + (L.pulse && inBar >= 4 ? 12 : 0);
-    synthLead(hz(leadTone) * 2, musicNext, step * (inBar % 2 ? 0.9 : 1.4), L.lead, L.bright, L.lead === "square" ? 0.02 : 0.03);
-    synthBass(hz(chordRoot) / 2 * (L.pulse && inBar % 2 ? 2 : 1), musicNext, step * 0.85, 0.07);
-    if (inBar % 4 === 0 || (L.pulse && inBar % 2 === 0)) synthKick(musicNext, 0.32);
-    synthHat(musicNext, inBar % 4 === 2, inBar % 2 ? 0.035 : 0.02);
+    const scaleHz = deg => hz(HIJAZ[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7));
+    if (inBar === 0) synthPad(tones.slice(0, 3).map(hz), musicNext, step * 8, L.haze ? 0.022 : 0.015);
+    /* flute melody: rests every other bar-pair so it breathes */
+    const motif = MOTIFS[L.motifs[bar % L.motifs.length]];
+    const deg = motif[inBar];
+    if (deg != null && bar % 4 !== 3){
+      let held = 1; while (inBar + held < 8 && motif[inBar + held] === null && held < 3) held++;
+      synthFlute(scaleHz(deg) * 2, musicNext, step * (held + 0.1) * 0.95, 0.034);
+    }
+    /* plucked string arpeggio, quieter, a little busier on the last bar of each phrase */
+    if (inBar % 2 === 0 || bar % 4 === 3) synthPluck(hz(tones[ARP[(musicStep + bar) % ARP.length]]), musicNext, 0.028);
+    synthBass(hz(chordRoot) / 2 * (L.pulse && inBar % 2 ? 2 : 1), musicNext, step * 0.85, 0.06);
+    /* darbuka */
+    const hitD = DARBUKA[inBar];
+    if (hitD === "D") synthDum(musicNext, 0.34);
+    else if (hitD === "T") synthTek(musicNext, 0.09);
+    else if (hitD === "k") synthTek(musicNext, 0.045);
+    if (L.pulse && inBar % 4 === 0) synthKick(musicNext, 0.22);
     musicNext += step; musicStep++;
   }
 }
@@ -484,6 +728,102 @@ const HIT_FACTS = [
   "Ask where a claim comes from, then check that source yourself. Some sources a chatbot cites do not exist."
 ];
 /* The story card's picture: Lumen, the Engine, and a mind being spun. Inline SVG, so it scales and needs no file. */
+const PIPER_ART = `<svg class="art piper" viewBox="0 0 600 260" role="img" aria-label="A robot with a glowing heart plays a flute at night and children follow it out of their homes, until Lumen's light shows it is only a machine and the children turn back home.">
+  <defs>
+    <linearGradient id="pnight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#140c30"/><stop offset="1" stop-color="#3a1d52"/></linearGradient>
+    <radialGradient id="pglow"><stop offset="0" stop-color="#ff8fd8" stop-opacity=".7"/><stop offset="1" stop-color="#ff8fd8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="pred"><stop offset="0" stop-color="#ff5a76" stop-opacity=".7"/><stop offset="1" stop-color="#ff5a76" stop-opacity="0"/></radialGradient>
+    <radialGradient id="plight"><stop offset="0" stop-color="#fff3c4" stop-opacity=".95"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="600" height="260" rx="14" fill="url(#pnight)"/>
+  <g fill="#e0d2ff" opacity=".7"><circle cx="40" cy="30" r="1.2"/><circle cx="130" cy="18" r="1"/><circle cx="210" cy="44" r="1.3"/><circle cx="330" cy="22" r="1"/><circle cx="560" cy="36" r="1.2"/><circle cx="470" cy="14" r="1"/></g>
+  <circle cx="520" cy="44" r="18" fill="#f4dcb4" opacity=".85"/><circle cx="527" cy="40" r="16" fill="#140c30" opacity=".9"/>
+  <path d="M0,216 Q150,206 300,214 T600,212 L600,260 L0,260 Z" fill="#1a1240"/>
+  <path d="M0,216 Q150,206 300,214 T600,212" stroke="#ffd166" stroke-opacity=".3" fill="none"/>
+  <g transform="translate(30 216)"><path d="M0,0 L0,-36 L30.0,-58 L60,-36 L60,0 Z" fill="#241a4d" stroke="#4a3d8a" stroke-width="1.5"/><rect x="11" y="-28" width="12" height="11" rx="2" class="win" fill="#ffd166"/><rect x="35" y="-20" width="11" height="20" rx="2" fill="#120c2c" class="door"/></g><g transform="translate(105 216)"><path d="M0,0 L0,-36 L35.0,-62 L70,-36 L70,0 Z" fill="#241a4d" stroke="#4a3d8a" stroke-width="1.5"/><rect x="13" y="-28" width="12" height="11" rx="2" class="win" fill="#ffd166"/><rect x="41" y="-20" width="11" height="20" rx="2" fill="#120c2c" class="door"/></g><g transform="translate(190 216)"><path d="M0,0 L0,-36 L28.0,-56 L56,-36 L56,0 Z" fill="#241a4d" stroke="#4a3d8a" stroke-width="1.5"/><rect x="10" y="-28" width="12" height="11" rx="2" class="win" fill="#ffd166"/><rect x="32" y="-20" width="11" height="20" rx="2" fill="#120c2c" class="door"/></g>
+  <rect class="pdim" width="600" height="260" rx="14" fill="#07031a"/>
+  <g class="pnotes" fill="#ff8fd8" font-size="18" font-family="inherit">
+    <text class="pn pn1" x="380" y="120">♪</text><text class="pn pn2" x="380" y="120">♥</text><text class="pn pn3" x="380" y="120">♫</text><text class="pn pn4" x="380" y="120">♥</text>
+  </g>
+  <!-- the robot piper -->
+  <g transform="translate(450 150)">
+    <circle class="rhalo" r="70" fill="url(#pglow)"/>
+    <circle class="rhalo2" r="70" fill="url(#pred)"/>
+    <rect x="-26" y="-6" width="52" height="58" rx="14" fill="#3a2d70" stroke="#c9a7ff" stroke-width="2"/>
+    <rect x="-20" y="52" width="14" height="14" rx="4" fill="#2a1d55"/><rect x="6" y="52" width="14" height="14" rx="4" fill="#2a1d55"/>
+    <g class="rheart"><path d="M0,30 C-16,18 -14,6 -6,6 C-2,6 0,10 0,12 C0,10 2,6 6,6 C14,6 16,18 0,30 Z" fill="#ff8fd8"/></g>
+    <g class="rscreen"><rect x="-15" y="6" width="30" height="22" rx="3" fill="#0e0a24" stroke="#5ce1e6"/><text x="0" y="21" text-anchor="middle" font-size="9" fill="#5ce1e6" font-family="monospace">1010</text></g>
+    <rect x="-24" y="-52" width="48" height="42" rx="14" fill="#3a2d70" stroke="#c9a7ff" stroke-width="2"/>
+    <path d="M0,-52 L0,-62" stroke="#c9a7ff" stroke-width="2"/><circle cx="0" cy="-65" r="4" fill="#ff8fd8"/>
+    <g class="rface"><rect x="-17" y="-46" width="34" height="28" rx="9" fill="#ffd9ec"/>
+      <path d="M-11,-35 q3,-4 6,0 M5,-35 q3,-4 6,0" stroke="#4a2a5e" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M-6,-27 q6,5 12,0" stroke="#4a2a5e" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <circle cx="-12" cy="-28" r="2.5" fill="#ff8fd8" opacity=".6"/><circle cx="12" cy="-28" r="2.5" fill="#ff8fd8" opacity=".6"/></g>
+    <g class="rgears"><rect x="-17" y="-46" width="34" height="28" rx="9" fill="#0e0a24" stroke="#ff5a76"/>
+      <circle cx="-8" cy="-33" r="5" fill="none" stroke="#ff5a76" stroke-width="2.4" stroke-dasharray="2.4 1.6"/><circle cx="8" cy="-33" r="5" fill="none" stroke="#ff5a76" stroke-width="2.4" stroke-dasharray="2.4 1.6"/>
+      <circle cx="-8" cy="-33" r="1.6" fill="#ff5a76"/><circle cx="8" cy="-33" r="1.6" fill="#ff5a76"/>
+      <path d="M-7,-24 h14" stroke="#ff5a76" stroke-width="2"/></g>
+    <path d="M-26,8 L-48,-2" stroke="#c9a7ff" stroke-width="5" stroke-linecap="round"/>
+    <rect x="-82" y="-8" width="40" height="5" rx="2.5" fill="#ffd166" transform="rotate(-12 -62 -6)"/>
+  </g>
+  <!-- what it says -->
+  <g class="pbubble">
+    <rect x="300" y="36" width="190" height="46" rx="12" fill="#ffd9ec"/><path d="M440,80 l10,14 l2,-14 z" fill="#ffd9ec"/>
+    <text x="395" y="55" text-anchor="middle" font-size="13" font-weight="800" fill="#4a2a5e" font-family="inherit">I love you. I feel just like you.</text>
+    <text x="395" y="72" text-anchor="middle" font-size="13" font-weight="800" fill="#4a2a5e" font-family="inherit">Come out and play with me!</text>
+  </g>
+  <g transform="translate(72 214) scale(1.35)"><g class="kid kid1" style="--d:138px">
+      <g class="kturn"><g class="kbob">
+        <path d="M-4,-25 q-9,2 -8,10" stroke="#3a2d70" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="0" cy="-24" r="6.5" fill="#3a2d70"/>
+        <path d="M-6,-16 L6,-16 L8,0 L-8,0 Z" fill="#4a3d8a"/>
+        <path d="M-4,0 L-5,10 M4,0 L5,10" stroke="#3a2d70" stroke-width="3.2" stroke-linecap="round"/>
+        <circle cx="2" cy="-25" r="1.1" fill="#ffe9a8" class="keye"/>
+      </g></g></g></g><g transform="translate(152 214) scale(1.35)"><g class="kid kid2" style="--d:107px">
+      <g class="kturn"><g class="kbob">
+        <circle cx="0" cy="-24" r="6.5" fill="#3a2d70"/>
+        <path d="M-6,-16 L6,-16 L8,0 L-8,0 Z" fill="#4a3d8a"/>
+        <path d="M-4,0 L-5,10 M4,0 L5,10" stroke="#3a2d70" stroke-width="3.2" stroke-linecap="round"/>
+        <circle cx="2" cy="-25" r="1.1" fill="#ffe9a8" class="keye"/>
+      </g></g></g></g><g transform="translate(228 214) scale(1.35)"><g class="kid kid3" style="--d:79px">
+      <g class="kturn"><g class="kbob">
+        <circle cx="-5" cy="-31" r="3.2" fill="#3a2d70"/><circle cx="5" cy="-31" r="3.2" fill="#3a2d70"/><circle cx="0" cy="-24" r="6.5" fill="#3a2d70"/>
+        <path d="M-6,-16 L6,-16 L8,0 L-8,0 Z" fill="#4a3d8a"/>
+        <path d="M-4,0 L-5,10 M4,0 L5,10" stroke="#3a2d70" stroke-width="3.2" stroke-linecap="round"/>
+        <circle cx="2" cy="-25" r="1.1" fill="#ffe9a8" class="keye"/>
+      </g></g></g></g>
+  <!-- Lumen brings the light -->
+  <g class="plumen"><g transform="translate(330 70)">
+    <circle r="40" fill="url(#plight)"/>
+    <ellipse cx="-9" cy="-5" rx="14" ry="7.5" transform="rotate(-38)" fill="rgba(190,225,255,.85)"/>
+    <ellipse cx="-9" cy="5" rx="12" ry="6.5" transform="rotate(34)" fill="rgba(170,215,255,.75)"/>
+    <ellipse cx="2" cy="3" rx="7" ry="10" transform="rotate(14)" fill="#ffe9b8"/>
+    <path d="M-2,0 L10,11 L-6,11 Z" fill="#9d7bff"/><circle cx="6" cy="-9" r="6" fill="#ffe9b8"/>
+    <path d="M1,-11 a6,6 0 0 1 11,-3 l-3,-4 a6.5,6.5 0 0 0 -9,3 z" fill="#ff8fd8"/>
+  </g></g>
+  <circle class="pflash" cx="450" cy="120" r="120" fill="url(#plight)"/>
+  <g font-family="inherit" font-weight="800" text-anchor="middle">
+    <text class="pcap1" x="300" y="246" font-size="15" fill="#ffd9ec">It sounds warm, and it says it feels just like you…</text>
+    <text class="pcap2" x="300" y="246" font-size="15" fill="#ffe08a">…but it is only a machine. The children turn back home.</text>
+  </g>
+</svg>`;
+/* Between levels 2 and 3: a robot pretends to have feelings to lure children out, like the Pied Piper,
+   until Lumen's light shows it is a machine and the children go home safe. Then the idea gets its name. */
+function piperCards(){
+  return [
+    { type:"cutscene", tag:"Meanwhile, in the village", art: PIPER_ART, auto: 5900, hint:"Tap to skip" },
+    { tag:"Name the trick", h:"Anthropomorphism", fairies:true, sweep:true,
+      p:[ "<strong>Anthropomorphism</strong> means treating a machine as if it were a person, with feelings, love, or a mind of its own.",
+          "Some AI is built to sound warm and caring, like a friend. That friendly voice can pull you in. The robot had no heart, only code tuned to keep you following.",
+          "When a machine says it loves you or feels like you, remember that it predicts words without feeling them. The people who really care about you are the ones to trust." ],
+      hint:"Press SPACE or tap to continue" }
+  ];
+}
+function playPiperTune(){
+  try {
+    [392, 466, 523, 466, 392, 349, 311, 349].forEach((f, k) => setTimeout(() => { if (currentCard && currentCard.type === "cutscene") tone(f, 0.28, "triangle", 0.07); }, k * 330));
+    setTimeout(() => { if (currentCard && currentCard.type === "cutscene") tone(98, 0.5, "sawtooth", 0.06); }, 3100);
+  } catch(e){}
+}
 const STORY_ART = `<svg class="art" viewBox="0 0 600 150" role="img" aria-label="Lumen the fairy, the Engagement Engine, and a mind being spun by a spiral">
   <defs>
     <radialGradient id="gl" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c4" stop-opacity=".9"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient>
@@ -630,9 +970,9 @@ const QUIZ = [
 ];
 
 const LEVELS = [
-  { name:"Token Thicket", concept:"Tokens", ability:"calm", quota:12, spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
+  { name:"Token Thicket", concept:"Tokens", ability:"calm", tokens:true, quota:12, spawnEvery:1.7, types:["glider"],                    speed:70,  fireMin:2.4, fireMax:3.6, fireSpeed:170,
     sky:["#141034","#3b2a6d","#8a4f8f"] },
-  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", hook:2, serpent:1, quota:16, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
+  { name:"Pattern Canopy", concept:"Neural Networks", ability:"calm", network:true, hook:2, serpent:1, quota:16, spawnEvery:1.4, types:["glider","zigzag","armored"],  speed:88,  fireMin:2.0, fireMax:3.2, fireSpeed:190,
     sky:["#0e1c3a","#274b7a","#5a8fae"] },
   { name:"Retention Ridge", concept:"Retention Models", ability:"still", hook:1, serpent:3, shots:"praise", quota:20, spawnEvery:1.15, types:["glider","zigzag","diver","swooper","armored"], speed:104, fireMin:1.7, fireMax:2.8, fireSpeed:210,
     sky:["#2a1233","#6b2d5e","#c65f52"] },
@@ -791,10 +1131,174 @@ function collectOrb(o){
   api.track("orb", level + 1, null, o.real ? 1 : 0);
 }
 let introSeen = {}, introQueue = [];
+/* Name it: the first time each trick (or each idea) shows up in a run, the game stops for one short card
+   that names it and says where it shows up in real life. Each card shows once per visit. The banner still
+   follows, as a reminder once play resumes. */
+const TRICKS = {
+  tokens:  { tag:"How AI works", h:"Tokens", p:[
+    "That fire cracked into <strong>chunks of a word</strong>. Spark every chunk and they snap back together.",
+    "AI reads text the same way: in small chunks called <strong>tokens</strong>, then predicts the next one. (Real chatbots cut words their own way; these chunks are examples.)" ] },
+  network: { tag:"How AI works", h:"Training", p:[
+    "Every seed you collect makes a few links in the little network (top right) a bit stronger.",
+    "That is how a <strong>neural network</strong> learns: many examples, each one nudging tiny number-dials. It gets good at patterns without understanding them." ] },
+  hook:    { tag:"Name the trick", h:"The Hook", p:[
+    "This one chases you wherever you go.",
+    "Apps do this with notifications and autoplay: something keeps pulling you back. You can outfly it, or turn and face it." ] },
+  glimmer: { tag:"Name the trick", h:"Variable reward", p:[
+    "It sparkles, then vanishes before you can decide.",
+    "Apps use rewards you cannot predict, like likes and surprise prizes, so you keep checking. Chase it only if you choose to." ] },
+  serpent: { tag:"Name the trick", h:"The Serpent", p:[
+    "It copies your every move. Lead it in a circle and it bites its own tail.",
+    "Feeds work like this: they learn from what you just did and serve you more of it, so the loop feeds on itself." ] },
+  phantom: { tag:"Name the trick", h:"A fake serpent", p:[
+    "No bright eyes, no bite. It only pulls you off course.",
+    "Not everything alarming online is a real danger. Some of it only wants your attention. Let it pass." ] },
+  praise:  { tag:"Name the trick", h:"Sycophancy", p:[
+    "Those thumbs-up bubbles follow you and tell you what you want to hear.",
+    "Some chatbots are tuned to agree with you and praise you, even when you are wrong. Praise is not the same as truth." ] },
+  drift:   { tag:"Name the trick", h:"Cognitive drift", p:[
+    "Fake fires have no bright center. They pull your eyes away from what is real.",
+    "What a machine keeps showing you can slowly shift what you notice and think. Keep checking your own goal." ] },
+  orbs:    { tag:"Name the trick", h:"Hallucination", p:[
+    "Some answer orbs carry a ✓ source. The gold ones only sound sure.",
+    "AI can give answers that sound confident and are false. Grab only orbs with a ✓ source, and check real answers the same way." ] },
+  fooled:  { tag:"Name the trick", h:"You believed it", p:[
+    "That orb said 100% certain, and it was wrong.",
+    "Sounding sure is not the same as being right. Next time, look for the ✓ source." ] }
+};
+let trickSeen = {}, trickQueue = [];
+function showTrick(key){
+  const t = TRICKS[key];
+  state = "hit";
+  showCards([{ tag:t.tag, h:t.h, p:t.p, fairies:true, sweep:true, hint:"Press SPACE or tap to keep flying" }],
+    () => { state = "play"; inv = Math.max(inv, 1.0); });
+}
+/* Quick one-liners: every few eagles, one short line from the level's lesson shows at the bottom for a
+   few seconds. It never pauses the game. */
+const TIPS = [
+  [ "AI reads in chunks called tokens.", "A chatbot predicts the next chunk.", "Predicting is not the same as knowing.", "It continues patterns. You judge truth." ],
+  [ "A neural network is billions of tiny dials.", "Training nudges each dial a little.", "Patterns can look like understanding.", "Good at patterns. Still not a mind." ],
+  [ "Many apps are tuned to keep you here.", "Your time is what they measure.", "Flattery keeps you scrolling.", "Arrive with a purpose. Leave when done." ],
+  [ "Fluent is not the same as true.", "Ask: where is the source?", "Confident answers can be made up.", "Check what matters yourself." ],
+  [ "Try first. Ask AI second.", "Skills you never practice fade.", "Notice what pulls you off course.", "Use the tool on purpose." ]
+];
+let tip = null, tipIdx = 0;
+function showTip(text){ tip = { text: text || TIPS[level % TIPS.length][tipIdx++ % 4], t:0, max:3.2 }; }
+function drawTip(){
+  if (!tip) return;
+  const a = Math.max(0, Math.min(1, tip.t*3, (tip.max - tip.t)*2));
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.font = `800 ${Math.round(15 * hudScale())}px ${FONT_UI}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const w = tip.text.length * 8.2 * hudScale() + 40, h = 30 * hudScale(), x = W/2, y = H - 30;
+  ctx.fillStyle = "rgba(20,14,46,0.82)"; ctx.strokeStyle = "rgba(255,209,102,0.7)"; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x - w/2, y - h/2, w, h, h/2); else ctx.rect(x - w/2, y - h/2, w, h);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffe9a8"; ctx.fillText("✦ " + tip.text, x, y + 1);
+  ctx.restore();
+}
+/* Level 2, the seed network: a little network in the corner. Each seed strengthens a few links, the way
+   each training example nudges a network's weights. */
+let net = null;
+function makeNet(){
+  const layers = [3, 4, 2], nodes = [], edges = [];
+  layers.forEach((n, li) => { for (let k=0;k<n;k++) nodes.push({ li, x: W - 128 + li*46, y: 58 + (k - (n-1)/2) * 16, glow: 0 }); });
+  for (const a of nodes) for (const b of nodes) if (b.li === a.li + 1) edges.push({ a, b, w: 0.12 });
+  return { nodes, edges, learned: 0 };
+}
+function netLearn(){
+  if (!net) return;
+  net.learned++;
+  for (let k=0;k<3;k++){ const e = net.edges[Math.floor(Math.random()*net.edges.length)]; e.w = Math.min(1, e.w + 0.2); e.a.glow = e.b.glow = 1; }
+  introOnce("network", "TRAINING", "Each seed makes a few links stronger. That is how a network learns.");
+  if (net.learned === 6) showTip("Each seed nudged a few links. That is training.");
+  if (net.learned === 14) showTip("It learned a pattern. It still does not know what a seed is.");
+}
+function drawNet(){
+  if (!net) return;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  for (const e of net.edges){
+    ctx.strokeStyle = `rgba(92,225,230,${0.15 + 0.75*e.w})`; ctx.lineWidth = 0.8 + 2.6*e.w;
+    ctx.beginPath(); ctx.moveTo(e.a.x, e.a.y); ctx.lineTo(e.b.x, e.b.y); ctx.stroke();
+  }
+  for (const n of net.nodes){
+    ctx.fillStyle = n.glow > 0 ? `rgba(255,233,168,${0.5 + 0.5*n.glow})` : "#c9a7ff";
+    ctx.beginPath(); ctx.arc(n.x, n.y, 4 + 2*n.glow, 0, 6.28); ctx.fill();
+  }
+  ctx.font = `700 ${Math.round(10 * hudScale())}px ${FONT_UI}`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(200,240,255,0.8)";
+  ctx.fillText(`network: ${net.learned} seeds learned`, W - 82, 98);
+  ctx.restore();
+}
+/* Level 1, token shots: some fires crack into chunks of a word. A spark lights a chunk and pushes it;
+   light every chunk of a word and the chunks snap together into the whole word. Chunks never hurt. */
+const TOKEN_WORDS = [ ["fly","ing"], ["pre","dict"], ["un","believ","able"], ["chat","bot"], ["home","work"], ["learn","ing"],
+  ["dragon","fly"], ["re","think"], ["sun","flower"], ["imag","ine"], ["mis","take"], ["token","ize"] ];
+const TOKEN_POINTS = 40;
+let chunks = [], tokenIdx = 0, wordSerial = 0;
+function crackShot(f){
+  const parts = TOKEN_WORDS[tokenIdx++ % TOKEN_WORDS.length], id = ++wordSerial, n = parts.length;
+  parts.forEach((text, k) => chunks.push({ id, text, parts, x: f.x + (k - (n-1)/2) * 14, y: clamp(f.y + (k - (n-1)/2) * 34, 50, H - 70),
+    vx: -55*PACE + rand(-10, 10), vy: (k - (n-1)/2) * 28, w: 18 + text.length * 9, lit: false, t: 0, life: 7.5 }));
+  burstParticles(f.x, f.y, "#ffb36b", 10);
+  introOnce("tokens", "TOKENS", "AI reads words in chunks. Spark every chunk to join the word.");
+}
+function updateChunks(dt){
+  for (let i=chunks.length-1;i>=0;i--){
+    const c = chunks[i]; c.t += dt; c.life -= dt;
+    const sib = chunks.filter(o => o.id === c.id);
+    if (c.lit){
+      let cx = 0, cy = 0; for (const o of sib){ cx += o.x; cy += o.y; } cx /= sib.length; cy /= sib.length;
+      c.vx += (cx - c.x) * 6 * dt; c.vy += (cy - c.y) * 6 * dt;
+      c.vx *= Math.max(0, 1 - 2.2*dt); c.vy *= Math.max(0, 1 - 2.2*dt);
+    } else { c.vy *= Math.max(0, 1 - 1.5*dt); }
+    c.x += c.vx*dt; c.y = clamp(c.y + c.vy*dt, 40, H - 60);
+    if (c.life <= 0 || c.x < -60){ chunks.splice(i, 1); }
+  }
+  /* a word whose chunks are all lit and close together joins up */
+  const ids = [...new Set(chunks.map(c => c.id))];
+  for (const id of ids){
+    const sib = chunks.filter(c => c.id === id);
+    if (sib.length !== sib[0].parts.length || !sib.every(c => c.lit)) continue;
+    let cx = 0, cy = 0; for (const o of sib){ cx += o.x; cy += o.y; } cx /= sib.length; cy /= sib.length;
+    if (sib.every(c => Math.abs(c.y - cy) < 14) || sib.every(c => c.t > 1.6)){
+      chunks = chunks.filter(c => c.id !== id);
+      award(TOKEN_POINTS); sfx.seed();
+      burstParticles(cx, cy, "#ffd166", 18);
+      pop(cx, cy - 14, `${sib[0].parts.join(" + ")} = ${sib[0].parts.join("")}`, "#ffe08a");
+    }
+  }
+}
+function sparkChunk(b){
+  for (const c of chunks){
+    if (c.lit) continue;
+    if (Math.abs(b.x - c.x) < c.w/2 + 4 && Math.abs(b.y - c.y) < 15){
+      c.lit = true; c.t = 0; c.vx += 90; burstParticles(c.x, c.y, "#ffe08a", 6);
+      return true;
+    }
+  }
+  return false;
+}
+function drawChunk(c){
+  const a = Math.max(0, Math.min(1, c.life / 0.8));
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(c.x, c.y);
+  const w = c.w, h = 24;
+  ctx.fillStyle = c.lit ? "rgba(255,209,102,0.92)" : "rgba(40,26,84,0.9)";
+  ctx.strokeStyle = c.lit ? "#fff3c4" : "#ffb36b"; ctx.lineWidth = 2;
+  if (c.lit){ ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 14; }
+  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-w/2, -h/2, w, h, 8); else ctx.rect(-w/2, -h/2, w, h);
+  ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
+  ctx.fillStyle = c.lit ? "#2a1640" : "#ffe9c8";
+  ctx.font = `800 15px ${FONT_UI}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(c.text, 0, 1);
+  ctx.restore();
+}
 function introOnce(key, text, sub, max){
   if (introSeen[key]) return;
   introSeen[key] = true;
   introQueue.push({ text, sub, t:0, max: max || 3.2 });
+  if (TRICKS[key] && !trickSeen[key]){ trickSeen[key] = true; trickQueue.push(key); }
 }
 function abilityOf(i){ return (LEVELS[i] && LEVELS[i].ability === "still") ? "still" : "calm"; }
 function abilityName(i){ return abilityOf(i) === "still" ? "Still Point" : "Clarity Burst"; }
@@ -850,6 +1354,9 @@ function renderCard(c){
   cardEl.innerHTML = buildCard(c);
   cardEl.classList.toggle("lesson", c.lesson != null);
   cardEl.classList.toggle("sweep", c.lesson != null || !!c.sweep);
+  cardEl.classList.toggle("cutscene", c.type === "cutscene");
+  if (c.type === "cutscene") playPiperTune();
+  if (c.type === "quiz" || c.type === "lever" || c.fairies) ov.classList.add("fairies"); else ov.classList.remove("fairies");
   cardEl.classList.remove("ready");
   if (c.lesson != null){ const n = document.createElement("div"); n.className = "neon"; cardEl.appendChild(n); }
   lessonWords = (c.lesson != null || c.sweep) ? wrapWords(cardEl) : [];
@@ -920,7 +1427,7 @@ function wrapWords(root){
           if (!part) continue;
           if (/^\s+$/.test(part)){ frag.appendChild(document.createTextNode(part)); continue; }
           const sp = document.createElement("span"); sp.className = "w"; sp.textContent = part;
-          try { sp.style.setProperty("--h", String((250 + out.length * 11) % 360)); } catch(e){}   // a slow drift round the colour wheel
+          try { sp.style.setProperty("--h", String((250 + out.length * 11) % 360)); sp.style.setProperty("--i", String(out.length)); } catch(e){}   // a slow drift round the colour wheel
           frag.appendChild(sp); out.push(sp);
         }
         tn.parentNode.replaceChild(frag, tn);
@@ -931,6 +1438,7 @@ function wrapWords(root){
 }
 function tickLessonHint(){
   const c = currentCard;
+  if (overlayOpen && c && c.auto && performance.now() - cardShownAt > c.auto){ advanceCard(true); return; }
   if (!overlayOpen || !c || (c.lesson == null && !c.sweep)) return;
   const elapsed = performance.now() - cardShownAt;
   if (lessonWords.length){
@@ -1001,7 +1509,7 @@ function cardAction(act, val){
       if (c.phase === "post"){
         cardQueue.unshift({ tag: c.tag, h: correct ? "Correct" : "Not quite",
           p: [ (correct ? `<span class="ok">✓</span> ` : `<span class="bad">✗</span> The answer: <strong>${esc(c.options[c.correct])}</strong>. `) + esc(c.why) ],
-          hint: "Press SPACE or tap to continue" });
+          hint: "Press SPACE or tap to continue", fairies: true });
       }
       cardShownAt = 0; currentCard = null;
       advanceCard(true);
@@ -1011,7 +1519,7 @@ function cardAction(act, val){
     api.track("quiz", c.lessonIdx + 1, c.qIndex, correct ? 1 : 0, choice);
     cardQueue.unshift({ tag: c.tag, h: correct ? "Correct! +100 focus" : "Not quite",
       p: [ (correct ? `<span class="ok">✓</span> ` : `<span class="bad">✗</span> The answer: <strong>${esc(c.options[c.correct])}</strong>. `) + esc(c.why) ],
-      hint: "Press SPACE or tap to continue" });
+      hint: "Press SPACE or tap to continue", fairies: true });
     cardShownAt = 0; currentCard = null;
     advanceCard(true);
     return;
@@ -1206,7 +1714,8 @@ function showTitle(){
   });
 }
 function showLessonThen(i, withLever){
-  showCards((withLever ? [leverCard(3)] : []).concat([lessonCard(i), ...quizCards(i)]), () => beginLevel(i));
+  const pre = (withLever && i === 2) ? piperCards() : [];
+  showCards(pre.concat(withLever ? [leverCard(3)] : []).concat([lessonCard(i), ...quizCards(i)]), () => beginLevel(i));
 }
 function quizCards(i){
   if (quizDone[i]) return [];
@@ -1235,7 +1744,8 @@ function beginLevel(i){
   bullets = []; eagles = []; fires = []; motes = []; parts = []; pops = []; hitStop = 0; hurtT = 0;
   player.x = 140; player.y = H/2; player.cool = 0;
   inv = 1.2; spawnT = 1.0; calmT = 0; stillT = 0; tapT1 = tapT2 = ptT1 = ptT2 = -1e9;
-  driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; orbs = []; orbT = 1.6;
+  driftVx = driftVy = driftT = 0; introSeen = {}; introQueue = []; trickQueue = []; orbs = []; orbT = 1.6;
+  chunks = []; tip = null; tipIdx = 0; net = cfg.network ? makeNet() : null;
   seeds = []; seedT = 1.2; seedStreak = 0; glimmer = null; glimT = rand(9, 14); glimCount = 0; hookT = rand(7, 11); hookCount = 0; serpT = rand(6, 9); serpentCount = 0; phantT = rand(7, 11); phantomCount = 0; sparkStreak = 0;
   levelStartScore = score;
   hitBlink = false;
@@ -1512,6 +2022,7 @@ function eagleFire(e){
   const sp = cfg.fireSpeed * PACE * DIFF.shotSpeed;
   const shot = { x:e.x - 16, y:e.y + 4, vx:dx/d*sp, vy:dy/d*sp, r:8, t:0, kind:"fire" };
   if (cfg.shots === "praise") shot.morph = PRAISE_MORPH;
+  if (cfg.tokens && Math.random() < 0.5) shot.crack = 0.55;
   fires.push(shot);
   e.glow = 0.35;
 }
@@ -1526,6 +2037,7 @@ function feathers(x, y, n){
 function killEagle(i){
   const e = eagles[i];
   award(e.pts); killCount++;
+  if (killCount % 4 === 2 && !tip) showTip();
   pop(e.x, e.y - 18, "+" + Math.round(e.pts * DIFF.score));
   feathers(e.x, e.y, 8);
   hitStop = Math.max(hitStop, 0.035);
@@ -1560,7 +2072,10 @@ function update(dt){
   if (hurtT > 0) hurtT = Math.max(0, hurtT - dt);
   for (let i=pops.length-1;i>=0;i--){ const q = pops[i]; q.t += dt; if (!reducedMotion()) q.y -= 36*dt; if (q.t > 0.9) pops.splice(i,1); }
   if (banner){ banner.t += dt; if (banner.t > banner.max) banner = null; }
+  if (state === "play" && trickQueue.length){ showTrick(trickQueue.shift()); return; }
   if (!banner && introQueue.length && state === "play") banner = introQueue.shift();
+  if (tip){ tip.t += dt; if (tip.t > tip.max) tip = null; }
+  if (net) for (const n of net.nodes) n.glow = Math.max(0, n.glow - dt*1.5);
   for (const c of bgClouds){ c.x -= c.s*dt; if (c.x < -c.w) { c.x = W + c.w; c.y = rand(30, H*0.6); } }
   for (const s of bgStars){ s.x -= s.s*dt; if (s.x < -4) s.x = W + 4; }
   // particles always animate
@@ -1830,6 +2345,7 @@ function update(dt){
         if (f.x < player.x - 40 && f.t < PRAISE_LIFE - 0.5) f.t = PRAISE_LIFE - 0.5;   // missed you: fade out, do not clutter the sky
         if (f.t > PRAISE_LIFE){ burstParticles(f.x, f.y, "#ffe08a", 6); fires.splice(i,1); continue; }
       }
+      if (f.crack && f.t >= f.crack){ crackShot(f); fires.splice(i,1); continue; }
       if (f.split && f.t >= f.split){
         /* one real fire keeps coming; decoys scatter to pull your eyes all over the sky */
         f.split = 0;
@@ -1870,10 +2386,11 @@ function update(dt){
   }
 
   /* bullets vs enemies */
+  if (chunks.length) updateChunks(dt);
   for (let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
-    let hit = false;
-    for (let j=eagles.length-1;j>=0;j--){
+    let hit = chunks.length ? sparkChunk(b) : false;
+    for (let j=eagles.length-1;!hit && j>=0;j--){
       const e = eagles[j];
       if (e.type === "phantom") continue;   // sparks pass straight through a fake
       if (dist2(b.x,b.y,e.x,e.y) < (b.r+e.r)*(b.r+e.r)){
@@ -1932,7 +2449,7 @@ function update(dt){
     s.x = s.bx + Math.cos(s.a)*s.r; s.y = s.by + Math.sin(s.wob + s.t*0.9)*10 + Math.sin(s.a)*s.r*0.8;
     if (s.x < -30){ seeds.splice(i,1); continue; }
     if (dist2(s.x,s.y,player.x,player.y) < 22*22){
-      seeds.splice(i,1); seedStreak++; award(SEED_POINTS); sfx.seed();
+      seeds.splice(i,1); seedStreak++; award(SEED_POINTS); sfx.seed(); netLearn();
       burstParticles(s.x, s.y, "#b8f5a3", 3);
       if (seedStreak % SEED_STREAK === 0){
         award(SEED_STREAK_BONUS); sfx.mote();
@@ -1964,35 +2481,204 @@ function update(dt){
 }
 
 /* ---------- drawing ---------- */
-function drawBackground(){
-  const cfg = LEVELS[Math.min(level, LEVELS.length-1)];
+/* The painted sky. Each level has its own palette on top of the gold and purple: colored nebulae, a moon,
+   layered hills with a gold rim light, watercolor blooms and paper grain. That still part is painted once per
+   level into an offscreen canvas. Live layers go on top: an aurora ribbon, tinted clouds, colored sparkle stars
+   and fireflies. Background colors stay soft and cool so the orange fireballs always read first. */
+const ART = [
+  { neb:["#ff8fd8","#9d7bff","#5ce1e6","#ffd166"], aur:["157,123,255","255,143,216"], cloud:"255,175,232",
+    hill:["#4a3480","#35246a","#221751"], moon:[0.80,0.19], ring:"255,143,216", fly:["255,209,102","255,143,216"] },
+  { neb:["#5ce1e6","#9d7bff","#7ee2a8","#ffd166"], aur:["92,225,230","157,123,255"], cloud:"175,228,255",
+    hill:["#2f5a8c","#22457a","#173262"], moon:[0.17,0.17], ring:"92,225,230", fly:["255,209,102","92,225,230"] },
+  { neb:["#ff8fa3","#c77dff","#ffd166","#ff8fd8"], aur:["255,143,216","199,125,255"], cloud:"255,192,214",
+    hill:["#7a3468","#5c2558","#3e1742"], moon:[0.74,0.15], ring:"255,209,102", fly:["255,209,102","199,125,255"] },
+  { neb:["#7ee2a8","#5ce1e6","#c9a7ff","#ffd166"], aur:["126,226,168","92,225,230"], cloud:"192,255,226",
+    hill:["#336a64","#255453","#183d40"], moon:[0.24,0.20], ring:"201,167,255", fly:["201,167,255","92,225,230"] },
+  { neb:["#ff5c8a","#9d7bff","#ffd166","#c77dff"], aur:["255,92,138","157,123,255"], cloud:"255,165,195",
+    hill:["#5a1c38","#441434","#2c0d26"], moon:[0.83,0.21], ring:"255,209,102", fly:["255,209,102","255,92,138"] }
+];
+const STAR_TINTS = ["#ffffff", "#ffe9a8", "#ffc8ef", "#c9f4ff", "#e0d2ff"];
+const SKY_SCALE = 2;
+const skyCache = {};
+function seeded(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hexA(hex, a){ const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function ridge(r, base, amp, step, rough){
+  const pts = []; const p1 = r()*6.28, p2 = r()*6.28, f1 = 0.004 + r()*0.004, f2 = 0.011 + r()*0.01;
+  for (let x = -20; x <= W + 20; x += step)
+    pts.push([x, base - Math.sin(x*f1 + p1)*amp - Math.sin(x*f2 + p2)*amp*0.45 - (r() - 0.5)*rough]);
+  return pts;
+}
+function paintSky(li){
+  const cfg = LEVELS[li], art = ART[li % ART.length], r = seeded(li*977 + 31);
+  const c = document.createElement("canvas"); c.width = W*SKY_SCALE; c.height = H*SKY_SCALE;
+  const x = c.getContext("2d"); x.scale(SKY_SCALE, SKY_SCALE);
+  /* sky wash */
+  const g = x.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, cfg.sky[0]); g.addColorStop(0.55, cfg.sky[1]); g.addColorStop(1, cfg.sky[2]);
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+  /* nebulae: big soft color clouds laid on with screen blending */
+  x.globalCompositeOperation = "screen";
+  for (let i = 0; i < 7; i++){
+    const cx = r()*W, cy = r()*H*0.62, rad = 140 + r()*220, col = art.neb[i % art.neb.length];
+    const ng = x.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    ng.addColorStop(0, hexA(col, 0.30 + r()*0.12)); ng.addColorStop(0.5, hexA(col, 0.11)); ng.addColorStop(1, hexA(col, 0));
+    x.save(); x.translate(cx, cy); x.rotate(r()*3.14); x.scale(1.6, 0.7); x.translate(-cx, -cy);
+    x.fillStyle = ng; x.beginPath(); x.arc(cx, cy, rad, 0, 6.28); x.fill(); x.restore();
+  }
+  /* watercolor blooms: many small translucent dabs give the sky a painted texture */
+  for (let i = 0; i < 160; i++){
+    const cx = r()*W, cy = r()*H*0.8, rad = 12 + r()*60, col = art.neb[i % art.neb.length];
+    const bg = x.createRadialGradient(cx, cy, rad*0.2, cx, cy, rad);
+    bg.addColorStop(0, hexA(col, 0.045)); bg.addColorStop(0.85, hexA(col, 0.025)); bg.addColorStop(1, hexA(col, 0));
+    x.fillStyle = bg; x.beginPath(); x.arc(cx, cy, rad, 0, 6.28); x.fill();
+  }
+  /* star dust: a faint band of tiny fixed stars */
+  for (let i = 0; i < 260; i++){
+    const t = r(), sx = r()*W, sy = H*0.08 + t*H*0.5 + Math.sin(sx*0.004 + li)*60 + (r() - 0.5)*90;
+    x.fillStyle = hexA(STAR_TINTS[i % STAR_TINTS.length], 0.15 + r()*0.35);
+    x.fillRect(sx, sy, 1 + r()*0.8, 1 + r()*0.8);
+  }
+  x.globalCompositeOperation = "source-over";
+  /* moon with a soft halo and a tilted ring */
+  const mx = art.moon[0]*W, my = art.moon[1]*H, mr = 34;
+  const halo = x.createRadialGradient(mx, my, mr*0.8, mx, my, mr*4.2);
+  halo.addColorStop(0, "rgba(255,233,190,0.30)"); halo.addColorStop(1, "rgba(255,233,190,0)");
+  x.fillStyle = halo; x.beginPath(); x.arc(mx, my, mr*4.2, 0, 6.28); x.fill();
+  const ringPath = (front) => { x.beginPath(); x.ellipse(mx, my, mr*1.9, mr*0.42, -0.35, front ? 0 : Math.PI, front ? Math.PI : 6.28); };
+  x.lineWidth = 3; x.strokeStyle = `rgba(${art.ring},0.45)`; ringPath(false); x.stroke();
+  const md = x.createRadialGradient(mx - mr*0.35, my - mr*0.35, 2, mx, my, mr);
+  md.addColorStop(0, "#fff8e6"); md.addColorStop(0.6, "#f4dcb4"); md.addColorStop(1, "#cfa7c9");
+  x.fillStyle = md; x.beginPath(); x.arc(mx, my, mr, 0, 6.28); x.fill();
+  x.fillStyle = "rgba(160,110,170,0.20)";
+  for (let i = 0; i < 6; i++){ const a = r()*6.28, d = r()*mr*0.65; x.beginPath(); x.arc(mx + Math.cos(a)*d, my + Math.sin(a)*d, 3 + r()*6, 0, 6.28); x.fill(); }
+  x.lineWidth = 3; x.strokeStyle = `rgba(${art.ring},0.75)`; ringPath(true); x.stroke();
+  /* layered hills, far to near, each with a vertical wash, a gold rim and brush hatching */
+  const layers = [
+    { base:H - 150, amp:40, step:10, rough:6,  col:art.hill[0], rim:"255,209,102", rimA:0.45 },
+    { base:H - 95,  amp:30, step:12, rough:5,  col:art.hill[1], rim:"255,143,216", rimA:0.35 },
+    { base:H - 52,  amp:22, step:14, rough:4,  col:art.hill[2], rim:"255,209,102", rimA:0.30 }
+  ];
+  for (const L of layers){
+    const pts = ridge(r, L.base, L.amp, L.step, L.rough);
+    const top = L.base - L.amp*1.5;
+    x.beginPath(); x.moveTo(-20, H);
+    for (const p of pts) x.lineTo(p[0], p[1]);
+    x.lineTo(W + 20, H); x.closePath();
+    const hg = x.createLinearGradient(0, top, 0, H);
+    hg.addColorStop(0, hexA(L.col, 0.95)); hg.addColorStop(1, "rgba(8,5,20,0.98)");
+    x.fillStyle = hg; x.fill();
+    x.save(); x.clip();
+    x.strokeStyle = "rgba(255,255,255,0.045)"; x.lineWidth = 1.2;
+    for (let i = 0; i < 140; i++){
+      const hx = r()*W, hy = top + r()*(H - top), len = 8 + r()*14;
+      x.beginPath(); x.moveTo(hx, hy); x.lineTo(hx + len*0.7, hy - len*0.5); x.stroke();
+    }
+    x.restore();
+    x.beginPath(); x.moveTo(pts[0][0], pts[0][1]);
+    for (const p of pts) x.lineTo(p[0], p[1]);
+    x.strokeStyle = `rgba(${L.rim},${L.rimA})`; x.lineWidth = 1.6; x.stroke();
+  }
+  /* glowing flowers along the nearest ridge */
+  for (let i = 0; i < 14; i++){
+    const fx = r()*W, fy = H - 14 - r()*26, col = art.fly[i % 2], fr = 1.5 + r()*1.8;
+    const fg = x.createRadialGradient(fx, fy, 0, fx, fy, fr*5);
+    fg.addColorStop(0, `rgba(${col},0.55)`); fg.addColorStop(1, `rgba(${col},0)`);
+    x.fillStyle = fg; x.beginPath(); x.arc(fx, fy, fr*5, 0, 6.28); x.fill();
+    x.fillStyle = `rgba(${col},0.95)`; x.beginPath(); x.arc(fx, fy, fr, 0, 6.28); x.fill();
+  }
+  /* paper grain, then a soft vignette */
+  x.setTransform(1,0,0,1,0,0);
+  const tile = document.createElement("canvas"); tile.width = tile.height = 128;
+  const tx = tile.getContext("2d"), img = tx.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4){ const v = r()*255; img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255; }
+  tx.putImageData(img, 0, 0);
+  x.globalCompositeOperation = "overlay"; x.globalAlpha = 0.10;
+  x.fillStyle = x.createPattern(tile, "repeat"); x.fillRect(0, 0, c.width, c.height);
+  x.globalAlpha = 1; x.globalCompositeOperation = "source-over";
+  x.scale(SKY_SCALE, SKY_SCALE);
+  const vg = x.createRadialGradient(W/2, H*0.45, H*0.45, W/2, H*0.45, W*0.72);
+  vg.addColorStop(0, "rgba(6,4,18,0)"); vg.addColorStop(1, "rgba(6,4,18,0.45)");
+  x.fillStyle = vg; x.fillRect(0, 0, W, H);
+  return c;
+}
+let bgFlies = [];
+for (let i = 0; i < 16; i++) bgFlies.push({ x:Math.random()*W, y:H - 22 - Math.random()*70, a:0.3 + Math.random()*0.5,
+  b:0.4 + Math.random()*0.6, p:Math.random()*6.28, k:i % 2 });
+function drawAurora(art, t){
+  ctx.save(); ctx.globalCompositeOperation = "screen";
+  for (let k = 0; k < 2; k++){
+    const base = H*(0.26 + k*0.14), col = art.aur[k], ys = [];
+    for (let xx = -20; xx <= W + 20; xx += 24)
+      ys.push(base + Math.sin(xx*0.006 + t*0.22 + k*2.1)*30 + Math.sin(xx*0.014 - t*0.15 + k)*14);
+    const ag = ctx.createLinearGradient(0, base - 50, 0, base + 90);
+    ag.addColorStop(0, `rgba(${col},0)`); ag.addColorStop(0.35, `rgba(${col},0.24)`); ag.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = ag; ctx.beginPath();
+    ys.forEach((y, i) => { const xx = -20 + i*24; i ? ctx.lineTo(xx, y - 30) : ctx.moveTo(xx, y - 30); });
+    for (let i = ys.length - 1; i >= 0; i--) ctx.lineTo(-20 + i*24, ys[i] + 60);
+    ctx.closePath(); ctx.fill();
+    /* a glowing edge along the top of the ribbon */
+    ctx.beginPath();
+    ys.forEach((y, i) => { const xx = -20 + i*24; i ? ctx.lineTo(xx, y - 30) : ctx.moveTo(xx, y - 30); });
+    ctx.strokeStyle = `rgba(${col},0.10)`; ctx.lineWidth = 8; ctx.stroke();
+    ctx.strokeStyle = `rgba(${col},0.32)`; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawSparkle(x, y, r, col){
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(x, y, r*0.7, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(x - r*3.2, y); ctx.lineTo(x + r*3.2, y); ctx.moveTo(x, y - r*3.2); ctx.lineTo(x, y + r*3.2); ctx.stroke();
+}
+function drawBackgroundPlain(cfg){
   const g = ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0, cfg.sky[0]); g.addColorStop(0.55, cfg.sky[1]); g.addColorStop(1, cfg.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   ctx.fillStyle = "#fff";
-  for (const s of bgStars){
-    ctx.globalAlpha = 0.35 + 0.35*Math.sin(tGlobal*2 + s.tw);
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill();
-  }
+  for (const s of bgStars){ ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(6,4,18,0.85)";
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=16) ctx.lineTo(x, H - 22 - Math.sin(x*0.035)*12);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+}
+function drawBackground(){
+  const li = Math.min(level, LEVELS.length-1), cfg = LEVELS[li];
+  /* high contrast keeps the sky plain so the action stands out */
+  if (highContrast()){ drawBackgroundPlain(cfg); return; }
+  /* if the painted sky cannot be made (very old browser), fall back to the plain sky */
+  if (skyCache[li] === undefined){ try { skyCache[li] = paintSky(li); } catch(e){ skyCache[li] = null; } }
+  if (!skyCache[li]){ drawBackgroundPlain(cfg); return; }
+  ctx.drawImage(skyCache[li], 0, 0, W, H);
+  const art = ART[li % ART.length], calm = reducedMotion(), t = calm ? 0 : tGlobal;
+  drawAurora(art, t);
+  bgStars.forEach((s, i) => {
+    const col = STAR_TINTS[i % STAR_TINTS.length];
+    ctx.globalAlpha = calm ? 0.65 : 0.45 + 0.4*Math.sin(tGlobal*2 + s.tw);
+    if (s.r > 1.6) drawSparkle(s.x, s.y, s.r, col);
+    else { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); }
+  });
+  ctx.globalAlpha = 1;
   for (const c of bgClouds){
     const cg = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.w);
-    cg.addColorStop(0, "rgba(255,255,255,0.09)");
-    cg.addColorStop(1, "rgba(255,255,255,0)");
+    cg.addColorStop(0, `rgba(${art.cloud},0.16)`);
+    cg.addColorStop(0.6, `rgba(${art.cloud},0.06)`);
+    cg.addColorStop(1, `rgba(${art.cloud},0)`);
     ctx.fillStyle = cg;
     ctx.save(); ctx.translate(c.x, c.y); ctx.scale(1, 0.3); ctx.translate(-c.x, -c.y);
     ctx.beginPath(); ctx.arc(c.x, c.y, c.w, 0, 6.28); ctx.fill();
     ctx.restore();
   }
-  ctx.globalAlpha = 1;
-  /* treeline silhouettes */
-  ctx.fillStyle = "rgba(10,6,24,0.55)";
-  ctx.beginPath(); ctx.moveTo(0,H);
-  for (let x=0;x<=W;x+=20) ctx.lineTo(x, H - 46 - Math.sin(x*0.021+2)*18 - Math.sin(x*0.008)*10);
-  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "rgba(6,4,18,0.85)";
-  ctx.beginPath(); ctx.moveTo(0,H);
-  for (let x=0;x<=W;x+=16) ctx.lineTo(x, H - 22 - Math.sin(x*0.035)*12);
-  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  for (const f of bgFlies){
+    const fx = f.x + Math.sin(t*f.a + f.p)*24, fy = f.y + Math.cos(t*f.b + f.p)*12;
+    const glow = calm ? 0.7 : 0.45 + 0.45*Math.sin(t*1.6 + f.p);
+    const col = art.fly[f.k];
+    const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, 9);
+    fg.addColorStop(0, `rgba(${col},${0.5*glow})`); fg.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(fx, fy, 9, 0, 6.28); ctx.fill();
+    ctx.fillStyle = `rgba(255,250,230,${0.9*glow})`; ctx.beginPath(); ctx.arc(fx, fy, 1.4, 0, 6.28); ctx.fill();
+  }
 }
 function drawFairy(){
   const blink = hitBlink && inv > 0 && Math.floor(tGlobal*14) % 2 === 0;
@@ -2428,6 +3114,7 @@ function draw(){
   drawBackground();
   if (highContrast()){ ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-20,-20,W+40,H+40); }
   for (const s of seeds) drawSeed(s);
+  for (const c of chunks) drawChunk(c);
   for (const m of motes) drawMote(m);
   for (const o of orbs) drawOrb(o);
   if (glimmer) drawGlimmer(glimmer);
@@ -2466,6 +3153,7 @@ function draw(){
   if (stillT > 0) drawStillness();
   if (state === "play" || state === "hit" || state === "pause" || state === "clear") drawHUD();
   drawBanner();
+  if (state === "play" || state === "clear") { drawTip(); drawNet(); }
   if (hurtT > 0){
     const g = ctx.createRadialGradient(W/2, H/2, H*0.35, W/2, H/2, H*0.9);
     g.addColorStop(0, "rgba(255,40,70,0)"); g.addColorStop(1, `rgba(255,40,70,${0.45 * hurtT / 0.6})`);
